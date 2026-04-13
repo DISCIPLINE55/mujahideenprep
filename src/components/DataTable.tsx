@@ -19,13 +19,13 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends Record<string, any>>({
   columns,
   data,
   onRowClick,
 }: DataTableProps<T>) {
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
@@ -52,7 +52,7 @@ export function DataTable<T extends Record<string, unknown>>({
               >
                 {columns.map((col) => (
                   <TableCell key={col.key}>
-                    {col.render ? col.render(row) : String(row[col.key] ?? "")}
+                    {col.render ? col.render(row) : String((row as any)[col.key] ?? "")}
                   </TableCell>
                 ))}
               </TableRow>
