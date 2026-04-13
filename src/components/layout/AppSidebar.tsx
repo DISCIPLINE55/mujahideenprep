@@ -12,10 +12,10 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut,
   Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoImg from "@/assets/logo.png";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -46,17 +46,15 @@ export function AppSidebar({
       )}
     >
       {/* Logo area */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-bold text-sidebar-primary-foreground text-sm">
-          MP
-        </div>
+      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-3">
+        <img src={logoImg} alt="MPSMS Logo" className="h-10 w-10 shrink-0 rounded-full object-cover" />
         {!collapsed && (
           <div className="overflow-hidden">
             <p className="text-sm font-bold text-sidebar-foreground leading-tight truncate">
               Mujahideen Prep
             </p>
-            <p className="text-[11px] text-sidebar-foreground/60 truncate">
-              School Management
+            <p className="text-[10px] text-sidebar-foreground/60 truncate">
+              ESTD 1997 • Mankessim
             </p>
           </div>
         )}
