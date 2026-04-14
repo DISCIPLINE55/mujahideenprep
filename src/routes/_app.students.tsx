@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Download, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2, Eye } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { defaultStudents, KEYS, CLASS_LIST, type Student } from "@/lib/storage";
+import { downloadCSV } from "@/lib/export";
+import { useDebounce } from "@/lib/debounce";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/students")({
   head: () => ({
     meta: [
       { title: "Students — MPSMS" },
-      { name: "description", content: "Manage students" },
+      { name: "description", content: "Manage student records at Mujahideen Preparatory School" },
+      { property: "og:title", content: "Student Management — MPSMS" },
     ],
   }),
   component: StudentsPage,
@@ -29,35 +33,50 @@ const emptyStudent: Omit<Student, "id"> = {
 function StudentsPage() {
   const store = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<Omit<Student, "id">>(emptyStudent);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const filtered = store.items.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.class.toLowerCase().includes(search.toLowerCase()) ||
-    s.guardian.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() =>
+    store.items.filter((s) =>
+      s.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      s.class.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      s.guardian.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ), [store.items, debouncedSearch]);
 
   function openAdd() {
     setEditing(null);
     setForm(emptyStudent);
+    setErrors({});
     setOpen(true);
   }
 
   function openEdit(s: Student) {
     setEditing(s);
     setForm({ name: s.name, class: s.class, gender: s.gender, guardian: s.guardian, phone: s.phone, dob: s.dob, status: s.status, fees: s.fees, address: s.address });
+    setErrors({});
     setOpen(true);
   }
 
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = "Name is required";
+    if (!form.guardian.trim()) e.guardian = "Guardian name is required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
   function handleSave() {
-    if (!form.name.trim()) return;
+    if (!validate()) return;
     if (editing) {
       store.update({ ...editing, ...form });
+      toast.success("Student updated successfully");
     } else {
       store.add(form);
+      toast.success("Student added successfully");
     }
     setOpen(false);
   }
@@ -66,20 +85,27 @@ function StudentsPage() {
     if (deleteId) {
       store.remove(deleteId);
       setDeleteId(null);
+      toast.success("Student deleted");
     }
   }
 
-  const columns = [
+  function handleExport() {
+    downloadCSV("students", ["Name", "Class", "Gender", "Guardian", "Phone", "DOB", "Status", "Fees", "Address"],
+      store.items.map((s) => [s.name, s.class, s.gender, s.guardian, s.phone, s.dob, s.status, s.fees, s.address]));
+    toast.success("Students exported to CSV");
+  }
+
+  const columns = useMemo(() => [
     {
       key: "name",
       header: "Student Name",
       render: (row: Student) => (
-        <div className="flex items-center gap-2">
+        <Link to="/students/$studentId" params={{ studentId: row.id }} className="flex items-center gap-2 hover:underline" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
             {row.name.charAt(0)}
           </div>
           <span className="font-medium text-foreground">{row.name}</span>
-        </div>
+        </Link>
       ),
     },
     { key: "class" as const, header: "Class" },
@@ -106,6 +132,11 @@ function StudentsPage() {
       header: "Actions",
       render: (row: Student) => (
         <div className="flex gap-1">
+          <Link to="/students/$studentId" params={{ studentId: row.id }}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+              <Eye className="h-4 w-4" />
+            </Button>
+          </Link>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -115,7 +146,7 @@ function StudentsPage() {
         </div>
       ),
     },
-  ];
+  ], []);
 
   return (
     <>
@@ -127,7 +158,7 @@ function StudentsPage() {
             <p className="text-sm text-muted-foreground">{store.items.length} total students enrolled</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm"><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Student</Button>
           </div>
         </div>
@@ -151,6 +182,7 @@ function StudentsPage() {
               <div className="space-y-2">
                 <Label>Full Name *</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Student name" />
+                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Class</Label>
@@ -174,8 +206,9 @@ function StudentsPage() {
                 <Input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Guardian Name</Label>
+                <Label>Guardian Name *</Label>
                 <Input value={form.guardian} onChange={(e) => setForm({ ...form, guardian: e.target.value })} />
+                {errors.guardian && <p className="text-xs text-destructive">{errors.guardian}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>

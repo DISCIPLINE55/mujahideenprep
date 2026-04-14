@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
@@ -9,11 +9,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer } from "lucide-react";
 import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, type Student, type Payment } from "@/lib/storage";
+import { downloadCSV } from "@/lib/export";
+import { useDebounce } from "@/lib/debounce";
+import { printFeeReceipt } from "@/components/FeeReceipt";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/fees")({
-  head: () => ({ meta: [{ title: "Fees — MPSMS" }, { name: "description", content: "Fee management and payments" }] }),
+  head: () => ({
+    meta: [
+      { title: "Fees & Finance — MPSMS" },
+      { name: "description", content: "Fee management and payments at Mujahideen Preparatory School" },
+      { property: "og:title", content: "Fee Management — MPSMS" },
+    ],
+  }),
   component: FeesPage,
 });
 
@@ -21,99 +31,71 @@ function FeesPage() {
   const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
   const [payments, setPayments] = useState<Payment[]>(() => getItems<Payment>(KEYS.PAYMENTS, defaultPayments));
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [form, setForm] = useState({ studentId: "", totalFee: 0, amountPaid: 0, date: "", description: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const totalExpected = payments.reduce((s, p) => s + p.totalFee, 0);
-  const totalCollected = payments.reduce((s, p) => s + p.amountPaid, 0);
-  const outstanding = totalExpected - totalCollected;
-  const fullyPaid = payments.filter((p) => p.amountPaid >= p.totalFee).length;
+  const { totalExpected, totalCollected, outstanding, fullyPaid } = useMemo(() => {
+    const te = payments.reduce((s, p) => s + p.totalFee, 0);
+    const tc = payments.reduce((s, p) => s + p.amountPaid, 0);
+    return { totalExpected: te, totalCollected: tc, outstanding: te - tc, fullyPaid: payments.filter((p) => p.amountPaid >= p.totalFee).length };
+  }, [payments]);
 
-  const filtered = payments.filter((p) =>
-    p.studentName.toLowerCase().includes(search.toLowerCase()) ||
-    p.class.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => payments.filter((p) =>
+    p.studentName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    p.class.toLowerCase().includes(debouncedSearch.toLowerCase())
+  ), [payments, debouncedSearch]);
 
-  function getStatus(p: Payment) {
-    if (p.amountPaid >= p.totalFee) return "Paid";
-    if (p.amountPaid > 0) return "Partial";
-    return "Unpaid";
-  }
+  function getStatus(p: Payment) { if (p.amountPaid >= p.totalFee) return "Paid"; if (p.amountPaid > 0) return "Partial"; return "Unpaid"; }
 
-  function openAdd() {
-    setEditing(null);
-    setForm({ studentId: "", totalFee: 0, amountPaid: 0, date: new Date().toISOString().split("T")[0], description: "" });
-    setOpen(true);
-  }
-
-  function openEdit(p: Payment) {
-    setEditing(p);
-    setForm({ studentId: p.studentId, totalFee: p.totalFee, amountPaid: p.amountPaid, date: p.date, description: p.description });
-    setOpen(true);
-  }
+  function openAdd() { setEditing(null); setForm({ studentId: "", totalFee: 0, amountPaid: 0, date: new Date().toISOString().split("T")[0], description: "" }); setOpen(true); }
+  function openEdit(p: Payment) { setEditing(p); setForm({ studentId: p.studentId, totalFee: p.totalFee, amountPaid: p.amountPaid, date: p.date, description: p.description }); setOpen(true); }
 
   function handleSave() {
     if (!form.studentId) return;
     const student = students.find((s) => s.id === form.studentId);
     if (!student) return;
-
     if (editing) {
       const updated = payments.map((p) => p.id === editing.id ? { ...p, ...form, studentName: student.name, class: student.class } : p);
-      setItems(KEYS.PAYMENTS, updated);
-      setPayments(updated);
+      setItems(KEYS.PAYMENTS, updated); setPayments(updated); toast.success("Payment updated");
     } else {
-      const newPayment: Payment = {
-        id: generateId(),
-        studentId: form.studentId,
-        studentName: student.name,
-        class: student.class,
-        totalFee: form.totalFee,
-        amountPaid: form.amountPaid,
-        date: form.date,
-        description: form.description,
-      };
-      const updated = [...payments, newPayment];
-      setItems(KEYS.PAYMENTS, updated);
-      setPayments(updated);
+      const newPayment: Payment = { id: generateId(), studentId: form.studentId, studentName: student.name, class: student.class, totalFee: form.totalFee, amountPaid: form.amountPaid, date: form.date, description: form.description };
+      const updated = [...payments, newPayment]; setItems(KEYS.PAYMENTS, updated); setPayments(updated); toast.success("Payment recorded");
     }
     setOpen(false);
   }
 
   function handleDelete() {
-    if (deleteId) {
-      const updated = payments.filter((p) => p.id !== deleteId);
-      setItems(KEYS.PAYMENTS, updated);
-      setPayments(updated);
-      setDeleteId(null);
-    }
+    if (deleteId) { const updated = payments.filter((p) => p.id !== deleteId); setItems(KEYS.PAYMENTS, updated); setPayments(updated); setDeleteId(null); toast.success("Payment deleted"); }
   }
 
-  const columns = [
+  function handleExport() {
+    downloadCSV("fees", ["Student", "Class", "Total Fee", "Amount Paid", "Balance", "Status", "Date", "Description"],
+      payments.map((p) => [p.studentName, p.class, String(p.totalFee), String(p.amountPaid), String(p.totalFee - p.amountPaid), getStatus(p), p.date, p.description]));
+    toast.success("Fees exported to CSV");
+  }
+
+  const columns = useMemo(() => [
     { key: "studentName", header: "Student", render: (row: Payment) => <span className="font-medium text-foreground">{row.studentName}</span> },
     { key: "class" as const, header: "Class" },
     { key: "totalFee", header: "Total Fee", render: (row: Payment) => <span>₵ {row.totalFee.toLocaleString()}</span> },
     { key: "amountPaid", header: "Paid", render: (row: Payment) => <span>₵ {row.amountPaid.toLocaleString()}</span> },
     { key: "balance", header: "Balance", render: (row: Payment) => <span className="font-medium">₵ {(row.totalFee - row.amountPaid).toLocaleString()}</span> },
-    {
-      key: "status", header: "Status",
-      render: (row: Payment) => {
-        const status = getStatus(row);
-        return <Badge variant={status === "Paid" ? "default" : status === "Partial" ? "secondary" : "destructive"}>{status}</Badge>;
-      },
-    },
+    { key: "status", header: "Status", render: (row: Payment) => { const status = getStatus(row); return <Badge variant={status === "Paid" ? "default" : status === "Partial" ? "secondary" : "destructive"}>{status}</Badge>; } },
     { key: "date" as const, header: "Last Payment" },
     {
       key: "actions", header: "Actions",
       render: (row: Payment) => (
         <div className="flex gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Receipt" onClick={(e) => { e.stopPropagation(); printFeeReceipt(row); }}><Printer className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
     },
-  ];
+  ], []);
 
   return (
     <>
@@ -124,7 +106,10 @@ function FeesPage() {
             <h2 className="text-xl font-bold text-foreground">Fee Management</h2>
             <p className="text-sm text-muted-foreground">Term 2, 2025/2026 Academic Year</p>
           </div>
-          <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Record Payment</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Record Payment</Button>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -138,7 +123,6 @@ function FeesPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search payments..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-
         <DataTable columns={columns} data={filtered} />
       </div>
 

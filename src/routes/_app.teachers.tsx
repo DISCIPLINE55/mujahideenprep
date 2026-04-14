@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
@@ -8,13 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { defaultTeachers, KEYS, type Teacher } from "@/lib/storage";
+import { downloadCSV } from "@/lib/export";
+import { useDebounce } from "@/lib/debounce";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/teachers")({
   head: () => ({
-    meta: [{ title: "Teachers — MPSMS" }, { name: "description", content: "Manage teachers" }],
+    meta: [
+      { title: "Teachers — MPSMS" },
+      { name: "description", content: "Manage teaching staff at Mujahideen Preparatory School" },
+      { property: "og:title", content: "Teacher Management — MPSMS" },
+    ],
   }),
   component: TeachersPage,
 });
@@ -26,26 +33,47 @@ const emptyTeacher: Omit<Teacher, "id"> = {
 function TeachersPage() {
   const store = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Teacher | null>(null);
   const [form, setForm] = useState<Omit<Teacher, "id">>(emptyTeacher);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const filtered = store.items.filter((t) =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.subject.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() =>
+    store.items.filter((t) =>
+      t.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      t.subject.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ), [store.items, debouncedSearch]);
 
-  function openAdd() { setEditing(null); setForm(emptyTeacher); setOpen(true); }
-  function openEdit(t: Teacher) { setEditing(t); setForm({ name: t.name, subject: t.subject, classes: t.classes, phone: t.phone, email: t.email, qualification: t.qualification, status: t.status }); setOpen(true); }
+  function openAdd() { setEditing(null); setForm(emptyTeacher); setErrors({}); setOpen(true); }
+  function openEdit(t: Teacher) { setEditing(t); setForm({ name: t.name, subject: t.subject, classes: t.classes, phone: t.phone, email: t.email, qualification: t.qualification, status: t.status }); setErrors({}); setOpen(true); }
+
+  function validate() {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = "Name is required";
+    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
   function handleSave() {
-    if (!form.name.trim()) return;
-    if (editing) store.update({ ...editing, ...form }); else store.add(form);
+    if (!validate()) return;
+    if (editing) { store.update({ ...editing, ...form }); toast.success("Teacher updated"); }
+    else { store.add(form); toast.success("Teacher added"); }
     setOpen(false);
   }
-  function handleDelete() { if (deleteId) { store.remove(deleteId); setDeleteId(null); } }
+  function handleDelete() {
+    if (deleteId) { store.remove(deleteId); setDeleteId(null); toast.success("Teacher deleted"); }
+  }
 
-  const columns = [
+  function handleExport() {
+    downloadCSV("teachers", ["Name", "Subject", "Classes", "Phone", "Email", "Qualification", "Status"],
+      store.items.map((t) => [t.name, t.subject, t.classes, t.phone, t.email, t.qualification, t.status]));
+    toast.success("Teachers exported to CSV");
+  }
+
+  const columns = useMemo(() => [
     {
       key: "name", header: "Teacher Name",
       render: (row: Teacher) => (
@@ -74,7 +102,7 @@ function TeachersPage() {
         </div>
       ),
     },
-  ];
+  ], []);
 
   return (
     <>
@@ -85,7 +113,10 @@ function TeachersPage() {
             <h2 className="text-xl font-bold text-foreground">Teacher Management</h2>
             <p className="text-sm text-muted-foreground">{store.items.length} teachers on staff</p>
           </div>
-          <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Teacher</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Teacher</Button>
+          </div>
         </div>
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -98,11 +129,11 @@ function TeachersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Edit Teacher" : "Add New Teacher"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>Full Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Full Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />{errors.name && <p className="text-xs text-destructive">{errors.name}</p>}</div>
             <div className="space-y-2"><Label>Subject</Label><Input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></div>
             <div className="space-y-2"><Label>Classes Assigned</Label><Input value={form.classes} onChange={(e) => setForm({ ...form, classes: e.target.value })} /></div>
             <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />{errors.email && <p className="text-xs text-destructive">{errors.email}</p>}</div>
             <div className="space-y-2"><Label>Qualification</Label><Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} /></div>
             <div className="space-y-2">
               <Label>Status</Label>

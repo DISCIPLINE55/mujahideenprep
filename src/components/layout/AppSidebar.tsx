@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -13,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  Bell,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logoImg from "@/assets/logo.png";
@@ -26,6 +27,8 @@ const navItems = [
   { to: "/attendance", label: "Attendance", icon: ClipboardCheck },
   { to: "/results", label: "Results", icon: FileText },
   { to: "/fees", label: "Fees", icon: Wallet },
+  { to: "/timetable", label: "Timetable", icon: CalendarDays },
+  { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

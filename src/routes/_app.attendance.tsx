@@ -9,9 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ClipboardCheck, Download } from "lucide-react";
 import { getItems, setItems, generateId, defaultStudents, defaultClasses, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord } from "@/lib/storage";
+import { downloadCSV } from "@/lib/export";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/attendance")({
-  head: () => ({ meta: [{ title: "Attendance — MPSMS" }, { name: "description", content: "Track student attendance" }] }),
+  head: () => ({
+    meta: [
+      { title: "Attendance — MPSMS" },
+      { name: "description", content: "Track student attendance at Mujahideen Preparatory School" },
+      { property: "og:title", content: "Attendance Tracking — MPSMS" },
+    ],
+  }),
   component: AttendancePage,
 });
 
@@ -26,61 +34,40 @@ function AttendancePage() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  function openMark() {
-    setSelectedClass(CLASS_LIST[0]);
-    setMarkDate(today);
-    setMarkData({});
-    setMarkOpen(true);
-  }
+  function openMark() { setSelectedClass(CLASS_LIST[0]); setMarkDate(today); setMarkData({}); setMarkOpen(true); }
 
   function initMarkData(cls: string) {
     const classStudents = students.filter((s) => s.class === cls && s.status === "Active");
     const existing = records.filter((r) => r.class === cls && r.date === markDate);
     const data: Record<string, "Present" | "Absent" | "Late"> = {};
-    classStudents.forEach((s) => {
-      const found = existing.find((r) => r.studentId === s.id);
-      data[s.id] = found?.status ?? "Present";
-    });
+    classStudents.forEach((s) => { const found = existing.find((r) => r.studentId === s.id); data[s.id] = found?.status ?? "Present"; });
     setMarkData(data);
   }
 
-  function handleClassChange(cls: string) {
-    setSelectedClass(cls);
-    initMarkData(cls);
-  }
+  function handleClassChange(cls: string) { setSelectedClass(cls); initMarkData(cls); }
 
   function handleSaveAttendance() {
     const classStudents = students.filter((s) => s.class === selectedClass && s.status === "Active");
-    // Remove old records for this class+date
     let updated = records.filter((r) => !(r.class === selectedClass && r.date === markDate));
     classStudents.forEach((s) => {
-      updated.push({
-        id: generateId(),
-        studentId: s.id,
-        studentName: s.name,
-        class: selectedClass,
-        date: markDate,
-        status: markData[s.id] ?? "Present",
-      });
+      updated.push({ id: generateId(), studentId: s.id, studentName: s.name, class: selectedClass, date: markDate, status: markData[s.id] ?? "Present" });
     });
-    setItems(KEYS.ATTENDANCE, updated);
-    setRecords(updated);
-    setMarkOpen(false);
+    setItems(KEYS.ATTENDANCE, updated); setRecords(updated); setMarkOpen(false);
+    toast.success("Attendance saved");
   }
 
-  // Summary per class for today
+  function handleExport() {
+    downloadCSV("attendance", ["Student", "Class", "Date", "Status"],
+      records.map((r) => [r.studentName, r.class, r.date, r.status]));
+    toast.success("Attendance exported to CSV");
+  }
+
   function classSummary(cls: string) {
     const todayRecords = records.filter((r) => r.class === cls && r.date === today);
     const classStudents = students.filter((s) => s.class === cls && s.status === "Active");
     const total = classStudents.length;
     if (todayRecords.length === 0) return { total, present: 0, absent: 0, late: 0, marked: false };
-    return {
-      total,
-      present: todayRecords.filter((r) => r.status === "Present").length,
-      absent: todayRecords.filter((r) => r.status === "Absent").length,
-      late: todayRecords.filter((r) => r.status === "Late").length,
-      marked: true,
-    };
+    return { total, present: todayRecords.filter((r) => r.status === "Present").length, absent: todayRecords.filter((r) => r.status === "Absent").length, late: todayRecords.filter((r) => r.status === "Late").length, marked: true };
   }
 
   const classStudentsForMark = students.filter((s) => s.class === selectedClass && s.status === "Active");
@@ -95,7 +82,7 @@ function AttendancePage() {
             <p className="text-sm text-muted-foreground">Today — {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm"><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={openMark}><ClipboardCheck className="mr-1 h-4 w-4" /> Mark Attendance</Button>
           </div>
         </div>
@@ -109,11 +96,7 @@ function AttendancePage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm">{c.name}</CardTitle>
-                    {s.marked ? (
-                      <Badge variant={pct >= 90 ? "default" : "secondary"}>{pct}%</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">Not marked</Badge>
-                    )}
+                    {s.marked ? <Badge variant={pct >= 90 ? "default" : "secondary"}>{pct}%</Badge> : <Badge variant="outline" className="text-muted-foreground">Not marked</Badge>}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -130,7 +113,6 @@ function AttendancePage() {
         </div>
       </div>
 
-      {/* Mark Attendance Dialog */}
       <Dialog open={markOpen} onOpenChange={setMarkOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Mark Attendance</DialogTitle></DialogHeader>

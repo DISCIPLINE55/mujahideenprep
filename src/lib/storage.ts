@@ -122,6 +122,24 @@ export interface SchoolSettings {
   termEnd: string;
 }
 
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  audience: "All" | "Teachers" | "Parents";
+  date: string;
+  read: boolean;
+}
+
+export interface TimetableSlot {
+  id: string;
+  day: string;
+  period: string;
+  subject: string;
+  teacher: string;
+  className: string;
+}
+
 export const CLASS_LIST = [
   "Creche", "Nursery 1", "Nursery 2", "KG 1", "KG 2",
   "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
@@ -197,4 +215,6 @@ export const KEYS = {
   PAYMENTS: "mpsms_payments",
   SETTINGS: "mpsms_settings",
   AUTH: "mpsms_auth",
+  NOTIFICATIONS: "mpsms_notifications",
+  TIMETABLE: "mpsms_timetable",
 };
