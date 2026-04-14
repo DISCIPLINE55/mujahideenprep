@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_app/notifications")({
 function NotificationsPage() {
   const store = useStore<Notification>(KEYS.NOTIFICATIONS, []);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", message: "", audience: "All" as const, date: new Date().toISOString().split("T")[0] });
+  const [form, setForm] = useState({ title: "", message: "", audience: "All" as "All" | "Teachers" | "Parents", date: new Date().toISOString().split("T")[0] });
 
   function handleAdd() {
     if (!form.title.trim() || !form.message.trim()) return;
