@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
@@ -11,9 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { defaultSubjects, KEYS, type Subject } from "@/lib/storage";
+import { useDebounce } from "@/lib/debounce";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/subjects")({
-  head: () => ({ meta: [{ title: "Subjects — MPSMS" }, { name: "description", content: "Manage subjects" }] }),
+  head: () => ({
+    meta: [
+      { title: "Subjects — MPSMS" },
+      { name: "description", content: "Manage subjects at Mujahideen Preparatory School" },
+      { property: "og:title", content: "Subject Management — MPSMS" },
+    ],
+  }),
   component: SubjectsPage,
 });
 
@@ -22,23 +30,27 @@ const emptySubject: Omit<Subject, "id"> = { name: "", code: "", classes: "", sta
 function SubjectsPage() {
   const store = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Subject | null>(null);
   const [form, setForm] = useState<Omit<Subject, "id">>(emptySubject);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = store.items.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.code.toLowerCase().includes(search.toLowerCase()));
+  const filtered = useMemo(() =>
+    store.items.filter((s) => s.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || s.code.toLowerCase().includes(debouncedSearch.toLowerCase())),
+    [store.items, debouncedSearch]);
 
   function openAdd() { setEditing(null); setForm(emptySubject); setOpen(true); }
   function openEdit(s: Subject) { setEditing(s); setForm({ name: s.name, code: s.code, classes: s.classes, status: s.status }); setOpen(true); }
   function handleSave() {
     if (!form.name.trim()) return;
-    if (editing) store.update({ ...editing, ...form }); else store.add(form);
+    if (editing) { store.update({ ...editing, ...form }); toast.success("Subject updated"); }
+    else { store.add(form); toast.success("Subject added"); }
     setOpen(false);
   }
-  function handleDelete() { if (deleteId) { store.remove(deleteId); setDeleteId(null); } }
+  function handleDelete() { if (deleteId) { store.remove(deleteId); setDeleteId(null); toast.success("Subject deleted"); } }
 
-  const columns = [
+  const columns = useMemo(() => [
     { key: "code" as const, header: "Code" },
     { key: "name", header: "Subject", render: (row: Subject) => <span className="font-medium text-foreground">{row.name}</span> },
     { key: "classes" as const, header: "Classes" },
@@ -52,7 +64,7 @@ function SubjectsPage() {
         </div>
       ),
     },
-  ];
+  ], []);
 
   return (
     <>
