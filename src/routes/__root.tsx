@@ -31,19 +31,36 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "MPSMS — Mujahideen Preparatory School Management System" },
+      { name: "description", content: "School Management System for Mujahideen Preparatory School, Mankessim, Central Region, Ghana. Manage students, teachers, classes, attendance, results, and fees." },
+      { name: "author", content: "Mujahideen Preparatory School" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "EducationalOrganization",
+          name: "Mujahideen Preparatory School",
+          description: "God Fearing and Better Future Starts Here",
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: "Mankessim",
+            addressRegion: "Central Region",
+            addressCountry: "GH",
+          },
+          telephone: "+233 24 555 0100",
+          email: "info@mujahideenprep.edu.gh",
+          foundingDate: "1997",
+        }),
       },
     ],
   }),
@@ -54,7 +71,7 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
