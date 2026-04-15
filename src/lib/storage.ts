@@ -141,6 +141,13 @@ export interface TimetableSlot {
   className: string;
 }
 
+export interface SchoolEvent {
+  id: string;
+  title: string;
+  date: string;
+  type: "Exam" | "Meeting" | "Event" | "Holiday" | "Other";
+}
+
 export const CLASS_LIST = [
   "Creche", "Nursery 1", "Nursery 2", "KG 1", "KG 2",
   "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
