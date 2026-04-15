@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ClipboardCheck, Download } from "lucide-react";
+import { ClipboardCheck, Download, BarChart3 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getItems, setItems, generateId, defaultStudents, defaultClasses, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ function AttendancePage() {
   const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
   const [markDate, setMarkDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [markData, setMarkData] = useState<Record<string, "Present" | "Absent" | "Late">>({});
+  const [showSummary, setShowSummary] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -70,6 +72,32 @@ function AttendancePage() {
     return { total, present: todayRecords.filter((r) => r.status === "Present").length, absent: todayRecords.filter((r) => r.status === "Absent").length, late: todayRecords.filter((r) => r.status === "Late").length, marked: true };
   }
 
+  // Attendance summary chart data — last 7 days per class
+  const summaryData = useMemo(() => {
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push(d.toISOString().split("T")[0]);
+    }
+    return days.map((date) => {
+      const dayRecords = records.filter((r) => r.date === date);
+      const present = dayRecords.filter((r) => r.status === "Present").length;
+      const absent = dayRecords.filter((r) => r.status === "Absent").length;
+      const late = dayRecords.filter((r) => r.status === "Late").length;
+      return { date: new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }), present, absent, late };
+    });
+  }, [records]);
+
+  const overallStats = useMemo(() => {
+    const total = records.length;
+    if (total === 0) return { presentPct: 0, absentPct: 0, latePct: 0 };
+    return {
+      presentPct: Math.round((records.filter((r) => r.status === "Present").length / total) * 100),
+      absentPct: Math.round((records.filter((r) => r.status === "Absent").length / total) * 100),
+      latePct: Math.round((records.filter((r) => r.status === "Late").length / total) * 100),
+    };
+  }, [records]);
+
   const classStudentsForMark = students.filter((s) => s.class === selectedClass && s.status === "Active");
 
   return (
@@ -82,10 +110,53 @@ function AttendancePage() {
             <p className="text-sm text-muted-foreground">Today — {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSummary(!showSummary)}>
+              <BarChart3 className="mr-1 h-4 w-4" /> {showSummary ? "Hide Summary" : "Summary"}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={openMark}><ClipboardCheck className="mr-1 h-4 w-4" /> Mark Attendance</Button>
           </div>
         </div>
+
+        {showSummary && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">7-Day Attendance Trend</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={summaryData}>
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Bar dataKey="present" fill="oklch(0.55 0.16 145)" name="Present" stackId="a" />
+                      <Bar dataKey="late" fill="oklch(0.75 0.15 80)" name="Late" stackId="a" />
+                      <Bar dataKey="absent" fill="oklch(0.577 0.245 27.325)" name="Absent" stackId="a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Overall Rates</CardTitle></CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                <div>
+                  <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Present</span><span className="font-medium text-success">{overallStats.presentPct}%</span></div>
+                  <Progress value={overallStats.presentPct} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Absent</span><span className="font-medium text-destructive">{overallStats.absentPct}%</span></div>
+                  <Progress value={overallStats.absentPct} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Late</span><span className="font-medium text-warning">{overallStats.latePct}%</span></div>
+                  <Progress value={overallStats.latePct} className="h-2" />
+                </div>
+                <p className="text-xs text-muted-foreground">{records.length} total records</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {classes.map((c) => {

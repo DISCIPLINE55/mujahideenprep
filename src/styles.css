@@ -165,6 +165,26 @@
 
 /* Print styles */
 @media print {
-  .no-print { display: none !important; }
-  body { background: white; color: black; }
+  .no-print,
+  [data-sidebar],
+  nav,
+  header,
+  .sidebar-transition,
+  button:not(.print-keep) {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+  .print-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  @page {
+    margin: 1cm;
+  }
 }
