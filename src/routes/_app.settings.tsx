@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Save } from "lucide-react";
-import { KEYS, defaultSettings, type SchoolSettings } from "@/lib/storage";
+import { Save, Download, Upload } from "lucide-react";
+import { KEYS, defaultSettings, exportAllData, importAllData, type SchoolSettings } from "@/lib/storage";
 import { toast } from "sonner";
 import logoImg from "@/assets/logo.png";
 
@@ -26,6 +26,7 @@ function SettingsPage() {
   const [settings, setSettings] = useState<SchoolSettings>(() => {
     try { const raw = localStorage.getItem(KEYS.SETTINGS); return raw ? JSON.parse(raw) : defaultSettings; } catch { return defaultSettings; }
   });
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function handleSave() {
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
@@ -35,6 +36,35 @@ function SettingsPage() {
   function toggleDarkMode(checked: boolean) {
     if (checked) { document.documentElement.classList.add("dark"); localStorage.setItem("mpsms_theme", "dark"); }
     else { document.documentElement.classList.remove("dark"); localStorage.setItem("mpsms_theme", "light"); }
+  }
+
+  function handleBackup() {
+    const data = exportAllData();
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mpsms-backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup downloaded successfully");
+  }
+
+  function handleRestore(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      if (importAllData(text)) {
+        toast.success("Data restored successfully — reloading...");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        toast.error("Invalid backup file");
+      }
+    };
+    reader.readAsText(file);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   const isDark = typeof window !== "undefined" ? document.documentElement.classList.contains("dark") : false;
@@ -87,6 +117,22 @@ function SettingsPage() {
                 <p className="text-xs text-muted-foreground">Switch between light and dark themes</p>
               </div>
               <Switch checked={isDark} onCheckedChange={toggleDarkMode} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Data Backup & Restore</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">Export all your school data as a JSON file, or restore from a previous backup.</p>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" onClick={handleBackup}>
+                <Download className="mr-1 h-4 w-4" /> Export All Data
+              </Button>
+              <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                <Upload className="mr-1 h-4 w-4" /> Import Data
+              </Button>
+              <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleRestore} />
             </div>
           </CardContent>
         </Card>

@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Download, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2, Eye } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { defaultTeachers, KEYS, type Teacher } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
@@ -39,6 +40,7 @@ function TeachersPage() {
   const [form, setForm] = useState<Omit<Teacher, "id">>(emptyTeacher);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() =>
     store.items.filter((t) =>
@@ -67,6 +69,22 @@ function TeachersPage() {
     if (deleteId) { store.remove(deleteId); setDeleteId(null); toast.success("Teacher deleted"); }
   }
 
+  function handleBulkDelete() {
+    if (selected.size === 0) return;
+    selected.forEach((id) => store.remove(id));
+    toast.success(`${selected.size} teachers deleted`);
+    setSelected(new Set());
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  function toggleAll() {
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map((t) => t.id)));
+  }
+
   function handleExport() {
     downloadCSV("teachers", ["Name", "Subject", "Classes", "Phone", "Email", "Qualification", "Status"],
       store.items.map((t) => [t.name, t.subject, t.classes, t.phone, t.email, t.qualification, t.status]));
@@ -75,14 +93,20 @@ function TeachersPage() {
 
   const columns = useMemo(() => [
     {
+      key: "select", header: "",
+      render: (row: Teacher) => (
+        <Checkbox checked={selected.has(row.id)} onCheckedChange={() => toggleSelect(row.id)} onClick={(e: React.MouseEvent) => e.stopPropagation()} />
+      ),
+    },
+    {
       key: "name", header: "Teacher Name",
       render: (row: Teacher) => (
-        <div className="flex items-center gap-2">
+        <Link to="/teachers/$teacherId" params={{ teacherId: row.id }} className="flex items-center gap-2 hover:underline" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
             {row.name.split(" ").pop()?.charAt(0)}
           </div>
           <span className="font-medium text-foreground">{row.name}</span>
-        </div>
+        </Link>
       ),
     },
     { key: "subject" as const, header: "Subject" },
@@ -97,12 +121,15 @@ function TeachersPage() {
       key: "actions", header: "Actions",
       render: (row: Teacher) => (
         <div className="flex gap-1">
+          <Link to="/teachers/$teacherId" params={{ teacherId: row.id }}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e: React.MouseEvent) => e.stopPropagation()}><Eye className="h-4 w-4" /></Button>
+          </Link>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
     },
-  ], []);
+  ], [selected, filtered]);
 
   return (
     <>
@@ -114,13 +141,23 @@ function TeachersPage() {
             <p className="text-sm text-muted-foreground">{store.items.length} teachers on staff</p>
           </div>
           <div className="flex gap-2">
+            {selected.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="mr-1 h-4 w-4" /> Delete ({selected.size})
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Teacher</Button>
           </div>
         </div>
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search teachers..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="flex items-center gap-4">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search teachers..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <Button variant="outline" size="sm" onClick={toggleAll}>
+            {selected.size === filtered.length ? "Deselect All" : "Select All"}
+          </Button>
         </div>
         <DataTable columns={columns} data={filtered} />
       </div>

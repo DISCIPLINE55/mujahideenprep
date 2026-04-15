@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Lock, Mail } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import logoImg from "@/assets/logo.png";
 
 export const Route = createFileRoute("/")({
@@ -19,11 +22,23 @@ export const Route = createFileRoute("/")({
 });
 
 function LoginPage() {
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+
+  function handleForgotPassword() {
+    if (!resetEmail.trim() || !/\S+@\S+\.\S+/.test(resetEmail)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    toast.success("Password reset link sent! Check your email.");
+    setForgotOpen(false);
+    setResetEmail("");
+  }
+
   return (
     <>
       <Toaster position="top-right" richColors />
       <div className="flex min-h-screen">
-        {/* Left panel - branding */}
         <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center bg-primary p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,oklch(0.55_0.22_340/0.3),transparent_60%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,oklch(0.85_0.20_130/0.15),transparent_50%)]" />
@@ -58,7 +73,6 @@ function LoginPage() {
           </div>
         </div>
 
-        {/* Right panel - form */}
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="lg:hidden mb-8 text-center">
@@ -88,7 +102,7 @@ function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <button type="button" className="text-xs text-secondary hover:underline">
+                  <button type="button" className="text-xs text-secondary hover:underline" onClick={() => setForgotOpen(true)}>
                     Forgot password?
                   </button>
                 </div>
@@ -109,6 +123,23 @@ function LoginPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">Enter your email address and we'll send you a password reset link.</p>
+            <div className="space-y-2">
+              <Label>Email Address</Label>
+              <Input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="admin@mpsms.edu.gh" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setForgotOpen(false)}>Cancel</Button>
+            <Button onClick={handleForgotPassword}>Send Reset Link</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
