@@ -1,157 +1,82 @@
 
 
-# MPSMS Enhancement Plan — Features, Performance, SEO, and Missing Functionality
+# MPSMS Frontend Enhancement Plan — Remaining Features & Polish
 
-## What We're Building
+## Current State
 
-A comprehensive upgrade covering missing features, performance optimizations, SEO improvements, and polishing the existing modules — all still using localStorage (no backend changes).
+The system already has: login, dashboard with charts, full CRUD for students/teachers/classes/subjects, attendance marking, exam results with report cards, fee management with receipts, timetable, notifications, CSV export, dark mode, auth guard, logout, SEO metadata, and debounced search.
 
----
+## What's Still Missing (Frontend Only, No Backend)
 
-## 1. Missing Features to Add
+### 1. Teacher Profile Page
+- Create `src/routes/_app.teachers.$teacherId.tsx`
+- Shows teacher info, assigned classes, subjects, and timetable slots
+- Linked from teacher table rows (add Eye icon button like students page)
 
-### A. Student Profile Page (`_app.students.$studentId.tsx`)
-- Detailed view showing personal info, attendance history, exam results, and fee records for one student
-- Linked from student table rows
+### 2. Academic Calendar / Events Management
+- Dashboard currently has hardcoded events — make them dynamic
+- Add an events section in Settings or a new page where admin can CRUD events (title, date, type)
+- Store in localStorage, display on dashboard
 
-### B. Report Card PDF Generation
-- On the Results page, add a "Download Report Card" button per student
-- Generate a styled PDF using browser `window.print()` with a hidden printable report card layout (school logo, student info, subject scores, position, remarks)
+### 3. Data Backup & Restore
+- In Settings, add "Export All Data" button (downloads a single JSON file with all localStorage data)
+- Add "Import Data" button to restore from that JSON file
+- Prevents data loss since everything is in localStorage
 
-### C. Student Promotion System
-- On the Classes page, add a "Promote Students" button
-- Dialog to bulk-promote all students in a class to the next level (e.g. Primary 3 → Primary 4)
+### 4. Attendance Summary Dashboard
+- On the attendance page, add a summary view: daily/weekly attendance rates per class
+- Add an attendance trend chart (like the bar chart on dashboard but for attendance over time)
 
-### D. Fee Receipt Generation
-- On the Fees page, add a "Print Receipt" button per payment
-- Printable receipt with school branding, student details, amount, date, and balance
+### 5. Print Styles
+- Add proper `@media print` CSS so report cards and fee receipts render cleanly when printed
+- Hide sidebar, topbar, buttons during print
 
-### E. Notifications System (`_app.notifications.tsx`)
-- New sidebar item + page
-- Admin can create notices (title, message, audience: All/Teachers/Parents, date)
-- Stored in localStorage; notification bell in TopBar shows unread count from this data
+### 6. Better Mobile Experience
+- The mobile sidebar toggle exists but test/fix: ensure forms, tables, and timetable grid are usable on small screens
+- Make timetable horizontally scrollable on mobile
+- Stack form fields vertically on mobile
 
-### F. Timetable Page (`_app.timetable.tsx`)
-- Weekly grid view per class
-- CRUD for time slots (day, period, subject, teacher)
-- Stored in localStorage
+### 7. Forgot Password Flow (Mock)
+- Add "Forgot Password?" link on login page
+- Opens a dialog/page where admin enters email, shows a mock success message
+- No real email — just UI completeness
 
-### G. Logout Functionality
-- Add logout button to TopBar user dropdown
-- Clears `mpsms_auth` from localStorage, redirects to `/`
+### 8. Loading Skeletons
+- Add skeleton placeholders when pages first load (before localStorage data is read)
+- Use existing `skeleton.tsx` component on dashboard stats, tables
 
-### H. Route Protection
-- In `_app.tsx` layout, check for auth in localStorage; redirect to `/` if not logged in
+### 9. Bulk Actions on Tables
+- Add checkbox column to Students and Teachers tables
+- "Select All" + bulk delete, bulk status change
+- Improves admin workflow
 
-### I. Export Functionality (CSV)
-- Wire up existing "Export" buttons on Students, Attendance, Results, Fees pages
-- Generate and download CSV files from current table data
-
-### J. Dashboard Charts
-- Add a simple bar chart (attendance trend) and pie chart (fee collection status) to the dashboard using Recharts
-
----
-
-## 2. SEO Improvements
-
-### A. Rich `head()` Metadata on Every Route
-- Add `og:title`, `og:description`, `og:type` to all route `head()` functions
-- Add proper `twitter:card` meta tags
-
-### B. Root Route Metadata
-- Update `__root.tsx` with proper site-wide defaults (charset, viewport, description)
-- Add structured data (JSON-LD) for the school as an `EducationalOrganization`
-
-### C. Login Page SEO
-- Add school-specific og:title, og:description for social sharing
-
----
-
-## 3. Performance Optimizations
-
-### A. Lazy Loading with React.lazy / Suspense
-- Wrap heavy dialog components (Add/Edit forms) in lazy imports where applicable
-- Add loading skeletons for data tables
-
-### B. Memoization
-- Wrap expensive computations (filtering, position calculation) in `useMemo`
-- Wrap column definitions in `useMemo` to avoid re-creation on every render
-
-### C. Debounced Search
-- Add 300ms debounce to all search inputs to reduce re-renders during typing
-
-### D. Virtual Scrolling for Large Tables
-- For tables with potentially many rows (Students, Attendance), implement windowed rendering
-
----
-
-## 4. UI/UX Polish
-
-### A. Toast Notifications
-- Add `sonner` toasts for all CRUD operations (success/error feedback)
-- "Student added successfully", "Payment recorded", etc.
-
-### B. Data Validation
-- Add proper form validation (required fields, email format, phone format, score ranges 0-100)
-- Show inline error messages
-
-### C. Empty States
-- Add illustrated empty states for pages with no data yet
-
-### D. Breadcrumbs
-- Add breadcrumb navigation in TopBar for nested pages (e.g. Students > Amina Ibrahim)
-
-### E. Dark Mode Toggle
-- Add a theme toggle in Settings or TopBar
-- Store preference in localStorage
-
----
-
-## 5. Hosting Readiness
-
-Lovable deploys via its built-in publishing system (`.lovable.app` domain or custom domain). The SPA fallback is handled automatically. No `_redirects` or `vercel.json` needed.
-
-For self-hosting (Vercel, Netlify, etc.), we add a README section with deployment instructions and any needed config.
+### 10. Student Photo/Avatar
+- In the Add/Edit Student form, add a field for pasting an image URL (or a placeholder initial avatar)
+- Display on student profile page and in tables
 
 ---
 
 ## Technical Details
 
-### New Files to Create
-- `src/routes/_app.students.$studentId.tsx` — student detail page
-- `src/routes/_app.notifications.tsx` — notifications page
-- `src/routes/_app.timetable.tsx` — timetable page
-- `src/components/ReportCard.tsx` — printable report card component
-- `src/components/FeeReceipt.tsx` — printable receipt component
-- `src/lib/export.ts` — CSV export utilities
-- `src/lib/debounce.ts` — debounce hook
+### New Files
+- `src/routes/_app.teachers.$teacherId.tsx` — teacher profile page
 
 ### Files to Modify
-- `src/routes/__root.tsx` — enhanced SEO meta, JSON-LD
-- `src/routes/index.tsx` — og tags
-- `src/routes/_app.tsx` — auth guard
-- `src/routes/_app.dashboard.tsx` — charts, memoization
-- `src/routes/_app.students.tsx` — export, toast, validation, link to detail
-- `src/routes/_app.teachers.tsx` — export, toast, validation
-- `src/routes/_app.results.tsx` — report card button, export, toast
-- `src/routes/_app.fees.tsx` — receipt button, export, toast
-- `src/routes/_app.attendance.tsx` — export, toast
-- `src/routes/_app.classes.tsx` — promotion feature, toast
-- `src/routes/_app.settings.tsx` — dark mode toggle
-- `src/components/layout/TopBar.tsx` — logout dropdown, notification bell linked to data
-- `src/components/layout/AppSidebar.tsx` — add Notifications and Timetable nav items
-- `src/lib/storage.ts` — add Notification and Timetable types + defaults
-- `src/styles.css` — dark mode variables, print styles
-- All route files — enhanced `head()` with og/twitter meta
+- `src/routes/_app.dashboard.tsx` — dynamic events from localStorage
+- `src/routes/_app.teachers.tsx` — add view profile link, bulk actions
+- `src/routes/_app.students.tsx` — bulk actions, photo field
+- `src/routes/_app.attendance.tsx` — summary stats view
+- `src/routes/_app.settings.tsx` — backup/restore section
+- `src/routes/index.tsx` — forgot password link/dialog
+- `src/routes/_app.timetable.tsx` — mobile scroll fix
+- `src/lib/storage.ts` — add Event type, photo field to Student
+- `src/styles.css` — print styles
 
-### Dependencies to Add
-- `recharts` — dashboard charts
+### No new dependencies needed
 
-### Estimated Scope
-This is a large enhancement. I recommend implementing it in 3 batches:
-1. **Batch 1**: Auth guard, logout, notifications, SEO, export, toasts, dark mode
-2. **Batch 2**: Student profile, report card PDF, fee receipt, promotion, timetable
-3. **Batch 3**: Charts, performance (memoization, debounce, virtual scroll), validation
-
-Shall I proceed with Batch 1 first, or implement everything at once?
+### Implementation Order
+1. Teacher profile + student photo field
+2. Dynamic events + backup/restore
+3. Attendance summary + print styles
+4. Forgot password + loading skeletons + bulk actions + mobile fixes
 
