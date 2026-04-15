@@ -51,6 +51,7 @@ export interface Student {
   status: string;
   fees: string;
   address: string;
+  photo?: string;
 }
 
 export interface Teacher {
@@ -217,4 +218,34 @@ export const KEYS = {
   AUTH: "mpsms_auth",
   NOTIFICATIONS: "mpsms_notifications",
   TIMETABLE: "mpsms_timetable",
+  EVENTS: "mpsms_events",
 };
+
+export const defaultEvents: SchoolEvent[] = [
+  { id: "ev1", title: "Mid-Term Exams", date: "2026-04-21", type: "Exam" },
+  { id: "ev2", title: "PTA Meeting", date: "2026-04-25", type: "Meeting" },
+  { id: "ev3", title: "Sports Day", date: "2026-05-02", type: "Event" },
+  { id: "ev4", title: "Term Ends", date: "2026-05-30", type: "Holiday" },
+];
+
+// Backup & Restore utilities
+export function exportAllData(): string {
+  const data: Record<string, unknown> = {};
+  Object.values(KEYS).forEach((key) => {
+    const raw = localStorage.getItem(key);
+    if (raw) data[key] = JSON.parse(raw);
+  });
+  return JSON.stringify(data, null, 2);
+}
+
+export function importAllData(json: string): boolean {
+  try {
+    const data = JSON.parse(json) as Record<string, unknown>;
+    Object.entries(data).forEach(([key, value]) => {
+      localStorage.setItem(key, JSON.stringify(value));
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
