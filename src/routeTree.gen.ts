@@ -13,10 +13,12 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTimetableRouteImport } from './routes/_app.timetable'
 import { Route as AppTeachersRouteImport } from './routes/_app.teachers'
+import { Route as AppTeacherDashboardRouteImport } from './routes/_app.teacher-dashboard'
 import { Route as AppSubjectsRouteImport } from './routes/_app.subjects'
 import { Route as AppStudentsRouteImport } from './routes/_app.students'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppResultsRouteImport } from './routes/_app.results'
+import { Route as AppParentDashboardRouteImport } from './routes/_app.parent-dashboard'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppFeesRouteImport } from './routes/_app.fees'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -44,6 +46,11 @@ const AppTeachersRoute = AppTeachersRouteImport.update({
   path: '/teachers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeacherDashboardRoute = AppTeacherDashboardRouteImport.update({
+  id: '/teacher-dashboard',
+  path: '/teacher-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSubjectsRoute = AppSubjectsRouteImport.update({
   id: '/subjects',
   path: '/subjects',
@@ -62,6 +69,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppResultsRoute = AppResultsRouteImport.update({
   id: '/results',
   path: '/results',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppParentDashboardRoute = AppParentDashboardRouteImport.update({
+  id: '/parent-dashboard',
+  path: '/parent-dashboard',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -107,10 +119,12 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/fees': typeof AppFeesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/parent-dashboard': typeof AppParentDashboardRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
   '/students': typeof AppStudentsRouteWithChildren
   '/subjects': typeof AppSubjectsRoute
+  '/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/teachers': typeof AppTeachersRouteWithChildren
   '/timetable': typeof AppTimetableRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
@@ -123,10 +137,12 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/fees': typeof AppFeesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/parent-dashboard': typeof AppParentDashboardRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
   '/students': typeof AppStudentsRouteWithChildren
   '/subjects': typeof AppSubjectsRoute
+  '/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/teachers': typeof AppTeachersRouteWithChildren
   '/timetable': typeof AppTimetableRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
@@ -141,10 +157,12 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/fees': typeof AppFeesRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/parent-dashboard': typeof AppParentDashboardRoute
   '/_app/results': typeof AppResultsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/students': typeof AppStudentsRouteWithChildren
   '/_app/subjects': typeof AppSubjectsRoute
+  '/_app/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/_app/teachers': typeof AppTeachersRouteWithChildren
   '/_app/timetable': typeof AppTimetableRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
@@ -159,10 +177,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/fees'
     | '/notifications'
+    | '/parent-dashboard'
     | '/results'
     | '/settings'
     | '/students'
     | '/subjects'
+    | '/teacher-dashboard'
     | '/teachers'
     | '/timetable'
     | '/students/$studentId'
@@ -175,10 +195,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/fees'
     | '/notifications'
+    | '/parent-dashboard'
     | '/results'
     | '/settings'
     | '/students'
     | '/subjects'
+    | '/teacher-dashboard'
     | '/teachers'
     | '/timetable'
     | '/students/$studentId'
@@ -192,10 +214,12 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/fees'
     | '/_app/notifications'
+    | '/_app/parent-dashboard'
     | '/_app/results'
     | '/_app/settings'
     | '/_app/students'
     | '/_app/subjects'
+    | '/_app/teacher-dashboard'
     | '/_app/teachers'
     | '/_app/timetable'
     | '/_app/students/$studentId'
@@ -237,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/teacher-dashboard': {
+      id: '/_app/teacher-dashboard'
+      path: '/teacher-dashboard'
+      fullPath: '/teacher-dashboard'
+      preLoaderRoute: typeof AppTeacherDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/subjects': {
       id: '/_app/subjects'
       path: '/subjects'
@@ -263,6 +294,13 @@ declare module '@tanstack/react-router' {
       path: '/results'
       fullPath: '/results'
       preLoaderRoute: typeof AppResultsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parent-dashboard': {
+      id: '/_app/parent-dashboard'
+      path: '/parent-dashboard'
+      fullPath: '/parent-dashboard'
+      preLoaderRoute: typeof AppParentDashboardRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -347,10 +385,12 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppFeesRoute: typeof AppFeesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppParentDashboardRoute: typeof AppParentDashboardRoute
   AppResultsRoute: typeof AppResultsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppStudentsRoute: typeof AppStudentsRouteWithChildren
   AppSubjectsRoute: typeof AppSubjectsRoute
+  AppTeacherDashboardRoute: typeof AppTeacherDashboardRoute
   AppTeachersRoute: typeof AppTeachersRouteWithChildren
   AppTimetableRoute: typeof AppTimetableRoute
 }
@@ -361,10 +401,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppFeesRoute: AppFeesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppParentDashboardRoute: AppParentDashboardRoute,
   AppResultsRoute: AppResultsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppStudentsRoute: AppStudentsRouteWithChildren,
   AppSubjectsRoute: AppSubjectsRoute,
+  AppTeacherDashboardRoute: AppTeacherDashboardRoute,
   AppTeachersRoute: AppTeachersRouteWithChildren,
   AppTimetableRoute: AppTimetableRoute,
 }
