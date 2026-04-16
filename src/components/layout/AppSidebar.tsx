@@ -1,4 +1,4 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
@@ -14,32 +14,53 @@ import {
   Menu,
   Bell,
   CalendarDays,
+  Sparkles,
+  Library,
+  MessageSquare,
+  BarChart3,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ROLE_NAV, clearAuth, type UserRole } from "@/lib/auth";
 import logoImg from "@/assets/logo.png";
 
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/students", label: "Students", icon: Users },
-  { to: "/teachers", label: "Teachers", icon: GraduationCap },
-  { to: "/classes", label: "Classes", icon: School },
-  { to: "/subjects", label: "Subjects", icon: BookOpen },
-  { to: "/attendance", label: "Attendance", icon: ClipboardCheck },
-  { to: "/results", label: "Results", icon: FileText },
-  { to: "/fees", label: "Fees", icon: Wallet },
-  { to: "/timetable", label: "Timetable", icon: CalendarDays },
-  { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/settings", label: "Settings", icon: Settings },
-] as const;
+const ICON_MAP: Record<string, React.ElementType> = {
+  Dashboard: LayoutDashboard,
+  Students: Users,
+  Teachers: GraduationCap,
+  Classes: School,
+  Subjects: BookOpen,
+  Attendance: ClipboardCheck,
+  Results: FileText,
+  Fees: Wallet,
+  Timetable: CalendarDays,
+  Notifications: Bell,
+  Calendar: CalendarDays,
+  Library: Library,
+  Communications: MessageSquare,
+  Reports: BarChart3,
+  "AI Assistant": Sparkles,
+  Settings: Settings,
+};
 
 export function AppSidebar({
   collapsed,
   onToggle,
+  role,
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  role: UserRole;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const visibleItems = ROLE_NAV.filter((item) => item.roles.includes(role));
+
+  function handleLogout() {
+    clearAuth();
+    window.location.href = "/";
+  }
 
   return (
     <aside
@@ -65,10 +86,11 @@ export function AppSidebar({
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
+          const Icon = ICON_MAP[item.label] || LayoutDashboard;
           const isActive =
             location.pathname === item.to ||
-            (item.to !== "/dashboard" && location.pathname.startsWith(item.to));
+            (item.to !== "/dashboard" && item.to !== "/teacher-dashboard" && item.to !== "/parent-dashboard" && location.pathname.startsWith(item.to));
           return (
             <Link
               key={item.to}
@@ -80,7 +102,7 @@ export function AppSidebar({
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               )}
             >
-              <item.icon className="h-5 w-5 shrink-0" />
+              <Icon className="h-5 w-5 shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
@@ -88,7 +110,14 @@ export function AppSidebar({
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-2 space-y-1">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-destructive/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Logout</span>}
+        </button>
         <button
           onClick={onToggle}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"

@@ -13,15 +13,22 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTimetableRouteImport } from './routes/_app.timetable'
 import { Route as AppTeachersRouteImport } from './routes/_app.teachers'
+import { Route as AppTeacherDashboardRouteImport } from './routes/_app.teacher-dashboard'
 import { Route as AppSubjectsRouteImport } from './routes/_app.subjects'
 import { Route as AppStudentsRouteImport } from './routes/_app.students'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppResultsRouteImport } from './routes/_app.results'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppParentDashboardRouteImport } from './routes/_app.parent-dashboard'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppLibraryRouteImport } from './routes/_app.library'
 import { Route as AppFeesRouteImport } from './routes/_app.fees'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCommunicationsRouteImport } from './routes/_app.communications'
 import { Route as AppClassesRouteImport } from './routes/_app.classes'
+import { Route as AppCalendarRouteImport } from './routes/_app.calendar'
 import { Route as AppAttendanceRouteImport } from './routes/_app.attendance'
+import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as AppTeachersTeacherIdRouteImport } from './routes/_app.teachers.$teacherId'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app.students.$studentId'
 
@@ -44,6 +51,11 @@ const AppTeachersRoute = AppTeachersRouteImport.update({
   path: '/teachers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeacherDashboardRoute = AppTeacherDashboardRouteImport.update({
+  id: '/teacher-dashboard',
+  path: '/teacher-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSubjectsRoute = AppSubjectsRouteImport.update({
   id: '/subjects',
   path: '/subjects',
@@ -64,9 +76,24 @@ const AppResultsRoute = AppResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppParentDashboardRoute = AppParentDashboardRouteImport.update({
+  id: '/parent-dashboard',
+  path: '/parent-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLibraryRoute = AppLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFeesRoute = AppFeesRouteImport.update({
@@ -79,14 +106,29 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCommunicationsRoute = AppCommunicationsRouteImport.update({
+  id: '/communications',
+  path: '/communications',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClassesRoute = AppClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAttendanceRoute = AppAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAiAssistantRoute = AppAiAssistantRouteImport.update({
+  id: '/ai-assistant',
+  path: '/ai-assistant',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTeachersTeacherIdRoute = AppTeachersTeacherIdRouteImport.update({
@@ -102,15 +144,22 @@ const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-assistant': typeof AppAiAssistantRoute
   '/attendance': typeof AppAttendanceRoute
+  '/calendar': typeof AppCalendarRoute
   '/classes': typeof AppClassesRoute
+  '/communications': typeof AppCommunicationsRoute
   '/dashboard': typeof AppDashboardRoute
   '/fees': typeof AppFeesRoute
+  '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
+  '/parent-dashboard': typeof AppParentDashboardRoute
+  '/reports': typeof AppReportsRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
   '/students': typeof AppStudentsRouteWithChildren
   '/subjects': typeof AppSubjectsRoute
+  '/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/teachers': typeof AppTeachersRouteWithChildren
   '/timetable': typeof AppTimetableRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
@@ -118,15 +167,22 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-assistant': typeof AppAiAssistantRoute
   '/attendance': typeof AppAttendanceRoute
+  '/calendar': typeof AppCalendarRoute
   '/classes': typeof AppClassesRoute
+  '/communications': typeof AppCommunicationsRoute
   '/dashboard': typeof AppDashboardRoute
   '/fees': typeof AppFeesRoute
+  '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
+  '/parent-dashboard': typeof AppParentDashboardRoute
+  '/reports': typeof AppReportsRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
   '/students': typeof AppStudentsRouteWithChildren
   '/subjects': typeof AppSubjectsRoute
+  '/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/teachers': typeof AppTeachersRouteWithChildren
   '/timetable': typeof AppTimetableRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
@@ -136,15 +192,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/_app/ai-assistant': typeof AppAiAssistantRoute
   '/_app/attendance': typeof AppAttendanceRoute
+  '/_app/calendar': typeof AppCalendarRoute
   '/_app/classes': typeof AppClassesRoute
+  '/_app/communications': typeof AppCommunicationsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/fees': typeof AppFeesRoute
+  '/_app/library': typeof AppLibraryRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/parent-dashboard': typeof AppParentDashboardRoute
+  '/_app/reports': typeof AppReportsRoute
   '/_app/results': typeof AppResultsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/students': typeof AppStudentsRouteWithChildren
   '/_app/subjects': typeof AppSubjectsRoute
+  '/_app/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/_app/teachers': typeof AppTeachersRouteWithChildren
   '/_app/timetable': typeof AppTimetableRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
@@ -154,15 +217,22 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ai-assistant'
     | '/attendance'
+    | '/calendar'
     | '/classes'
+    | '/communications'
     | '/dashboard'
     | '/fees'
+    | '/library'
     | '/notifications'
+    | '/parent-dashboard'
+    | '/reports'
     | '/results'
     | '/settings'
     | '/students'
     | '/subjects'
+    | '/teacher-dashboard'
     | '/teachers'
     | '/timetable'
     | '/students/$studentId'
@@ -170,15 +240,22 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai-assistant'
     | '/attendance'
+    | '/calendar'
     | '/classes'
+    | '/communications'
     | '/dashboard'
     | '/fees'
+    | '/library'
     | '/notifications'
+    | '/parent-dashboard'
+    | '/reports'
     | '/results'
     | '/settings'
     | '/students'
     | '/subjects'
+    | '/teacher-dashboard'
     | '/teachers'
     | '/timetable'
     | '/students/$studentId'
@@ -187,15 +264,22 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/_app/ai-assistant'
     | '/_app/attendance'
+    | '/_app/calendar'
     | '/_app/classes'
+    | '/_app/communications'
     | '/_app/dashboard'
     | '/_app/fees'
+    | '/_app/library'
     | '/_app/notifications'
+    | '/_app/parent-dashboard'
+    | '/_app/reports'
     | '/_app/results'
     | '/_app/settings'
     | '/_app/students'
     | '/_app/subjects'
+    | '/_app/teacher-dashboard'
     | '/_app/teachers'
     | '/_app/timetable'
     | '/_app/students/$studentId'
@@ -237,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/teacher-dashboard': {
+      id: '/_app/teacher-dashboard'
+      path: '/teacher-dashboard'
+      fullPath: '/teacher-dashboard'
+      preLoaderRoute: typeof AppTeacherDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/subjects': {
       id: '/_app/subjects'
       path: '/subjects'
@@ -265,11 +356,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppResultsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parent-dashboard': {
+      id: '/_app/parent-dashboard'
+      path: '/parent-dashboard'
+      fullPath: '/parent-dashboard'
+      preLoaderRoute: typeof AppParentDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/library': {
+      id: '/_app/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AppLibraryRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/fees': {
@@ -286,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/communications': {
+      id: '/_app/communications'
+      path: '/communications'
+      fullPath: '/communications'
+      preLoaderRoute: typeof AppCommunicationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/classes': {
       id: '/_app/classes'
       path: '/classes'
@@ -293,11 +412,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClassesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/calendar': {
+      id: '/_app/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/attendance': {
       id: '/_app/attendance'
       path: '/attendance'
       fullPath: '/attendance'
       preLoaderRoute: typeof AppAttendanceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ai-assistant': {
+      id: '/_app/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant'
+      preLoaderRoute: typeof AppAiAssistantRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/teachers/$teacherId': {
@@ -342,29 +475,43 @@ const AppTeachersRouteWithChildren = AppTeachersRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAiAssistantRoute: typeof AppAiAssistantRoute
   AppAttendanceRoute: typeof AppAttendanceRoute
+  AppCalendarRoute: typeof AppCalendarRoute
   AppClassesRoute: typeof AppClassesRoute
+  AppCommunicationsRoute: typeof AppCommunicationsRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFeesRoute: typeof AppFeesRoute
+  AppLibraryRoute: typeof AppLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppParentDashboardRoute: typeof AppParentDashboardRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppResultsRoute: typeof AppResultsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppStudentsRoute: typeof AppStudentsRouteWithChildren
   AppSubjectsRoute: typeof AppSubjectsRoute
+  AppTeacherDashboardRoute: typeof AppTeacherDashboardRoute
   AppTeachersRoute: typeof AppTeachersRouteWithChildren
   AppTimetableRoute: typeof AppTimetableRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAiAssistantRoute: AppAiAssistantRoute,
   AppAttendanceRoute: AppAttendanceRoute,
+  AppCalendarRoute: AppCalendarRoute,
   AppClassesRoute: AppClassesRoute,
+  AppCommunicationsRoute: AppCommunicationsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFeesRoute: AppFeesRoute,
+  AppLibraryRoute: AppLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppParentDashboardRoute: AppParentDashboardRoute,
+  AppReportsRoute: AppReportsRoute,
   AppResultsRoute: AppResultsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppStudentsRoute: AppStudentsRouteWithChildren,
   AppSubjectsRoute: AppSubjectsRoute,
+  AppTeacherDashboardRoute: AppTeacherDashboardRoute,
   AppTeachersRoute: AppTeachersRouteWithChildren,
   AppTimetableRoute: AppTimetableRoute,
 }

@@ -23,6 +23,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { useStore } from "@/hooks/use-store";
 import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultPayments, defaultEvents, KEYS, type Student, type Teacher, type SchoolClass, type Payment, type AttendanceRecord, type SchoolEvent } from "@/lib/storage";
+import { getAuth, getActivity } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -87,12 +88,17 @@ function DashboardPage() {
     setEventForm({ title: "", date: "", type: "Event" });
   }
 
+  const auth = getAuth();
+  const activity = getActivity();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
   return (
     <>
       <TopBar title="Dashboard" />
       <div className="p-6 space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Welcome back, Admin 👋</h2>
+          <h2 className="text-xl font-bold text-foreground">{greeting}, {auth?.name ?? "Admin"} 👋</h2>
           <p className="text-sm text-muted-foreground">Here's what's happening at Mujahideen Preparatory School today.</p>
         </div>
 

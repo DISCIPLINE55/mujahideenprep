@@ -2,22 +2,22 @@ import { useState } from "react";
 import { Outlet } from "@tanstack/react-router";
 import { AppSidebar, MobileSidebarToggle } from "./AppSidebar";
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@/lib/auth";
 
-export function DashboardLayout() {
+export function DashboardLayout({ role, name }: { role: UserRole; name: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <AppSidebar
           collapsed={collapsed}
           onToggle={() => setCollapsed(!collapsed)}
+          role={role}
         />
       </div>
 
-      {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <>
           <div
@@ -28,15 +28,14 @@ export function DashboardLayout() {
             <AppSidebar
               collapsed={false}
               onToggle={() => setMobileOpen(false)}
+              role={role}
             />
           </div>
         </>
       )}
 
-      {/* Mobile trigger */}
       <MobileSidebarToggle onClick={() => setMobileOpen(true)} />
 
-      {/* Main content */}
       <main
         className={cn(
           "min-h-screen sidebar-transition",
