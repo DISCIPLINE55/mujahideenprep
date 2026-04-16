@@ -37,6 +37,12 @@ export const Route = createRootRoute({
       { name: "author", content: "Mujahideen Preparatory School" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:title", content: "MPSMS — Mujahideen Preparatory School Management System" },
+      { name: "twitter:title", content: "MPSMS — Mujahideen Preparatory School Management System" },
+      { property: "og:description", content: "School Management System for Mujahideen Preparatory School, Mankessim, Central Region, Ghana. Manage students, teachers, classes, attendance, results, and fees." },
+      { name: "twitter:description", content: "School Management System for Mujahideen Preparatory School, Mankessim, Central Region, Ghana. Manage students, teachers, classes, attendance, results, and fees." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/46b662bd-185a-451d-b7f8-047d81ee3b90" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/46b662bd-185a-451d-b7f8-047d81ee3b90" },
     ],
     links: [
       {
