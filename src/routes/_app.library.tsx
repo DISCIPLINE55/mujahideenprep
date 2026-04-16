@@ -119,11 +119,21 @@ function LibraryPage() {
   }
 
   const columns = [
-    { key: "title" as const, label: "Title" },
-    { key: "author" as const, label: "Author" },
-    { key: "category" as const, label: "Category" },
-    { key: "quantity" as const, label: "Total", render: (v: number) => String(v) },
-    { key: "available" as const, label: "Available", render: (v: number) => <Badge variant={v > 0 ? "default" : "destructive"}>{v}</Badge> },
+    { key: "title", header: "Title" },
+    { key: "author", header: "Author" },
+    { key: "category", header: "Category" },
+    { key: "quantity", header: "Total", render: (row: LibraryBook) => String(row.quantity) },
+    { key: "available", header: "Available", render: (row: LibraryBook) => <Badge variant={row.available > 0 ? "default" : "destructive"}>{row.available}</Badge> },
+    { key: "actions", header: "Actions", render: (row: LibraryBook) => (
+      <div className="flex gap-1">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(row); setBookForm({ title: row.title, author: row.author, isbn: row.isbn, category: row.category, quantity: row.quantity, available: row.available }); setBookOpen(true); }}>
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { bookStore.remove(row.id); toast.success("Book removed"); }}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    )},
   ];
 
   return (
@@ -144,16 +154,6 @@ function LibraryPage() {
         <DataTable
           data={filtered}
           columns={columns}
-          actions={(row) => (
-            <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(row); setBookForm({ title: row.title, author: row.author, isbn: row.isbn, category: row.category, quantity: row.quantity, available: row.available }); setBookOpen(true); }}>
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { bookStore.remove(row.id); toast.success("Book removed"); }}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
         />
 
         {/* Recent issues */}

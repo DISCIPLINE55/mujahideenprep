@@ -198,7 +198,7 @@ function ReportsPage() {
                     <BarChart data={attendanceData}>
                       <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v: number) => `${v}%`} />
+                      <Tooltip formatter={(v) => `${v}%`} />
                       <Bar dataKey="rate" fill="oklch(0.55 0.22 340)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
