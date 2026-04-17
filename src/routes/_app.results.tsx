@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Upload, Download, Pencil, Trash2, FileText } from "lucide-react";
+import { Search, Upload, Download, Pencil, Trash2, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { getItems, setItems, generateId, defaultStudents, defaultSubjects, KEYS, type Student, type Subject, type ExamResult } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printReportCard } from "@/components/ReportCard";
+import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/results")({
@@ -36,6 +38,8 @@ function ResultsPage() {
   const [editing, setEditing] = useState<ExamResult | null>(null);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [remarks, setRemarks] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(() => results.filter((r) =>
@@ -43,12 +47,12 @@ function ResultsPage() {
     r.class.toLowerCase().includes(debouncedSearch.toLowerCase())
   ), [results, debouncedSearch]);
 
-  function openAdd() { setEditing(null); setSelectedStudent(""); setScores({}); setOpen(true); }
+  function openAdd() { setEditing(null); setSelectedStudent(""); setScores({}); setRemarks(""); setOpen(true); }
   function openEdit(r: ExamResult) {
     setEditing(r); setSelectedStudent(r.studentId);
     const s: Record<string, number> = {};
     r.subjects.forEach((sub) => { s[sub.name] = sub.score; });
-    setScores(s); setOpen(true);
+    setScores(s); setRemarks(""); setOpen(true);
   }
 
   function handleSave() {
@@ -177,6 +181,32 @@ function ResultsPage() {
                     <Input type="number" min="0" max="100" className="w-20 h-8 text-sm" value={scores[sub.name] ?? ""} onChange={(e) => setScores({ ...scores, [sub.name]: Number(e.target.value) })} placeholder="0" />
                   </div>
                 ))}
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label>Teacher's Remarks</Label>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={aiLoading || Object.values(scores).filter(v => v > 0).length === 0} onClick={async () => {
+                      const student = students.find(s => s.id === selectedStudent);
+                      if (!student) return;
+                      setAiLoading(true);
+                      try {
+                        const subjectScores = Object.entries(scores).filter(([, v]) => v > 0).map(([n, s]) => `${n}: ${s}`).join(", ");
+                        const text = await callSchoolAI({
+                          type: "report_comment",
+                          prompt: `Student: ${student.name} (${student.class}). Scores — ${subjectScores}. Write a personalized teacher's remark.`,
+                        });
+                        setRemarks(text.trim());
+                        toast.success("AI remark generated");
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "AI failed");
+                      }
+                      setAiLoading(false);
+                    }}>
+                      {aiLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                      AI Generate
+                    </Button>
+                  </div>
+                  <Textarea rows={3} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional teacher remarks..." />
+                </div>
               </div>
             )}
           </div>

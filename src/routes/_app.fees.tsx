@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer } from "lucide-react";
+import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer, Sparkles, Loader2, Copy } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, type Student, type Payment } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printFeeReceipt } from "@/components/FeeReceipt";
+import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/fees")({
@@ -36,6 +38,29 @@ function FeesPage() {
   const [editing, setEditing] = useState<Payment | null>(null);
   const [form, setForm] = useState({ studentId: "", totalFee: 0, amountPaid: 0, date: "", description: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [reminderFor, setReminderFor] = useState<Payment | null>(null);
+  const [reminderText, setReminderText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function generateReminder(p: Payment) {
+    setReminderFor(p);
+    setReminderText("");
+    setAiLoading(true);
+    try {
+      const balance = p.totalFee - p.amountPaid;
+      const student = students.find((s) => s.id === p.studentId);
+      const guardian = student?.guardian ?? "Guardian";
+      const text = await callSchoolAI({
+        type: "fee_reminder",
+        prompt: `Draft a polite SMS-length reminder to ${guardian} (guardian of ${p.studentName}, ${p.class}) about an outstanding balance of GHS ${balance.toLocaleString()} (Total: GHS ${p.totalFee}, Paid: GHS ${p.amountPaid}). Description: ${p.description || "Term fees"}.`,
+      });
+      setReminderText(text.trim());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI failed");
+      setReminderFor(null);
+    }
+    setAiLoading(false);
+  }
 
   const { totalExpected, totalCollected, outstanding, fullyPaid } = useMemo(() => {
     const te = payments.reduce((s, p) => s + p.totalFee, 0);
@@ -87,15 +112,21 @@ function FeesPage() {
     { key: "date" as const, header: "Last Payment" },
     {
       key: "actions", header: "Actions",
-      render: (row: Payment) => (
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Receipt" onClick={(e) => { e.stopPropagation(); printFeeReceipt(row); }}><Printer className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
-        </div>
-      ),
+      render: (row: Payment) => {
+        const unpaid = row.amountPaid < row.totalFee;
+        return (
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Receipt" onClick={(e) => { e.stopPropagation(); printFeeReceipt(row); }}><Printer className="h-4 w-4" /></Button>
+            {unpaid && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="AI Reminder" onClick={(e) => { e.stopPropagation(); generateReminder(row); }}><Sparkles className="h-4 w-4" /></Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        );
+      },
     },
-  ], []);
+  ], [students]);
 
   return (
     <>
@@ -161,6 +192,29 @@ function FeesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!reminderFor} onOpenChange={() => setReminderFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI Fee Reminder</DialogTitle></DialogHeader>
+          <div className="py-2 space-y-3">
+            {reminderFor && (
+              <p className="text-xs text-muted-foreground">For {reminderFor.studentName} • Balance ₵ {(reminderFor.totalFee - reminderFor.amountPaid).toLocaleString()}</p>
+            )}
+            {aiLoading ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Generating...</div>
+            ) : (
+              <Textarea rows={8} value={reminderText} onChange={(e) => setReminderText(e.target.value)} placeholder="Reminder will appear here..." />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReminderFor(null)}>Close</Button>
+            <Button disabled={!reminderText} onClick={() => { navigator.clipboard.writeText(reminderText); toast.success("Copied to clipboard"); }}>
+              <Copy className="h-4 w-4 mr-1" /> Copy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+

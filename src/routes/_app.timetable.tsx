@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, getItems, type Subject, type Teacher, type TimetableSlot } from "@/lib/storage";
+import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/timetable")({
@@ -33,6 +34,27 @@ function TimetablePage() {
   const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ day: DAYS[0], period: PERIODS[0], subject: "", teacher: "", className: CLASS_LIST[0] });
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function handleAISuggest() {
+    setAiOpen(true); setAiText(""); setAiLoading(true);
+    try {
+      const filledSlots = classSlots.map((s) => `${s.day} ${s.period}: ${s.subject} (${s.teacher})`).join("; ") || "none";
+      const subjectList = subjects.filter(s => s.status === "Active").map(s => s.name).join(", ");
+      const teacherList = teachers.filter(t => t.status === "Active").map(t => `${t.name} (${t.subject})`).join("; ");
+      const text = await callSchoolAI({
+        type: "timetable_suggest",
+        prompt: `Class: ${selectedClass}. Subjects available: ${subjectList}. Teachers available: ${teacherList}. Filled slots: ${filledSlots}. Suggest assignments for empty periods (Mon-Fri, Periods 1-8) avoiding teacher conflicts. Format as a clear list.`,
+      });
+      setAiText(text.trim());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI failed");
+      setAiOpen(false);
+    }
+    setAiLoading(false);
+  }
 
   const classSlots = useMemo(
     () => store.items.filter((s) => s.className === selectedClass),
@@ -74,10 +96,16 @@ function TimetablePage() {
             <h2 className="text-xl font-bold text-foreground">Class Timetable</h2>
             <p className="text-sm text-muted-foreground">Weekly schedule for each class</p>
           </div>
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleAISuggest} disabled={aiLoading}>
+              {aiLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+              AI Suggest
+            </Button>
+            <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -167,6 +195,23 @@ function TimetablePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI Timetable Suggestions — {selectedClass}</DialogTitle></DialogHeader>
+          <div className="py-2">
+            {aiLoading ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Analysing schedule...</div>
+            ) : (
+              <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans">{aiText}</pre>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
