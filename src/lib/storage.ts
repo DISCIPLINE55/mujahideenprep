@@ -148,6 +148,15 @@ export interface SchoolEvent {
   type: "Exam" | "Meeting" | "Event" | "Holiday" | "Other";
 }
 
+export interface DisciplineRecord {
+  id: string;
+  studentId: string;
+  date: string;
+  description: string;
+  action: string;
+  severity: "Low" | "Medium" | "High";
+}
+
 export const CLASS_LIST = [
   "Creche", "Nursery 1", "Nursery 2", "KG 1", "KG 2",
   "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
@@ -226,6 +235,7 @@ export const KEYS = {
   NOTIFICATIONS: "mpsms_notifications",
   TIMETABLE: "mpsms_timetable",
   EVENTS: "mpsms_events",
+  DISCIPLINE: "mpsms_discipline",
 };
 
 export const defaultEvents: SchoolEvent[] = [
