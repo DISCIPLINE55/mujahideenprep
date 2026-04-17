@@ -65,7 +65,7 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col bg-sidebar-bg sidebar-transition",
+        "fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar-bg sidebar-transition shadow-lg lg:shadow-none",
         collapsed ? "w-16" : "w-60"
       )}
     >
