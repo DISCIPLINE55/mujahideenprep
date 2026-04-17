@@ -61,18 +61,26 @@ function TeachersPage() {
 
   function handleSave() {
     if (!validate()) return;
-    if (editing) { store.update({ ...editing, ...form }); toast.success("Teacher updated"); }
-    else { store.add(form); toast.success("Teacher added"); }
+    if (editing) { store.update({ ...editing, ...form }); logActivity(`Updated teacher: ${form.name}`); toast.success("Teacher updated"); }
+    else { store.add(form); logActivity(`Added teacher: ${form.name}`); toast.success("Teacher added"); }
     setOpen(false);
   }
   function handleDelete() {
-    if (deleteId) { store.remove(deleteId); setDeleteId(null); toast.success("Teacher deleted"); }
+    if (deleteId) {
+      const t = store.items.find((x) => x.id === deleteId);
+      store.remove(deleteId);
+      if (t) logActivity(`Deleted teacher: ${t.name}`);
+      setDeleteId(null);
+      toast.success("Teacher deleted");
+    }
   }
 
   function handleBulkDelete() {
     if (selected.size === 0) return;
+    const count = selected.size;
     selected.forEach((id) => store.remove(id));
-    toast.success(`${selected.size} teachers deleted`);
+    logActivity(`Bulk deleted ${count} teachers`);
+    toast.success(`${count} teachers deleted`);
     setSelected(new Set());
   }
 

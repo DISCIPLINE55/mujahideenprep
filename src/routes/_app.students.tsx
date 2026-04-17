@@ -66,19 +66,27 @@ function StudentsPage() {
 
   function handleSave() {
     if (!validate()) return;
-    if (editing) { store.update({ ...editing, ...form }); toast.success("Student updated successfully"); }
-    else { store.add(form); toast.success("Student added successfully"); }
+    if (editing) { store.update({ ...editing, ...form }); logActivity(`Updated student: ${form.name}`); toast.success("Student updated successfully"); }
+    else { store.add(form); logActivity(`Added student: ${form.name}`); toast.success("Student added successfully"); }
     setOpen(false);
   }
 
   function handleDelete() {
-    if (deleteId) { store.remove(deleteId); setDeleteId(null); toast.success("Student deleted"); }
+    if (deleteId) {
+      const s = store.items.find((x) => x.id === deleteId);
+      store.remove(deleteId);
+      if (s) logActivity(`Deleted student: ${s.name}`);
+      setDeleteId(null);
+      toast.success("Student deleted");
+    }
   }
 
   function handleBulkDelete() {
     if (selected.size === 0) return;
+    const count = selected.size;
     selected.forEach((id) => store.remove(id));
-    toast.success(`${selected.size} students deleted`);
+    logActivity(`Bulk deleted ${count} students`);
+    toast.success(`${count} students deleted`);
     setSelected(new Set());
   }
 
