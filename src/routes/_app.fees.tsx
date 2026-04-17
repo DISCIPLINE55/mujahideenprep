@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer } from "lucide-react";
+import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer, Sparkles, Loader2, Copy } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, type Student, type Payment } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printFeeReceipt } from "@/components/FeeReceipt";
+import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/fees")({

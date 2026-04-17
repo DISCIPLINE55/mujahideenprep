@@ -158,6 +158,43 @@ function AttendancePage() {
                 <p className="text-xs text-muted-foreground">{records.length} total records</p>
               </CardContent>
             </Card>
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI Attendance Insight</CardTitle>
+                <Button variant="outline" size="sm" disabled={aiLoading || records.length === 0} onClick={async () => {
+                  setAiLoading(true);
+                  try {
+                    const summary = CLASS_LIST.map((cls) => {
+                      const r = records.filter((x) => x.class === cls);
+                      if (r.length === 0) return null;
+                      const present = r.filter((x) => x.status === "Present").length;
+                      const absent = r.filter((x) => x.status === "Absent").length;
+                      const late = r.filter((x) => x.status === "Late").length;
+                      return `${cls}: ${present}P/${absent}A/${late}L`;
+                    }).filter(Boolean).join("; ");
+                    const text = await callSchoolAI({
+                      type: "attendance_insight",
+                      prompt: `Attendance over the last period — ${summary}. Total records: ${records.length}. Provide 3-5 actionable insights and identify at-risk classes.`,
+                    });
+                    setAiInsight(text.trim());
+                    toast.success("Insight generated");
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "AI failed");
+                  }
+                  setAiLoading(false);
+                }}>
+                  {aiLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                  Analyse
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {aiInsight ? (
+                  <p className="text-sm text-foreground/80 whitespace-pre-line">{aiInsight}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Click "Analyse" to get AI-powered insights from your attendance data.</p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
