@@ -150,6 +150,19 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" /> Change Password</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">Signed in as <strong>{auth?.email ?? "user"}</strong></p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2"><Label>Current Password</Label><Input type="password" value={pwd.current} onChange={(e) => setPwd({ ...pwd, current: e.target.value })} /></div>
+              <div className="space-y-2"><Label>New Password</Label><Input type="password" value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Confirm Password</Label><Input type="password" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} /></div>
+            </div>
+            <Button variant="outline" onClick={handleChangePassword}><Lock className="h-4 w-4 mr-1" /> Update Password</Button>
+          </CardContent>
+        </Card>
+
         <div className="flex items-center justify-end">
           <Button onClick={handleSave}><Save className="mr-1 h-4 w-4" /> Save Settings</Button>
         </div>
