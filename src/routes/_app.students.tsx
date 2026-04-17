@@ -14,6 +14,7 @@ import { useStore } from "@/hooks/use-store";
 import { defaultStudents, KEYS, CLASS_LIST, type Student } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
+import { logActivity } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/students")({
