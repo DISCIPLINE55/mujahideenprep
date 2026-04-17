@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Upload, Download, Pencil, Trash2, FileText } from "lucide-react";
+import { Search, Upload, Download, Pencil, Trash2, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { getItems, setItems, generateId, defaultStudents, defaultSubjects, KEYS, type Student, type Subject, type ExamResult } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printReportCard } from "@/components/ReportCard";
+import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/results")({
@@ -36,6 +38,8 @@ function ResultsPage() {
   const [editing, setEditing] = useState<ExamResult | null>(null);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [remarks, setRemarks] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(() => results.filter((r) =>
