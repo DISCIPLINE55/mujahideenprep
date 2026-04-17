@@ -7,10 +7,11 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ClipboardCheck, Download, BarChart3 } from "lucide-react";
+import { ClipboardCheck, Download, BarChart3, Sparkles, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getItems, setItems, generateId, defaultStudents, defaultClasses, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
+import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/attendance")({
@@ -33,6 +34,8 @@ function AttendancePage() {
   const [markDate, setMarkDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [markData, setMarkData] = useState<Record<string, "Present" | "Absent" | "Late">>({});
   const [showSummary, setShowSummary] = useState(false);
+  const [aiInsight, setAiInsight] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
