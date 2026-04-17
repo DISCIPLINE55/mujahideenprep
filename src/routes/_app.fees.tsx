@@ -192,6 +192,29 @@ function FeesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!reminderFor} onOpenChange={() => setReminderFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI Fee Reminder</DialogTitle></DialogHeader>
+          <div className="py-2 space-y-3">
+            {reminderFor && (
+              <p className="text-xs text-muted-foreground">For {reminderFor.studentName} • Balance ₵ {(reminderFor.totalFee - reminderFor.amountPaid).toLocaleString()}</p>
+            )}
+            {aiLoading ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Generating...</div>
+            ) : (
+              <Textarea rows={8} value={reminderText} onChange={(e) => setReminderText(e.target.value)} placeholder="Reminder will appear here..." />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReminderFor(null)}>Close</Button>
+            <Button disabled={!reminderText} onClick={() => { navigator.clipboard.writeText(reminderText); toast.success("Copied to clipboard"); }}>
+              <Copy className="h-4 w-4 mr-1" /> Copy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
