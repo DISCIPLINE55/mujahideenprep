@@ -38,6 +38,29 @@ function FeesPage() {
   const [editing, setEditing] = useState<Payment | null>(null);
   const [form, setForm] = useState({ studentId: "", totalFee: 0, amountPaid: 0, date: "", description: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [reminderFor, setReminderFor] = useState<Payment | null>(null);
+  const [reminderText, setReminderText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function generateReminder(p: Payment) {
+    setReminderFor(p);
+    setReminderText("");
+    setAiLoading(true);
+    try {
+      const balance = p.totalFee - p.amountPaid;
+      const student = students.find((s) => s.id === p.studentId);
+      const guardian = student?.guardian ?? "Guardian";
+      const text = await callSchoolAI({
+        type: "fee_reminder",
+        prompt: `Draft a polite SMS-length reminder to ${guardian} (guardian of ${p.studentName}, ${p.class}) about an outstanding balance of GHS ${balance.toLocaleString()} (Total: GHS ${p.totalFee}, Paid: GHS ${p.amountPaid}). Description: ${p.description || "Term fees"}.`,
+      });
+      setReminderText(text.trim());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI failed");
+      setReminderFor(null);
+    }
+    setAiLoading(false);
+  }
 
   const { totalExpected, totalCollected, outstanding, fullyPaid } = useMemo(() => {
     const te = payments.reduce((s, p) => s + p.totalFee, 0);
