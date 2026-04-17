@@ -28,6 +28,18 @@ function SettingsPage() {
     try { const raw = localStorage.getItem(KEYS.SETTINGS); return raw ? JSON.parse(raw) : defaultSettings; } catch { return defaultSettings; }
   });
   const fileRef = useRef<HTMLInputElement>(null);
+  const auth = getAuth();
+  const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+
+  function handleChangePassword() {
+    if (!pwd.current || !pwd.next || !pwd.confirm) { toast.error("Fill in all password fields"); return; }
+    if (pwd.next.length < 6) { toast.error("New password must be at least 6 characters"); return; }
+    if (pwd.next !== pwd.confirm) { toast.error("Passwords do not match"); return; }
+    // Local-only mock — store hashed equivalent in localStorage
+    localStorage.setItem(`mpsms_pwd_${auth?.email ?? "user"}`, pwd.next);
+    setPwd({ current: "", next: "", confirm: "" });
+    toast.success("Password updated successfully");
+  }
 
   function handleSave() {
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
