@@ -11,11 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer, Sparkles, Loader2, Copy } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, type Student, type Payment } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, type Student, type Payment, type Notification } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printFeeReceipt } from "@/components/FeeReceipt";
 import { callSchoolAI } from "@/lib/ai";
+import { logActivity } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/fees")({
@@ -84,10 +85,26 @@ function FeesPage() {
     if (!student) return;
     if (editing) {
       const updated = payments.map((p) => p.id === editing.id ? { ...p, ...form, studentName: student.name, class: student.class } : p);
-      setItems(KEYS.PAYMENTS, updated); setPayments(updated); toast.success("Payment updated");
+      setItems(KEYS.PAYMENTS, updated); setPayments(updated);
+      logActivity(`Updated payment for ${student.name}`);
+      toast.success("Payment updated");
     } else {
       const newPayment: Payment = { id: generateId(), studentId: form.studentId, studentName: student.name, class: student.class, totalFee: form.totalFee, amountPaid: form.amountPaid, date: form.date, description: form.description };
-      const updated = [...payments, newPayment]; setItems(KEYS.PAYMENTS, updated); setPayments(updated); toast.success("Payment recorded");
+      const updated = [...payments, newPayment]; setItems(KEYS.PAYMENTS, updated); setPayments(updated);
+      logActivity(`Recorded payment of ₵${form.amountPaid} for ${student.name}`);
+      // Auto-create notification
+      const balance = form.totalFee - form.amountPaid;
+      const notifs = getItems<Notification>(KEYS.NOTIFICATIONS, []);
+      notifs.unshift({
+        id: generateId(),
+        title: balance > 0 ? "Partial Payment Recorded" : "Payment Received",
+        message: `₵${form.amountPaid.toLocaleString()} received from ${student.name} (${student.class})${balance > 0 ? `. Balance: ₵${balance.toLocaleString()}` : "."}`,
+        audience: "All",
+        date: new Date().toISOString().split("T")[0],
+        read: false,
+      });
+      setItems(KEYS.NOTIFICATIONS, notifs.slice(0, 100));
+      toast.success("Payment recorded");
     }
     setOpen(false);
   }

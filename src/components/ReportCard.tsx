@@ -1,5 +1,5 @@
-import { type ExamResult, type SchoolSettings, defaultSettings, KEYS } from "@/lib/storage";
-import logoImg from "@/assets/logo.png";
+import { type ExamResult } from "@/lib/storage";
+import { getSchoolSettings, brandedPrintHeader, brandedPrintFooter } from "@/lib/printBranding";
 
 interface ReportCardProps {
   result: ExamResult;
@@ -8,13 +8,7 @@ interface ReportCardProps {
 }
 
 export function printReportCard({ result, position, totalInClass }: ReportCardProps) {
-  let settings: SchoolSettings;
-  try {
-    const raw = localStorage.getItem(KEYS.SETTINGS);
-    settings = raw ? JSON.parse(raw) : defaultSettings;
-  } catch {
-    settings = defaultSettings;
-  }
+  const settings = getSchoolSettings();
 
   function posLabel(n: number) {
     if (n === 1) return "1st";
@@ -44,30 +38,19 @@ export function printReportCard({ result, position, totalInClass }: ReportCardPr
   const html = `<!DOCTYPE html>
 <html><head><title>Report Card - ${result.studentName}</title>
 <style>
-  body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1B1464}
-  .header{text-align:center;border-bottom:3px solid #D81B8C;padding-bottom:15px;margin-bottom:20px}
-  .header img{width:70px;height:70px;border-radius:50%}
-  .header h1{margin:5px 0;font-size:20px;color:#1B1464}
-  .header p{margin:2px 0;font-size:12px;color:#555}
-  .info{display:flex;justify-content:space-between;margin-bottom:20px;font-size:13px}
-  .info div{flex:1}
-  .info strong{color:#1B1464}
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1B1464;max-width:780px;margin:0 auto}
+  .info{display:flex;justify-content:space-between;margin-bottom:20px;font-size:13px;flex-wrap:wrap;gap:12px}
+  .info div{flex:1;min-width:220px}
+  .info strong{color:#04844B}
   table{width:100%;border-collapse:collapse;margin-bottom:20px}
   th,td{border:1px solid #ccc;padding:8px 12px;text-align:left;font-size:13px}
-  th{background:#1B1464;color:white}
+  th{background:#04844B;color:white}
   .summary{background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px}
   .summary p{margin:4px 0;font-size:13px}
-  .remark{background:#D81B8C;color:white;padding:12px;border-radius:8px;font-size:13px}
-  .footer{text-align:center;margin-top:30px;font-size:11px;color:#888}
+  .remark{background:#04844B;color:white;padding:12px;border-radius:8px;font-size:13px}
   @media print{body{padding:15px}@page{margin:10mm}}
 </style></head><body>
-<div class="header">
-  <img src="${logoImg}" alt="Logo" />
-  <h1>${settings.name}</h1>
-  <p>${settings.motto}</p>
-  <p>${settings.location} | ${settings.phone}</p>
-  <p style="font-weight:bold;margin-top:8px;color:#D81B8C">TERMINAL REPORT CARD</p>
-</div>
+${brandedPrintHeader("TERMINAL REPORT CARD")}
 <div class="info">
   <div><p><strong>Student:</strong> ${result.studentName}</p><p><strong>Class:</strong> ${result.class}</p></div>
   <div><p><strong>Term:</strong> ${result.term}</p><p><strong>Academic Year:</strong> ${settings.academicYear}</p></div>
@@ -85,7 +68,7 @@ export function printReportCard({ result, position, totalInClass }: ReportCardPr
   <p><strong>Overall Grade:</strong> ${grade(result.average)}</p>
 </div>
 <div class="remark"><strong>Teacher's Remark:</strong> ${remark(result.average)}</div>
-<div class="footer"><p>${settings.name} • ${settings.academicYear} • ${result.term}</p></div>
+${brandedPrintFooter()}
 </body></html>`;
 
   const win = window.open("", "_blank");

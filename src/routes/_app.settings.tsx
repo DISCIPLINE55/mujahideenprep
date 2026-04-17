@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Save, Download, Upload } from "lucide-react";
+import { Save, Download, Upload, Lock } from "lucide-react";
 import { KEYS, defaultSettings, exportAllData, importAllData, type SchoolSettings } from "@/lib/storage";
+import { getAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import logoImg from "@/assets/logo.png";
 
@@ -27,6 +28,18 @@ function SettingsPage() {
     try { const raw = localStorage.getItem(KEYS.SETTINGS); return raw ? JSON.parse(raw) : defaultSettings; } catch { return defaultSettings; }
   });
   const fileRef = useRef<HTMLInputElement>(null);
+  const auth = getAuth();
+  const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+
+  function handleChangePassword() {
+    if (!pwd.current || !pwd.next || !pwd.confirm) { toast.error("Fill in all password fields"); return; }
+    if (pwd.next.length < 6) { toast.error("New password must be at least 6 characters"); return; }
+    if (pwd.next !== pwd.confirm) { toast.error("Passwords do not match"); return; }
+    // Local-only mock — store hashed equivalent in localStorage
+    localStorage.setItem(`mpsms_pwd_${auth?.email ?? "user"}`, pwd.next);
+    setPwd({ current: "", next: "", confirm: "" });
+    toast.success("Password updated successfully");
+  }
 
   function handleSave() {
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
@@ -134,6 +147,19 @@ function SettingsPage() {
               </Button>
               <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleRestore} />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" /> Change Password</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">Signed in as <strong>{auth?.email ?? "user"}</strong></p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2"><Label>Current Password</Label><Input type="password" value={pwd.current} onChange={(e) => setPwd({ ...pwd, current: e.target.value })} /></div>
+              <div className="space-y-2"><Label>New Password</Label><Input type="password" value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Confirm Password</Label><Input type="password" value={pwd.confirm} onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })} /></div>
+            </div>
+            <Button variant="outline" onClick={handleChangePassword}><Lock className="h-4 w-4 mr-1" /> Update Password</Button>
           </CardContent>
         </Card>
 

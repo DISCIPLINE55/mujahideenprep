@@ -1,12 +1,18 @@
-import { useState } from "react";
-import { Outlet } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { Outlet, useLocation } from "@tanstack/react-router";
 import { AppSidebar, MobileSidebarToggle } from "./AppSidebar";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/auth";
 
-export function DashboardLayout({ role, name }: { role: UserRole; name: string }) {
+export function DashboardLayout({ role }: { role: UserRole; name: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Auto-close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -21,7 +27,7 @@ export function DashboardLayout({ role, name }: { role: UserRole; name: string }
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-20 bg-foreground/30 lg:hidden"
+            className="fixed inset-0 z-30 bg-foreground/40 backdrop-blur-sm lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
           <div className="lg:hidden">
