@@ -112,15 +112,21 @@ function FeesPage() {
     { key: "date" as const, header: "Last Payment" },
     {
       key: "actions", header: "Actions",
-      render: (row: Payment) => (
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Receipt" onClick={(e) => { e.stopPropagation(); printFeeReceipt(row); }}><Printer className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
-        </div>
-      ),
+      render: (row: Payment) => {
+        const unpaid = row.amountPaid < row.totalFee;
+        return (
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Receipt" onClick={(e) => { e.stopPropagation(); printFeeReceipt(row); }}><Printer className="h-4 w-4" /></Button>
+            {unpaid && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="AI Reminder" onClick={(e) => { e.stopPropagation(); generateReminder(row); }}><Sparkles className="h-4 w-4" /></Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        );
+      },
     },
-  ], []);
+  ], [students]);
 
   return (
     <>
