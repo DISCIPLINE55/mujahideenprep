@@ -49,7 +49,12 @@ export function CommandPalette() {
       }
     }
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    function openListener() { setOpen(true); }
+    window.addEventListener("mpsms:open-search", openListener);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mpsms:open-search", openListener);
+    };
   }, []);
 
   const results = useMemo<SearchResult[]>(() => {
