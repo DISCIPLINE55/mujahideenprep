@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ClipboardCheck, Download, BarChart3, Sparkles, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { getItems, setItems, generateId, defaultStudents, defaultClasses, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultClasses, defaultTeachers, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord, type Teacher } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { callSchoolAI } from "@/lib/ai";
+import { getAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/attendance")({
@@ -26,11 +27,25 @@ export const Route = createFileRoute("/_app/attendance")({
 });
 
 function AttendancePage() {
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const [records, setRecords] = useState<AttendanceRecord[]>(() => getItems<AttendanceRecord>(KEYS.ATTENDANCE, []));
+  const auth = getAuth();
+  const isTeacher = auth?.role === "teacher";
+  const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const allClasses = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
+
+  const teacherClassNames = useMemo(() => {
+    if (!isTeacher) return null;
+    const me = teachers.find((t) => t.id === auth?.teacherId);
+    return me ? allClasses.filter((c) => c.teacher === me.name).map((c) => c.name) : [];
+  }, [isTeacher, teachers, allClasses, auth]);
+
+  const students = useMemo(() => teacherClassNames ? allStudents.filter((s) => teacherClassNames.includes(s.class)) : allStudents, [allStudents, teacherClassNames]);
+  const classes = useMemo(() => teacherClassNames ? allClasses.filter((c) => teacherClassNames.includes(c.name)) : allClasses, [allClasses, teacherClassNames]);
+  const allowedClassList = useMemo(() => teacherClassNames ?? CLASS_LIST, [teacherClassNames]);
+  const [allRecords, setRecords] = useState<AttendanceRecord[]>(() => getItems<AttendanceRecord>(KEYS.ATTENDANCE, []));
+  const records = useMemo(() => teacherClassNames ? allRecords.filter((r) => teacherClassNames.includes(r.class)) : allRecords, [allRecords, teacherClassNames]);
   const [markOpen, setMarkOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
+  const [selectedClass, setSelectedClass] = useState(allowedClassList[0] ?? CLASS_LIST[0]);
   const [markDate, setMarkDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [markData, setMarkData] = useState<Record<string, "Present" | "Absent" | "Late">>({});
   const [showSummary, setShowSummary] = useState(false);
@@ -39,7 +54,7 @@ function AttendancePage() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  function openMark() { setSelectedClass(CLASS_LIST[0]); setMarkDate(today); setMarkData({}); setMarkOpen(true); }
+  function openMark() { setSelectedClass(allowedClassList[0] ?? CLASS_LIST[0]); setMarkDate(today); setMarkData({}); setMarkOpen(true); }
 
   function initMarkData(cls: string) {
     const classStudents = students.filter((s) => s.class === cls && s.status === "Active");
@@ -53,7 +68,7 @@ function AttendancePage() {
 
   function handleSaveAttendance() {
     const classStudents = students.filter((s) => s.class === selectedClass && s.status === "Active");
-    let updated = records.filter((r) => !(r.class === selectedClass && r.date === markDate));
+    let updated = allRecords.filter((r) => !(r.class === selectedClass && r.date === markDate));
     classStudents.forEach((s) => {
       updated.push({ id: generateId(), studentId: s.id, studentName: s.name, class: selectedClass, date: markDate, status: markData[s.id] ?? "Present" });
     });
@@ -164,7 +179,7 @@ function AttendancePage() {
                 <Button variant="outline" size="sm" disabled={aiLoading || records.length === 0} onClick={async () => {
                   setAiLoading(true);
                   try {
-                    const summary = CLASS_LIST.map((cls) => {
+                    const summary = allowedClassList.map((cls) => {
                       const r = records.filter((x) => x.class === cls);
                       if (r.length === 0) return null;
                       const present = r.filter((x) => x.status === "Present").length;
@@ -233,7 +248,7 @@ function AttendancePage() {
                 <label className="text-sm font-medium">Class</label>
                 <Select value={selectedClass} onValueChange={handleClassChange}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{allowedClassList.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">

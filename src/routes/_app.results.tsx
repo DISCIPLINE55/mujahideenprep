@@ -16,6 +16,8 @@ import { useDebounce } from "@/lib/debounce";
 import { printReportCard } from "@/components/ReportCard";
 import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
+import { getAuth, type UserRole } from "@/lib/auth";
+import { defaultTeachers, defaultClasses, type Teacher, type SchoolClass } from "@/lib/storage";
 
 export const Route = createFileRoute("/_app/results")({
   head: () => ({
@@ -29,9 +31,38 @@ export const Route = createFileRoute("/_app/results")({
 });
 
 function ResultsPage() {
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const auth = getAuth();
+  const role: UserRole = auth?.role ?? "admin";
+  const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
   const subjects = getItems<Subject>(KEYS.SUBJECTS, defaultSubjects);
-  const [results, setResults] = useState<ExamResult[]>(() => getItems<ExamResult>(KEYS.RESULTS, []));
+  const [allResults, setResults] = useState<ExamResult[]>(() => getItems<ExamResult>(KEYS.RESULTS, []));
+
+  // Scope data per role
+  const allowedClassNames = useMemo(() => {
+    if (role === "teacher") {
+      const me = teachers.find((t) => t.id === auth?.teacherId);
+      return me ? classes.filter((c) => c.teacher === me.name).map((c) => c.name) : [];
+    }
+    return null; // null = all
+  }, [role, teachers, classes, auth]);
+
+  const students = useMemo(() => {
+    if (role === "parent") return allStudents.filter((s) => auth?.studentIds?.includes(s.id));
+    if (role === "teacher" && allowedClassNames) return allStudents.filter((s) => allowedClassNames.includes(s.class));
+    return allStudents;
+  }, [allStudents, role, auth, allowedClassNames]);
+
+  const results = useMemo(() => {
+    if (role === "parent") return allResults.filter((r) => auth?.studentIds?.includes(r.studentId));
+    if (role === "teacher" && allowedClassNames) return allResults.filter((r) => allowedClassNames.includes(r.class));
+    return allResults;
+  }, [allResults, role, auth, allowedClassNames]);
+
+  const canEdit = role === "admin" || role === "teacher";
+  const canDelete = role === "admin";
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const [open, setOpen] = useState(false);
@@ -64,12 +95,12 @@ function ResultsPage() {
     const average = subjectScores.length > 0 ? Math.round(total / subjectScores.length) : 0;
 
     if (editing) {
-      const updated = results.map((r) => r.id === editing.id ? { ...r, studentId: selectedStudent, studentName: student.name, class: student.class, subjects: subjectScores, total, average } : r);
+      const updated = allResults.map((r) => r.id === editing.id ? { ...r, studentId: selectedStudent, studentName: student.name, class: student.class, subjects: subjectScores, total, average } : r);
       setItems(KEYS.RESULTS, updated); setResults(updated);
       toast.success("Scores updated");
     } else {
       const newResult: ExamResult = { id: generateId(), studentId: selectedStudent, studentName: student.name, class: student.class, term: "Term 2", subjects: subjectScores, total, average };
-      const updated = [...results, newResult];
+      const updated = [...allResults, newResult];
       setItems(KEYS.RESULTS, updated); setResults(updated);
       toast.success("Scores saved");
     }
@@ -78,7 +109,7 @@ function ResultsPage() {
 
   function handleDelete() {
     if (deleteId) {
-      const updated = results.filter((r) => r.id !== deleteId);
+      const updated = allResults.filter((r) => r.id !== deleteId);
       setItems(KEYS.RESULTS, updated); setResults(updated); setDeleteId(null);
       toast.success("Result deleted");
     }
@@ -127,12 +158,12 @@ function ResultsPage() {
           <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Report Card" onClick={(e) => { e.stopPropagation(); printReportCard({ result: row, position: positions.get(row.id) ?? 0, totalInClass: classCounts.get(row.class) ?? 0 }); }}>
             <FileText className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
+          {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>}
+          {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>}
         </div>
       ),
     },
-  ], [positions, classCounts]);
+  ], [positions, classCounts, canEdit, canDelete]);
 
   return (
     <>
@@ -145,7 +176,7 @@ function ResultsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
-            <Button size="sm" onClick={openAdd}><Upload className="mr-1 h-4 w-4" /> Upload Scores</Button>
+            {canEdit && <Button size="sm" onClick={openAdd}><Upload className="mr-1 h-4 w-4" /> Upload Scores</Button>}
           </div>
         </div>
         <div className="relative max-w-sm">
