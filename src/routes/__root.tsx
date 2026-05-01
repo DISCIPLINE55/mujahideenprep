@@ -81,6 +81,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('mpsms_theme');if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}`,
+          }}
+        />
       </head>
       <body>
         {children}
