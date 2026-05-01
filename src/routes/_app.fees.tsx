@@ -16,7 +16,7 @@ import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printFeeReceipt } from "@/components/FeeReceipt";
 import { callSchoolAI } from "@/lib/ai";
-import { logActivity } from "@/lib/auth";
+import { logActivity, getAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/fees")({
@@ -31,8 +31,13 @@ export const Route = createFileRoute("/_app/fees")({
 });
 
 function FeesPage() {
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const [payments, setPayments] = useState<Payment[]>(() => getItems<Payment>(KEYS.PAYMENTS, defaultPayments));
+  const auth = getAuth();
+  const isParent = auth?.role === "parent";
+  const isAdmin = auth?.role === "admin";
+  const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const students = isParent ? allStudents.filter((s) => auth?.studentIds?.includes(s.id)) : allStudents;
+  const [allPayments, setPayments] = useState<Payment[]>(() => getItems<Payment>(KEYS.PAYMENTS, defaultPayments));
+  const payments = useMemo(() => isParent ? allPayments.filter((p) => auth?.studentIds?.includes(p.studentId)) : allPayments, [allPayments, isParent, auth]);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const [open, setOpen] = useState(false);
@@ -81,16 +86,16 @@ function FeesPage() {
 
   function handleSave() {
     if (!form.studentId) return;
-    const student = students.find((s) => s.id === form.studentId);
+    const student = allStudents.find((s) => s.id === form.studentId);
     if (!student) return;
     if (editing) {
-      const updated = payments.map((p) => p.id === editing.id ? { ...p, ...form, studentName: student.name, class: student.class } : p);
+      const updated = allPayments.map((p) => p.id === editing.id ? { ...p, ...form, studentName: student.name, class: student.class } : p);
       setItems(KEYS.PAYMENTS, updated); setPayments(updated);
       logActivity(`Updated payment for ${student.name}`);
       toast.success("Payment updated");
     } else {
       const newPayment: Payment = { id: generateId(), studentId: form.studentId, studentName: student.name, class: student.class, totalFee: form.totalFee, amountPaid: form.amountPaid, date: form.date, description: form.description };
-      const updated = [...payments, newPayment]; setItems(KEYS.PAYMENTS, updated); setPayments(updated);
+      const updated = [...allPayments, newPayment]; setItems(KEYS.PAYMENTS, updated); setPayments(updated);
       logActivity(`Recorded payment of ₵${form.amountPaid} for ${student.name}`);
       // Auto-create notification
       const balance = form.totalFee - form.amountPaid;
@@ -110,7 +115,7 @@ function FeesPage() {
   }
 
   function handleDelete() {
-    if (deleteId) { const updated = payments.filter((p) => p.id !== deleteId); setItems(KEYS.PAYMENTS, updated); setPayments(updated); setDeleteId(null); toast.success("Payment deleted"); }
+    if (deleteId) { const updated = allPayments.filter((p) => p.id !== deleteId); setItems(KEYS.PAYMENTS, updated); setPayments(updated); setDeleteId(null); toast.success("Payment deleted"); }
   }
 
   function handleExport() {
@@ -134,16 +139,16 @@ function FeesPage() {
         return (
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Receipt" onClick={(e) => { e.stopPropagation(); printFeeReceipt(row); }}><Printer className="h-4 w-4" /></Button>
-            {unpaid && (
+            {unpaid && isAdmin && (
               <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="AI Reminder" onClick={(e) => { e.stopPropagation(); generateReminder(row); }}><Sparkles className="h-4 w-4" /></Button>
             )}
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
+            {isAdmin && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>}
+            {isAdmin && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>}
           </div>
         );
       },
     },
-  ], [students]);
+  ], [students, isAdmin]);
 
   return (
     <>
@@ -156,7 +161,7 @@ function FeesPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
-            <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Record Payment</Button>
+            {isAdmin && <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Record Payment</Button>}
           </div>
         </div>
 
