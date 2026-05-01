@@ -13,6 +13,7 @@ import { Plus, Bell, Trash2, Eye } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, type Notification } from "@/lib/storage";
 import { toast } from "sonner";
+import { getAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({
@@ -27,6 +28,15 @@ export const Route = createFileRoute("/_app/notifications")({
 
 function NotificationsPage() {
   const store = useStore<Notification>(KEYS.NOTIFICATIONS, []);
+  const auth = getAuth();
+  const isAdmin = auth?.role === "admin";
+  const visible = store.items.filter((n) => {
+    if (isAdmin) return true;
+    if (n.audience === "All") return true;
+    if (auth?.role === "teacher" && n.audience === "Teachers") return true;
+    if (auth?.role === "parent" && n.audience === "Parents") return true;
+    return false;
+  });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", message: "", audience: "All" as "All" | "Teachers" | "Parents", date: new Date().toISOString().split("T")[0] });
 
@@ -47,7 +57,7 @@ function NotificationsPage() {
     toast.success("Notification deleted");
   }
 
-  const unread = store.items.filter((n) => !n.read).length;
+  const unread = visible.filter((n) => !n.read).length;
 
   return (
     <>
@@ -56,21 +66,23 @@ function NotificationsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-foreground">Notifications & Announcements</h2>
-            <p className="text-sm text-muted-foreground">{store.items.length} total • {unread} unread</p>
+            <p className="text-sm text-muted-foreground">{visible.length} total • {unread} unread</p>
           </div>
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> Create Notice
-          </Button>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Create Notice
+            </Button>
+          )}
         </div>
 
-        {store.items.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="rounded-lg border bg-card p-12 text-center">
             <Bell className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">No notifications yet. Create your first announcement.</p>
+            <p className="text-muted-foreground">{isAdmin ? "No notifications yet. Create your first announcement." : "No notifications for you right now."}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {store.items
+            {visible
               .sort((a, b) => b.date.localeCompare(a.date))
               .map((n) => (
                 <Card key={n.id} className={!n.read ? "border-secondary/40 bg-secondary/5" : ""}>
@@ -91,9 +103,11 @@ function NotificationsPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(n.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(n.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
