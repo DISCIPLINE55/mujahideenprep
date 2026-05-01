@@ -4,6 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useEffect, useState } from "react";
 import { getAuth, ROLE_NAV, type AuthState, type UserRole } from "@/lib/auth";
 import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/_app")({
   component: AuthGuardLayout,
@@ -60,5 +61,10 @@ function AuthGuardLayout() {
 
   if (!checked || !auth) return null;
   if (!isRouteAllowed(location.pathname, auth.role)) return null;
-  return <DashboardLayout role={auth.role} name={auth.name} />;
+  return (
+    <>
+      <Toaster position="top-right" richColors />
+      <DashboardLayout role={auth.role} name={auth.name} />
+    </>
+  );
 }

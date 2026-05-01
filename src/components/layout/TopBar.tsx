@@ -15,8 +15,16 @@ export function TopBar({ title }: { title: string }) {
   useEffect(() => {
     function refresh() {
       const notifications = getItems<Notification>(KEYS.NOTIFICATIONS, []);
-      setUnreadCount(notifications.filter((n) => !n.read).length);
-      setAuth(getAuth());
+      const a = getAuth();
+      setAuth(a);
+      const visible = notifications.filter((n) => {
+        if (!a || a.role === "admin") return true;
+        if (n.audience === "All") return true;
+        if (a.role === "teacher" && n.audience === "Teachers") return true;
+        if (a.role === "parent" && n.audience === "Parents") return true;
+        return false;
+      });
+      setUnreadCount(visible.filter((n) => !n.read).length);
     }
     refresh();
     // Refresh on storage change (multi-tab) and on focus
@@ -55,13 +63,27 @@ export function TopBar({ title }: { title: string }) {
       <h1 className="truncate text-base sm:text-lg font-bold text-foreground">{title}</h1>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="w-48 lg:w-64 pl-9 h-9 bg-background"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("mpsms:open-search"))}
+          className="hidden md:flex items-center gap-2 w-48 lg:w-64 h-9 rounded-md border bg-background px-3 text-sm text-muted-foreground hover:bg-accent transition-colors"
+          aria-label="Open search"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium">
+            ⌘K
+          </kbd>
+        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 md:hidden"
+          onClick={() => window.dispatchEvent(new Event("mpsms:open-search"))}
+          aria-label="Search"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
 
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleDarkMode}>
           <Sun className="h-5 w-5 dark:hidden" />
