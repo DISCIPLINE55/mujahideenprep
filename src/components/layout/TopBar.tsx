@@ -15,8 +15,16 @@ export function TopBar({ title }: { title: string }) {
   useEffect(() => {
     function refresh() {
       const notifications = getItems<Notification>(KEYS.NOTIFICATIONS, []);
-      setUnreadCount(notifications.filter((n) => !n.read).length);
-      setAuth(getAuth());
+      const a = getAuth();
+      setAuth(a);
+      const visible = notifications.filter((n) => {
+        if (!a || a.role === "admin") return true;
+        if (n.audience === "All") return true;
+        if (a.role === "teacher" && n.audience === "Teachers") return true;
+        if (a.role === "parent" && n.audience === "Parents") return true;
+        return false;
+      });
+      setUnreadCount(visible.filter((n) => !n.read).length);
     }
     refresh();
     // Refresh on storage change (multi-tab) and on focus
