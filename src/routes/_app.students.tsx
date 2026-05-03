@@ -102,8 +102,9 @@ function StudentsPage() {
       store.update({ ...editing, ...form }); 
       logActivity(`Updated student: ${form.name}`); 
       toast.success("Student updated successfully"); 
-    } else { 
-      const newStudent = store.add(form); 
+    } else {
+      const newStudentPromise = store.add(form);
+      Promise.resolve(newStudentPromise).then((newStudent) => {
       if (form.amountPaid && form.amountPaid > 0) {
         const payments = getItems<Payment>(KEYS.PAYMENTS, []);
         payments.push({
@@ -118,6 +119,7 @@ function StudentsPage() {
         });
         setItems(KEYS.PAYMENTS, payments);
       }
+      });
       logActivity(`Added student: ${form.name}`); 
       toast.success("Student added successfully"); 
     }

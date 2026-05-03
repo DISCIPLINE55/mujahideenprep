@@ -31,7 +31,7 @@ export async function fetchFromSupabase<T>(table: string): Promise<T[]> {
 }
 
 export async function saveToSupabase<T>(table: string, item: T) {
-  const { error } = await supabase.from(table).upsert(item);
+  const { error } = await supabase.from(table).upsert(item as any);
   if (error) throw error;
 }
 
