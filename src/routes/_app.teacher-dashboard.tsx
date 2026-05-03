@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, ClipboardCheck, CalendarDays, BookOpen } from "lucide-react";
 import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultEvents, defaultSubjects, KEYS, type Student, type Teacher, type SchoolClass, type AttendanceRecord, type TimetableSlot, type SchoolEvent } from "@/lib/storage";
-import { getAuth } from "@/lib/auth";
+import { getAuthSync } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/teacher-dashboard")({
   head: () => ({

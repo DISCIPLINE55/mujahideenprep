@@ -13,7 +13,7 @@ import { Plus, Search, Download, Receipt, TrendingDown, Landmark, Calendar, Penc
 import { getItems, setItems, generateId, KEYS, type Expense } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
-import { logActivity, getAuth } from "@/lib/auth";
+import { logActivity, getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/expenses")({

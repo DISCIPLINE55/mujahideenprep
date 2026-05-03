@@ -13,7 +13,7 @@ import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, getItems, type Subj
 import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
-import { getAuth } from "@/lib/auth";
+import { getAuthSync } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/timetable")({
   head: () => ({
