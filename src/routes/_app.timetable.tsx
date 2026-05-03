@@ -98,7 +98,7 @@ function TimetablePage() {
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  const auth = typeof window !== "undefined" ? getAuth() : null;
+  const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
 
   async function handleAISuggest() {

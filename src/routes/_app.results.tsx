@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_app/results")({
 });
 
 function ResultsPage() {
-  const auth = getAuth();
+  const auth = getAuthSync();
   const role: UserRole = auth?.role ?? "admin";
   const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
   const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);

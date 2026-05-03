@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_app/notifications")({
 
 function NotificationsPage() {
   const store = useStore<Notification>(KEYS.NOTIFICATIONS, []);
-  const auth = getAuth();
+  const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
   const visible = store.items.filter((n) => {
     if (isAdmin) return true;

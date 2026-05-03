@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/expenses")({
 const CATEGORIES = ["Salary", "Utilities", "Maintenance", "Supplies", "Food", "Books", "Marketing", "Other"];
 
 function ExpensesPage() {
-  const auth = getAuth();
+  const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
   const [allExpenses, setExpenses] = useState<Expense[]>(() => getItems<Expense>(KEYS.EXPENSES, []));
   

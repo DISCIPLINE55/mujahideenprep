@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_app/teacher-dashboard")({
 });
 
 function TeacherDashboard() {
-  const auth = getAuth();
+  const auth = getAuthSync();
   const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
   const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
   const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);

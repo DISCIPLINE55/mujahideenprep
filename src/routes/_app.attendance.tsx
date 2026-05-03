@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/attendance")({
 
 function AttendancePage() {
   const navigate = useNavigate();
-  const auth = getAuth();
+  const auth = getAuthSync();
   const isTeacher = auth?.role === "teacher";
   const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
   const allClasses = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
