@@ -20,14 +20,38 @@ export async function getAuth(): Promise<AuthState | null> {
     return null;
   }
 
-  const role = session.user.user_metadata.role as UserRole;
+  // Fetch role from user_roles (source of truth); fall back to metadata
+  let role: UserRole = (session.user.user_metadata.role as UserRole) || "parent";
+  try {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id);
+    if (roles && roles.length > 0) {
+      // Prefer admin > teacher > parent if multiple
+      const order: UserRole[] = ["admin", "teacher", "parent"];
+      const found = order.find((r) => roles.some((x: any) => x.role === r));
+      if (found) role = found;
+    }
+  } catch { /* ignore, use metadata fallback */ }
+
+  // Optional: load linked students for parents
+  let studentIds: string[] | undefined;
+  if (role === "parent") {
+    const { data: links } = await supabase
+      .from("parent_students")
+      .select("student_id")
+      .eq("parent_user_id", session.user.id);
+    studentIds = links?.map((l: any) => l.student_id);
+  }
+
   const auth: AuthState = {
     loggedIn: true,
-    role: role || "admin",
+    role,
     name: session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User",
     email: session.user.email || "",
     teacherId: session.user.user_metadata.teacherId,
-    studentIds: session.user.user_metadata.studentIds,
+    studentIds: studentIds ?? session.user.user_metadata.studentIds,
   };
   if (typeof window !== "undefined") {
     localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
