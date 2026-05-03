@@ -20,6 +20,7 @@ import { Route as AppStudentsRouteImport } from './routes/_app.students'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppResultsRouteImport } from './routes/_app.results'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppParentsRouteImport } from './routes/_app.parents'
 import { Route as AppParentDashboardRouteImport } from './routes/_app.parent-dashboard'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLibraryRouteImport } from './routes/_app.library'
@@ -86,6 +87,11 @@ const AppResultsRoute = AppResultsRouteImport.update({
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppParentsRoute = AppParentsRouteImport.update({
+  id: '/parents',
+  path: '/parents',
   getParentRoute: () => AppRoute,
 } as any)
 const AppParentDashboardRoute = AppParentDashboardRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
   '/parent-dashboard': typeof AppParentDashboardRoute
+  '/parents': typeof AppParentsRoute
   '/reports': typeof AppReportsRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
   '/parent-dashboard': typeof AppParentDashboardRoute
+  '/parents': typeof AppParentsRoute
   '/reports': typeof AppReportsRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/_app/library': typeof AppLibraryRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/parent-dashboard': typeof AppParentDashboardRoute
+  '/_app/parents': typeof AppParentsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/results': typeof AppResultsRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/notifications'
     | '/parent-dashboard'
+    | '/parents'
     | '/reports'
     | '/results'
     | '/settings'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/notifications'
     | '/parent-dashboard'
+    | '/parents'
     | '/reports'
     | '/results'
     | '/settings'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/_app/library'
     | '/_app/notifications'
     | '/_app/parent-dashboard'
+    | '/_app/parents'
     | '/_app/reports'
     | '/_app/results'
     | '/_app/settings'
@@ -393,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parents': {
+      id: '/_app/parents'
+      path: '/parents'
+      fullPath: '/parents'
+      preLoaderRoute: typeof AppParentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/parent-dashboard': {
@@ -525,6 +544,7 @@ interface AppRouteChildren {
   AppLibraryRoute: typeof AppLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppParentDashboardRoute: typeof AppParentDashboardRoute
+  AppParentsRoute: typeof AppParentsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppResultsRoute: typeof AppResultsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -547,6 +567,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLibraryRoute: AppLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppParentDashboardRoute: AppParentDashboardRoute,
+  AppParentsRoute: AppParentsRoute,
   AppReportsRoute: AppReportsRoute,
   AppResultsRoute: AppResultsRoute,
   AppSettingsRoute: AppSettingsRoute,
