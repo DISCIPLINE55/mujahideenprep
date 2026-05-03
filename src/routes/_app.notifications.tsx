@@ -13,7 +13,7 @@ import { Plus, Bell, Trash2, Eye } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, type Notification } from "@/lib/storage";
 import { toast } from "sonner";
-import { getAuth } from "@/lib/auth";
+import { getAuthSync } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_app/notifications")({
 
 function NotificationsPage() {
   const store = useStore<Notification>(KEYS.NOTIFICATIONS, []);
-  const auth = getAuth();
+  const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
   const visible = store.items.filter((n) => {
     if (isAdmin) return true;

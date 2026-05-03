@@ -18,7 +18,7 @@ import { useDebounce } from "@/lib/debounce";
 import { printReportCard } from "@/components/ReportCard";
 import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
-import { getAuth, type UserRole } from "@/lib/auth";
+import { getAuthSync, type UserRole } from "@/lib/auth";
 import { defaultTeachers, defaultClasses, type Teacher, type SchoolClass } from "@/lib/storage";
 
 export const Route = createFileRoute("/_app/results")({
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_app/results")({
 });
 
 function ResultsPage() {
-  const auth = getAuth();
+  const auth = getAuthSync();
   const role: UserRole = auth?.role ?? "admin";
   const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
   const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);

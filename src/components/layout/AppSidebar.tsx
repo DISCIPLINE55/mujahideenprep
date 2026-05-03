@@ -30,6 +30,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Dashboard: LayoutDashboard,
   Students: Users,
   Teachers: GraduationCap,
+  Parents: Users,
   Classes: School,
   Subjects: BookOpen,
   Attendance: ClipboardCheck,
