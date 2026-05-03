@@ -1,5 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { CommandPalette } from "@/components/CommandPalette";
+import { I18nextProvider } from 'react-i18next';
+import i18n from '@/lib/i18n';
 
 import appCss from "../styles.css?url";
 
@@ -41,8 +43,6 @@ export const Route = createRootRoute({
       { name: "twitter:title", content: "MPSMS — Mujahideen Preparatory School Management System" },
       { property: "og:description", content: "School Management System for Mujahideen Preparatory School, Mankessim, Central Region, Ghana. Manage students, teachers, classes, attendance, results, and fees." },
       { name: "twitter:description", content: "School Management System for Mujahideen Preparatory School, Mankessim, Central Region, Ghana. Manage students, teachers, classes, attendance, results, and fees." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/46b662bd-185a-451d-b7f8-047d81ee3b90" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/46b662bd-185a-451d-b7f8-047d81ee3b90" },
     ],
     links: [
       {
@@ -97,9 +97,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <>
+    <I18nextProvider i18n={i18n}>
       <CommandPalette />
       <Outlet />
-    </>
+    </I18nextProvider>
   );
 }

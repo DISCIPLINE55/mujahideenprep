@@ -19,10 +19,12 @@ import {
   MessageSquare,
   BarChart3,
   LogOut,
+  TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ROLE_NAV, clearAuth, type UserRole } from "@/lib/auth";
+import { ROLE_NAV, signOut, type UserRole } from "@/lib/auth";
 import logoImg from "@/assets/logo.png";
+import { useTranslation } from "react-i18next";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Dashboard: LayoutDashboard,
@@ -33,6 +35,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Attendance: ClipboardCheck,
   Results: FileText,
   Fees: Wallet,
+  Expenses: TrendingDown,
   Timetable: CalendarDays,
   Notifications: Bell,
   Calendar: CalendarDays,
@@ -54,12 +57,12 @@ export function AppSidebar({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const visibleItems = ROLE_NAV.filter((item) => item.roles.includes(role));
 
   function handleLogout() {
-    clearAuth();
-    window.location.href = "/";
+    signOut();
   }
 
   return (
@@ -103,7 +106,7 @@ export function AppSidebar({
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span className="truncate">{item.label}</span>}
+              {!collapsed && <span className="truncate">{t(item.label)}</span>}
             </Link>
           );
         })}
@@ -116,7 +119,7 @@ export function AppSidebar({
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-destructive/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
           <LogOut className="h-5 w-5 shrink-0" />
-          {!collapsed && <span>Logout</span>}
+          {!collapsed && <span>{t("Logout")}</span>}
         </button>
         <button
           onClick={onToggle}

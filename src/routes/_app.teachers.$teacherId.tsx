@@ -54,15 +54,18 @@ function TeacherProfilePage() {
             {teacher.name.split(" ").pop()?.charAt(0)}
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-foreground">{teacher.name}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-foreground">{teacher.name}</h2>
+              <Badge variant="outline">{teacher.employeeId || "No ID"}</Badge>
+            </div>
             <p className="text-muted-foreground">{teacher.qualification}</p>
             <Badge variant={teacher.status === "Active" ? "default" : "secondary"} className="mt-2">{teacher.status}</Badge>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           <Card>
-            <CardHeader><CardTitle className="text-base">Contact Information</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Personal & Contact Info</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <Phone className="h-4 w-4 text-muted-foreground" />
@@ -73,16 +76,42 @@ function TeacherProfilePage() {
                 <span className="text-foreground">{teacher.email || "N/A"}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                <GraduationCap className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-foreground">{teacher.qualification || "N/A"}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-foreground">Subject: {teacher.subject || "N/A"}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-foreground">Classes: {teacher.classes || "N/A"}</span>
+              </div>
+              <div className="pt-2 border-t mt-2">
+                <div className="grid gap-2">
+                  <div className="text-sm"><span className="text-muted-foreground">Date of Joining:</span> <span className="font-medium">{teacher.dateOfJoining || "N/A"}</span></div>
+                  <div className="text-sm"><span className="text-muted-foreground">Specialization:</span> <span className="font-medium">{teacher.specialization || "N/A"}</span></div>
+                  <div className="text-sm"><span className="text-muted-foreground">Blood Group:</span> <span className="font-medium">{teacher.bloodGroup || "N/A"}</span></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Financial & Emergency</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">Bank Details</p>
+                <div className="bg-secondary/20 p-3 rounded-md text-sm">
+                  <p><span className="text-muted-foreground">Bank Name:</span> {teacher.bankName || "N/A"}</p>
+                  <p className="mt-1"><span className="text-muted-foreground">Account No:</span> {teacher.accountNumber || "N/A"}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">Emergency Contact</p>
+                <div className="bg-destructive/10 p-3 rounded-md text-sm border border-destructive/20">
+                  <p className="text-foreground">{teacher.emergencyContact || "No emergency contact provided"}</p>
+                </div>
               </div>
             </CardContent>
           </Card>

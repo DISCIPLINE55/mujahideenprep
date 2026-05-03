@@ -1,4 +1,4 @@
-// Auth utilities for role-based access control
+import { supabase } from "./supabaseClient";
 
 export type UserRole = "admin" | "teacher" | "parent";
 
@@ -7,36 +7,57 @@ export interface AuthState {
   role: UserRole;
   name: string;
   email: string;
-  // For teacher: which teacher ID
   teacherId?: string;
-  // For parent: which student IDs
   studentIds?: string[];
 }
 
-export const ROLE_CREDENTIALS: Record<UserRole, { email: string; password: string; name: string; teacherId?: string; studentIds?: string[] }> = {
-  admin: { email: "admin@mpsms.edu.gh", password: "admin123", name: "Admin" },
-  teacher: { email: "teacher@mpsms.edu.gh", password: "teacher123", name: "Mr. Kwadwo Asare", teacherId: "t1" },
-  parent: { email: "parent@mpsms.edu.gh", password: "parent123", name: "Ibrahim Mensah", studentIds: ["s1"] },
-};
+export async function getAuth(): Promise<AuthState | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("mpsms_auth_meta");
+    }
+    return null;
+  }
 
-export function getAuth(): AuthState | null {
+  const role = session.user.user_metadata.role as UserRole;
+  const auth: AuthState = {
+    loggedIn: true,
+    role: role || "admin",
+    name: session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User",
+    email: session.user.email || "",
+    teacherId: session.user.user_metadata.teacherId,
+    studentIds: session.user.user_metadata.studentIds,
+  };
+  if (typeof window !== "undefined") {
+    localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
+  }
+  return auth;
+}
+
+export function getAuthSync(): AuthState | null {
   try {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("mpsms_auth") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("mpsms_auth_meta") : null;
     if (!raw) return null;
-    const auth = JSON.parse(raw) as AuthState;
-    if (!auth.loggedIn) return null;
-    return auth;
+    return JSON.parse(raw) as AuthState;
   } catch {
     return null;
   }
 }
 
 export function setAuth(auth: AuthState): void {
-  localStorage.setItem("mpsms_auth", JSON.stringify(auth));
+  // Supabase handles session persistence automatically, but we can store extra metadata if needed
+  if (typeof window !== "undefined") {
+    localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
+  }
 }
 
-export function clearAuth(): void {
-  localStorage.removeItem("mpsms_auth");
+export async function signOut() {
+  await supabase.auth.signOut();
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("mpsms_auth_meta");
+    window.location.href = "/";
+  }
 }
 
 // Sidebar items visible per role
@@ -58,6 +79,7 @@ export const ROLE_NAV: { to: string; label: string; roles: UserRole[] }[] = [
   { to: "/attendance", label: "Attendance", roles: ["admin", "teacher"] },
   { to: "/results", label: "Results", roles: ["admin", "teacher", "parent"] },
   { to: "/fees", label: "Fees", roles: ["admin", "parent"] },
+  { to: "/expenses", label: "Expenses", roles: ["admin"] },
   { to: "/timetable", label: "Timetable", roles: ["admin", "teacher"] },
   { to: "/notifications", label: "Notifications", roles: ["admin", "teacher", "parent"] },
   { to: "/calendar", label: "Calendar", roles: ["admin", "teacher", "parent"] },
@@ -65,7 +87,7 @@ export const ROLE_NAV: { to: string; label: string; roles: UserRole[] }[] = [
   { to: "/communications", label: "Communications", roles: ["admin"] },
   { to: "/reports", label: "Reports", roles: ["admin"] },
   { to: "/ai-assistant", label: "AI Assistant", roles: ["admin", "teacher"] },
-  { to: "/settings", label: "Settings", roles: ["admin"] },
+  { to: "/settings", label: "Settings", roles: ["admin", "teacher", "parent"] },
 ];
 
 // Activity log
@@ -77,18 +99,30 @@ export interface ActivityEntry {
 
 export function logActivity(action: string): void {
   try {
+    const auth = getAuthSync();
     const raw = localStorage.getItem("mpsms_activity") || "[]";
     const log: ActivityEntry[] = JSON.parse(raw);
-    log.unshift({ id: Date.now().toString(36), action, timestamp: new Date().toISOString() });
-    // Keep last 50
+    const entry = { id: Date.now().toString(36), action, timestamp: new Date().toISOString() };
+    log.unshift(entry);
     localStorage.setItem("mpsms_activity", JSON.stringify(log.slice(0, 50)));
+
+    // Background sync to Supabase
+    supabase.from("activity_logs").insert({
+      id: entry.id,
+      action: entry.action,
+      user_name: auth?.name || "System",
+      user_role: auth?.role || "Guest",
+      timestamp: entry.timestamp
+    }).then(({ error }) => { if (error) console.error("Log sync error:", error); });
   } catch { /* ignore */ }
 }
 
-export function getActivity(): ActivityEntry[] {
+export async function getActivity(): Promise<ActivityEntry[]> {
   try {
-    return JSON.parse(localStorage.getItem("mpsms_activity") || "[]");
+    const { data, error } = await supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(50);
+    if (error) throw error;
+    return data as ActivityEntry[];
   } catch {
-    return [];
+    return JSON.parse(localStorage.getItem("mpsms_activity") || "[]");
   }
 }

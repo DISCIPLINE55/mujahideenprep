@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Sparkles, User, Loader2, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { stripMarkdown } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/ai-assistant")({
   head: () => ({
@@ -34,13 +35,22 @@ async function streamChat({
   onError: (error: string) => void;
 }) {
   try {
+    const systemPrompt = {
+      role: "system",
+      content: `You are the MPSMS Professional Consultant AI. You assist the administration and staff of Mujahideen Preparatory School (MPSMS).
+      Your tone is professional, authoritative yet supportive, and always clear. 
+      You have deep knowledge of educational management, student psychology, and administrative efficiency. 
+      When providing advice, prioritize actionable steps and professional communication templates.`
+    };
+    const bodyMessages = [systemPrompt, ...messages];
+    
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages, type: "chat" }),
+      body: JSON.stringify({ messages: bodyMessages, type: "chat" }),
     });
 
     if (!resp.ok) {
@@ -131,9 +141,9 @@ function AIAssistantPage() {
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: stripMarkdown(assistantSoFar) } : m));
         }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
+        return [...prev, { role: "assistant", content: stripMarkdown(assistantSoFar) }];
       });
     };
 

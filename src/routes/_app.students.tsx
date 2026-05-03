@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Download, Pencil, Trash2, Eye } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { defaultStudents, KEYS, CLASS_LIST, type Student } from "@/lib/storage";
+import { defaultStudents, KEYS, CLASS_LIST, type Student, type Payment, generateId, getItems, setItems } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { logActivity } from "@/lib/auth";
@@ -28,32 +28,63 @@ export const Route = createFileRoute("/_app/students")({
   component: StudentsPage,
 });
 
+const GHANA_REGIONS = [
+  "Ahafo", "Ashanti", "Bono", "Bono East", "Central", "Eastern", 
+  "Greater Accra", "North East", "Northern", "Oti", "Savannah", 
+  "Upper East", "Upper West", "Volta", "Western", "Western North"
+];
+
 const emptyStudent: Omit<Student, "id"> = {
   name: "", class: CLASS_LIST[0], gender: "Male", guardian: "", phone: "", dob: "", status: "Active", fees: "Unpaid", address: "", photo: "",
+  bloodGroup: "", emergencyContactName: "", emergencyContactPhone: "", medicalConditions: "", admissionDate: "", religion: "", nationality: "", region: "", amountPaid: 0, nhisNumber: ""
 };
 
 function StudentsPage() {
   const store = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
+  const [filterClass, setFilterClass] = useState("All");
+  const [filterStatus, setFilterStatus] = useState("All");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<Omit<Student, "id">>(emptyStudent);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [promoteTo, setPromoteTo] = useState(CLASS_LIST[0]);
+
+  function handleBulkPromote() {
+    if (selected.size === 0) return;
+    const updated = store.items.map(s => 
+      selected.has(s.id) ? { ...s, class: promoteTo } : s
+    );
+    setItems(KEYS.STUDENTS, updated);
+    // Force store to reload if needed, but usually setItems + local state update is better
+    // Since we use useStore, we should use its methods if available, or force refresh
+    window.location.reload(); // Simple way to ensure all hooks see the change
+    toast.success(`${selected.size} students promoted to ${promoteTo}`);
+    setSelected(new Set());
+    setPromoteOpen(false);
+  }
 
   const filtered = useMemo(() =>
-    store.items.filter((s) =>
-      s.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      s.class.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      s.guardian.toLowerCase().includes(debouncedSearch.toLowerCase())
-    ), [store.items, debouncedSearch]);
+    store.items.filter((s) => {
+      const matchSearch = s.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        s.guardian.toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchClass = filterClass === "All" || s.class === filterClass;
+      const matchStatus = filterStatus === "All" || s.status === filterStatus;
+      return matchSearch && matchClass && matchStatus;
+    }), [store.items, debouncedSearch, filterClass, filterStatus]);
 
   function openAdd() { setEditing(null); setForm(emptyStudent); setErrors({}); setOpen(true); }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ name: s.name, class: s.class, gender: s.gender, guardian: s.guardian, phone: s.phone, dob: s.dob, status: s.status, fees: s.fees, address: s.address, photo: s.photo || "" });
+    setForm({ 
+      name: s.name, class: s.class, gender: s.gender, guardian: s.guardian, phone: s.phone, dob: s.dob, status: s.status, fees: s.fees, address: s.address, photo: s.photo || "",
+      bloodGroup: s.bloodGroup || "", emergencyContactName: s.emergencyContactName || "", emergencyContactPhone: s.emergencyContactPhone || "", medicalConditions: s.medicalConditions || "", admissionDate: s.admissionDate || "", religion: s.religion || "", nationality: s.nationality || "", region: s.region || "", amountPaid: s.amountPaid || 0, nhisNumber: s.nhisNumber || ""
+    });
     setErrors({}); setOpen(true);
   }
 
@@ -67,9 +98,40 @@ function StudentsPage() {
 
   function handleSave() {
     if (!validate()) return;
-    if (editing) { store.update({ ...editing, ...form }); logActivity(`Updated student: ${form.name}`); toast.success("Student updated successfully"); }
-    else { store.add(form); logActivity(`Added student: ${form.name}`); toast.success("Student added successfully"); }
+    if (editing) { 
+      store.update({ ...editing, ...form }); 
+      logActivity(`Updated student: ${form.name}`); 
+      toast.success("Student updated successfully"); 
+    } else { 
+      const newStudent = store.add(form); 
+      if (form.amountPaid && form.amountPaid > 0) {
+        const payments = getItems<Payment>(KEYS.PAYMENTS, []);
+        payments.push({
+          id: generateId(),
+          studentId: newStudent.id,
+          studentName: newStudent.name,
+          class: newStudent.class,
+          totalFee: 0,
+          amountPaid: Number(form.amountPaid),
+          date: new Date().toISOString().split("T")[0],
+          description: "Initial Enrollment Fee"
+        });
+        setItems(KEYS.PAYMENTS, payments);
+      }
+      logActivity(`Added student: ${form.name}`); 
+      toast.success("Student added successfully"); 
+    }
     setOpen(false);
+  }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setForm({ ...form, photo: event.target?.result as string });
+    };
+    reader.readAsDataURL(file);
   }
 
   function handleDelete() {
@@ -101,9 +163,9 @@ function StudentsPage() {
   }
 
   function handleExport() {
-    downloadCSV("students", ["Name", "Class", "Gender", "Guardian", "Phone", "DOB", "Status", "Fees", "Address"],
-      store.items.map((s) => [s.name, s.class, s.gender, s.guardian, s.phone, s.dob, s.status, s.fees, s.address]));
-    toast.success("Students exported to CSV");
+    downloadCSV("students", ["Name", "Class", "Gender", "Guardian", "Phone", "DOB", "Status", "Fees", "Address", "Region", "Blood Group", "Emergency Contact", "Emergency Phone", "Medical Conditions", "Admission Date", "Religion", "Nationality"],
+      filtered.map((s) => [s.name, s.class, s.gender, s.guardian, s.phone, s.dob, s.status, s.fees, s.address, s.region || "", s.bloodGroup || "", s.emergencyContactName || "", s.emergencyContactPhone || "", s.medicalConditions || "", s.admissionDate || "", s.religion || "", s.nationality || ""]));
+    toast.success("Filtered students exported to CSV");
   }
 
   const columns = useMemo(() => [
@@ -142,14 +204,12 @@ function StudentsPage() {
       render: (row: Student) => <Badge variant={row.status === "Active" ? "default" : "secondary"}>{row.status}</Badge>,
     },
     {
-      key: "actions", header: "Actions",
+      key: "actions", header: "",
       render: (row: Student) => (
-        <div className="flex gap-1">
-          <Link to="/students/$studentId" params={{ studentId: row.id }}>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e: React.MouseEvent) => e.stopPropagation()}><Eye className="h-4 w-4" /></Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4" /></Button>
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewId(row.id); }}><Eye className="h-4 w-4 text-primary" /></Button>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>
       ),
     },
@@ -166,22 +226,42 @@ function StudentsPage() {
           </div>
           <div className="flex gap-2">
             {selected.size > 0 && (
-              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                <Trash2 className="mr-1 h-4 w-4" /> Delete ({selected.size})
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="text-primary border-primary/30 hover:bg-primary/5" onClick={() => setPromoteOpen(true)}>
+                  <Plus className="mr-1 h-4 w-4" /> Bulk Promote ({selected.size})
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                  <Trash2 className="mr-1 h-4 w-4" /> Delete ({selected.size})
+                </Button>
+              </div>
             )}
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Student</Button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative max-w-sm flex-1">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search students..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Button variant="outline" size="sm" onClick={toggleAll}>
-            {selected.size === filtered.length ? "Deselect All" : "Select All"}
+          <Select value={filterClass} onValueChange={setFilterClass}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Class" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Classes</SelectItem>
+              {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Statuses</SelectItem>
+              <SelectItem value="Active">Active</SelectItem>
+              <SelectItem value="Inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" className="ml-auto w-full sm:w-auto" onClick={toggleAll}>
+            {selected.size > 0 && selected.size === filtered.length ? "Deselect All" : "Select All"}
           </Button>
         </div>
 
@@ -227,13 +307,66 @@ function StudentsPage() {
               <Label>Phone</Label>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label>Address</Label>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
+            <div className="space-y-2">
+              <Label>Region</Label>
+              <Select value={form.region} onValueChange={(v) => setForm({ ...form, region: v })}>
+                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent>
+                  {GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Emergency Contact Name</Label>
+              <Input value={form.emergencyContactName} onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Emergency Phone</Label>
+              <Input value={form.emergencyContactPhone} onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>NHIS Number</Label>
+              <Input value={form.nhisNumber} onChange={(e) => setForm({ ...form, nhisNumber: e.target.value })} placeholder="NHIS Identification Number" />
+            </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label>Photo URL</Label>
-              <Input value={form.photo || ""} onChange={(e) => setForm({ ...form, photo: e.target.value })} placeholder="Paste image URL (optional)" />
+              <Label>Medical Conditions</Label>
+              <Input value={form.medicalConditions} onChange={(e) => setForm({ ...form, medicalConditions: e.target.value })} placeholder="Any allergies or conditions?" />
+            </div>
+            <div className="space-y-2">
+              <Label>Blood Group</Label>
+              <Select value={form.bloodGroup} onValueChange={(v) => setForm({ ...form, bloodGroup: v })}>
+                <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent>
+                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Admission Date</Label>
+              <Input type="date" value={form.admissionDate} onChange={(e) => setForm({ ...form, admissionDate: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Religion</Label>
+              <Input value={form.religion} onChange={(e) => setForm({ ...form, religion: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Nationality</Label>
+              <Input value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Amount Paid (₵) - <span className="font-normal text-muted-foreground text-xs">Syncs with Fees module</span></Label>
+              <Input type="number" min="0" value={form.amountPaid || ""} onChange={(e) => setForm({ ...form, amountPaid: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Photo</Label>
+              <div className="flex items-center gap-4">
+                {form.photo && <img src={form.photo} alt="Preview" className="h-10 w-10 rounded-full object-cover border" />}
+                <Input type="file" accept="image/*" onChange={handlePhotoChange} className="flex-1" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
@@ -271,6 +404,78 @@ function StudentsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewId} onOpenChange={() => setViewId(null)}>
+        <DialogContent className="max-w-md">
+          {(() => {
+            const s = store.items.find(x => x.id === viewId);
+            if (!s) return null;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-4">
+                    {s.photo ? <img src={s.photo} alt={s.name} className="h-12 w-12 rounded-full object-cover shrink-0" /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold">{s.name.charAt(0)}</div>}
+                    <div>
+                      <DialogTitle className="text-lg">{s.name}</DialogTitle>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="outline">{s.class}</Badge>
+                        <Badge variant={s.status === "Active" ? "default" : "secondary"}>{s.status}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </DialogHeader>
+                <div className="grid gap-4 py-4 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><span className="text-muted-foreground">Gender:</span> <span className="font-medium">{s.gender}</span></div>
+                    <div><span className="text-muted-foreground">DOB:</span> <span className="font-medium">{s.dob}</span></div>
+                    <div><span className="text-muted-foreground">Blood Group:</span> <span className="font-medium">{s.bloodGroup || "N/A"}</span></div>
+                    <div><span className="text-muted-foreground">Religion:</span> <span className="font-medium">{s.religion || "N/A"}</span></div>
+                    <div><span className="text-muted-foreground">Nationality:</span> <span className="font-medium">{s.nationality || "N/A"}</span></div>
+                    <div><span className="text-muted-foreground">Admission:</span> <span className="font-medium">{s.admissionDate || "N/A"}</span></div>
+                    <div className="col-span-2"><span className="text-muted-foreground">NHIS Number:</span> <span className="font-medium">{s.nhisNumber || "N/A"}</span></div>
+                  </div>
+                  <div><span className="text-muted-foreground">Guardian:</span> <span className="font-medium">{s.guardian}</span></div>
+                  <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{s.phone || "N/A"}</span></div>
+                  <div><span className="text-muted-foreground">Address:</span> <span className="font-medium">{s.address || "N/A"}</span></div>
+                  <div><span className="text-muted-foreground">Region:</span> <span className="font-medium">{s.region || "N/A"}</span></div>
+                  
+                  <div className="border-t pt-4 mt-2">
+                    <p className="font-semibold text-foreground mb-2">Emergency & Medical</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><span className="text-muted-foreground">Emergency Contact:</span> <br/><span className="font-medium">{s.emergencyContactName || "N/A"}</span></div>
+                      <div><span className="text-muted-foreground">Emergency Phone:</span> <br/><span className="font-medium">{s.emergencyContactPhone || "N/A"}</span></div>
+                      <div className="col-span-2"><span className="text-muted-foreground">Medical Conditions:</span> <br/><span className="font-medium">{s.medicalConditions || "None reported"}</span></div>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setViewId(null)}>Close</Button>
+                  <Link to="/students/$studentId" params={{ studentId: s.id }}><Button>View Full Profile</Button></Link>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Bulk Promote Students</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Promote selected to:</Label>
+              <Select value={promoteTo} onValueChange={setPromoteTo}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">This will update the class level for {selected.size} selected students. Use this for new academic year transitions.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoteOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkPromote}>Promote Now</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

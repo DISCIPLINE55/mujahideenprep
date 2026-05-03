@@ -106,10 +106,24 @@ function StudentProfilePage() {
                 <div className="grid gap-2 mt-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
                   <div className="flex items-center gap-2 text-muted-foreground"><User className="h-4 w-4 shrink-0" /> {student.gender}</div>
                   <div className="flex items-center gap-2 text-muted-foreground"><Calendar className="h-4 w-4 shrink-0" /> {student.dob}</div>
-                  <div className="flex items-center gap-2 text-muted-foreground"><Phone className="h-4 w-4 shrink-0" /> {student.phone}</div>
-                  <div className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" /> <span className="truncate">{student.address}</span></div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><Phone className="h-4 w-4 shrink-0" /> {student.phone || "N/A"}</div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" /> <span className="truncate">{student.address || "N/A"}</span></div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><span className="font-medium">Region:</span> {student.region || "N/A"}</div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><span className="font-medium">Blood:</span> {student.bloodGroup || "N/A"}</div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><span className="font-medium text-foreground">Religion:</span> {student.religion || "N/A"}</div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><span className="font-medium text-foreground">Nationality:</span> {student.nationality || "N/A"}</div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><span className="font-medium text-foreground">Admission:</span> {student.admissionDate || "N/A"}</div>
+                  <div className="flex items-center gap-2 text-muted-foreground"><span className="font-medium text-foreground text-[#1B1464]">NHIS #:</span> <Badge variant="outline" className="font-bold border-[#1B1464]/30">{student.nhisNumber || "Not Provided"}</Badge></div>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2"><GraduationCap className="h-4 w-4 inline mr-1" /> Guardian: {student.guardian}</p>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm font-semibold text-foreground mb-2">Emergency & Medical</p>
+                  <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3 text-muted-foreground">
+                    <div><span className="font-medium text-foreground">Guardian:</span> {student.guardian}</div>
+                    <div><span className="font-medium text-foreground">Emergency Contact:</span> {student.emergencyContactName || "N/A"}</div>
+                    <div><span className="font-medium text-foreground">Emergency Phone:</span> {student.emergencyContactPhone || "N/A"}</div>
+                    <div className="sm:col-span-2 lg:col-span-3"><span className="font-medium text-foreground">Medical Conditions:</span> {student.medicalConditions || "None reported"}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -173,7 +187,7 @@ function StudentProfilePage() {
                           {r.subjects.map((s) => (
                             <div key={s.name} className="flex justify-between">
                               <span className="text-muted-foreground">{s.name}</span>
-                              <span className="font-medium">{s.score}</span>
+                              <span className="font-medium">{s.total}</span>
                             </div>
                           ))}
                         </div>

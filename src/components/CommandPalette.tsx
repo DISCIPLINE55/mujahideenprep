@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Users, GraduationCap, School, BookOpen, ClipboardCheck, FileText, Wallet, Settings, CalendarDays, Sparkles, BarChart3, Bell, MessageSquare, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getItems, defaultStudents, defaultTeachers, KEYS, type Student, type Teacher } from "@/lib/storage";
-import { getAuth, ROLE_NAV } from "@/lib/auth";
+import { getAuthSync, ROLE_NAV } from "@/lib/auth";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Dashboard: School,
@@ -39,7 +39,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
-  const auth = getAuth();
+  const auth = getAuthSync();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

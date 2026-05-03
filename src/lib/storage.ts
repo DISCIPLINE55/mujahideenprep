@@ -1,3 +1,5 @@
+import { supabase } from "./supabaseClient";
+
 // Generic localStorage CRUD utilities
 
 export function getItems<T>(key: string, defaults: T[]): T[] {
@@ -11,8 +13,71 @@ export function getItems<T>(key: string, defaults: T[]): T[] {
   }
 }
 
-export function setItems<T>(key: string, items: T[]): void {
-  localStorage.setItem(key, JSON.stringify(items));
+export function setItems<T>(key: string, items: T[] | T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+    
+    // Background sync to Supabase
+    const tableMap: Record<string, string> = {
+      [KEYS.STUDENTS]: "students",
+      [KEYS.TEACHERS]: "teachers",
+      [KEYS.CLASSES]: "classes",
+      [KEYS.SUBJECTS]: "subjects",
+      [KEYS.RESULTS]: "results",
+      [KEYS.PAYMENTS]: "payments",
+      [KEYS.EXPENSES]: "expenses",
+      [KEYS.ATTENDANCE]: "attendance",
+      [KEYS.EVENTS]: "events",
+      [KEYS.SETTINGS]: "settings",
+      [KEYS.TIMETABLE]: "timetable",
+    };
+
+    const table = tableMap[key];
+    if (table) {
+      const data = Array.isArray(items) ? items : [items];
+      // Supabase upsert requires id or primary key
+      supabase.from(table).upsert(data).then(({ error }) => {
+        if (error) console.error(`Sync error for ${table}:`, error);
+      });
+    }
+  } catch (err) {
+    console.error("Storage error:", err);
+  }
+}
+
+export async function syncCloudToLocal(): Promise<void> {
+  try {
+    const tableMap: Record<string, string> = {
+      "students": KEYS.STUDENTS,
+      "teachers": KEYS.TEACHERS,
+      "classes": KEYS.CLASSES,
+      "subjects": KEYS.SUBJECTS,
+      "results": KEYS.RESULTS,
+      "payments": KEYS.PAYMENTS,
+      "expenses": KEYS.EXPENSES,
+      "attendance": KEYS.ATTENDANCE,
+      "events": KEYS.EVENTS,
+      "settings": KEYS.SETTINGS,
+      "timetable": KEYS.TIMETABLE,
+    };
+
+    for (const [table, key] of Object.entries(tableMap)) {
+      const { data, error } = await supabase.from(table).select("*");
+      if (error) {
+         console.warn(`Could not sync ${table}:`, error);
+         continue;
+      }
+      if (data) {
+        if (table === "settings") {
+          localStorage.setItem(key, JSON.stringify(data[0] || defaultSettings));
+        } else {
+          localStorage.setItem(key, JSON.stringify(data));
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Master sync error:", err);
+  }
 }
 
 export function addItem<T extends { id: string }>(key: string, item: T, defaults: T[]): T[] {
@@ -52,6 +117,16 @@ export interface Student {
   fees: string;
   address: string;
   photo?: string;
+  bloodGroup?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  medicalConditions?: string;
+  admissionDate?: string;
+  religion?: string;
+  nationality?: string;
+  region?: string;
+  amountPaid?: number;
+  nhisNumber?: string;
 }
 
 export interface Teacher {
@@ -63,6 +138,13 @@ export interface Teacher {
   email: string;
   qualification: string;
   status: string;
+  dateOfJoining?: string;
+  employeeId?: string;
+  emergencyContact?: string;
+  specialization?: string;
+  accountNumber?: string;
+  bankName?: string;
+  bloodGroup?: string;
 }
 
 export interface SchoolClass {
@@ -95,9 +177,33 @@ export interface ExamResult {
   studentName: string;
   class: string;
   term: string;
-  subjects: { name: string; score: number }[];
-  total: number;
+  subjects: { 
+    name: string; 
+    classScore: number; 
+    examScore: number; 
+    total: number; 
+    grade: string; 
+    remark: string;
+  }[];
+  totalScore: number;
   average: number;
+  position?: number;
+}
+
+export interface Expense {
+  id: string;
+  category: string;
+  amount: number;
+  date: string;
+  description: string;
+  reference?: string;
+}
+
+export interface FeeStructure {
+  id: string;
+  className: string;
+  amount: number;
+  description: string;
 }
 
 export interface Payment {
@@ -111,6 +217,12 @@ export interface Payment {
   description: string;
 }
 
+export interface GradingScale {
+  grade: string;
+  minScore: number;
+  remark: string;
+}
+
 export interface SchoolSettings {
   name: string;
   motto: string;
@@ -121,6 +233,18 @@ export interface SchoolSettings {
   currentTerm: string;
   termStart: string;
   termEnd: string;
+  examWeight: number;
+  classWorkWeight: number;
+  logo?: string;
+  address: string;
+  // Professional additions
+  gradingScales: GradingScale[];
+  whatsappApiKey?: string;
+  aiTone: "Professional" | "Warm" | "Strict";
+  currency: string;
+  receiptPrefix: string;
+  momoNumber?: string;
+  momoProvider?: string;
 }
 
 export interface Notification {
@@ -219,6 +343,24 @@ export const defaultSettings: SchoolSettings = {
   currentTerm: "Term 2",
   termStart: "2026-01-06",
   termEnd: "2026-04-30",
+  examWeight: 50,
+  classWorkWeight: 50,
+  address: "P.O. Box 45, Mankessim - Central Region",
+  aiTone: "Professional",
+  whatsappApiKey: "",
+  currency: "GHS",
+  receiptPrefix: "MPS-",
+  gradingScales: [
+    { grade: "A1", minScore: 80, remark: "Excellent" },
+    { grade: "B2", minScore: 70, remark: "Very Good" },
+    { grade: "B3", minScore: 60, remark: "Good" },
+    { grade: "C4", minScore: 55, remark: "Credit" },
+    { grade: "C5", minScore: 50, remark: "Credit" },
+    { grade: "C6", minScore: 45, remark: "Credit" },
+    { grade: "D7", minScore: 40, remark: "Pass" },
+    { grade: "E8", minScore: 35, remark: "Pass" },
+    { grade: "F9", minScore: 0, remark: "Fail" },
+  ],
 };
 
 // Storage keys
@@ -236,7 +378,18 @@ export const KEYS = {
   TIMETABLE: "mpsms_timetable",
   EVENTS: "mpsms_events",
   DISCIPLINE: "mpsms_discipline",
+  EXPENSES: "mpsms_expenses",
+  BOOKS: "mpsms_library_books",
+  ISSUES: "mpsms_library_issues",
+  FEE_STRUCTURE: "mpsms_fee_structure",
 };
+
+export const defaultFeeStructure: FeeStructure[] = CLASS_LIST.map((name, i) => ({
+  id: `fee-${i}`,
+  className: name,
+  amount: name.startsWith("JHS") ? 850 : name.startsWith("Primary") ? 650 : 500,
+  description: "Standard Tuition & Material Fees"
+}));
 
 export const defaultEvents: SchoolEvent[] = [
   { id: "ev1", title: "Mid-Term Exams", date: "2026-04-21", type: "Exam" },

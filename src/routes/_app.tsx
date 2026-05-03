@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useEffect, useState } from "react";
-import { getAuth, ROLE_NAV, type AuthState, type UserRole } from "@/lib/auth";
+import { getAuth, getAuthSync, ROLE_NAV, type AuthState, type UserRole } from "@/lib/auth";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -37,17 +37,20 @@ function defaultDashboard(role: UserRole): string {
 function AuthGuardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [auth, setAuthState] = useState<AuthState | null>(null);
+  const [auth, setAuthState] = useState<AuthState | null>(() => getAuthSync());
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const a = getAuth();
-    if (!a) {
-      navigate({ to: "/" });
-      return;
+    async function verify() {
+      const a = await getAuth();
+      if (!a) {
+        navigate({ to: "/" });
+        return;
+      }
+      setAuthState(a);
+      setChecked(true);
     }
-    setAuthState(a);
-    setChecked(true);
+    verify();
   }, [navigate]);
 
   // Enforce role-based route access on every navigation

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
+import { EmptyState } from "@/components/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_app/attendance")({
 });
 
 function AttendancePage() {
+  const navigate = useNavigate();
   const auth = getAuth();
   const isTeacher = auth?.role === "teacher";
   const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
@@ -213,30 +215,40 @@ function AttendancePage() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {classes.map((c) => {
-            const s = classSummary(c.name);
-            const pct = s.total > 0 && s.marked ? Math.round((s.present / s.total) * 100) : 0;
-            return (
-              <Card key={c.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">{c.name}</CardTitle>
-                    {s.marked ? <Badge variant={pct >= 90 ? "default" : "secondary"}>{pct}%</Badge> : <Badge variant="outline" className="text-muted-foreground">Not marked</Badge>}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Progress value={pct} className="h-2 mb-3" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span className="text-success font-medium">{s.present} present</span>
-                    <span className="text-destructive font-medium">{s.absent} absent</span>
-                    <span className="text-warning font-medium">{s.late} late</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        {classes.length === 0 ? (
+          <EmptyState 
+            icon={ClipboardCheck}
+            title="No Classes Found"
+            description="You don't have any classes assigned to you for attendance tracking."
+            actionLabel="Assign Classes"
+            onAction={() => navigate({ to: "/classes" })}
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {classes.map((c) => {
+              const s = classSummary(c.name);
+              const pct = s.total > 0 && s.marked ? Math.round((s.present / s.total) * 100) : 0;
+              return (
+                <Card key={c.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm">{c.name}</CardTitle>
+                      {s.marked ? <Badge variant={pct >= 90 ? "default" : "secondary"}>{pct}%</Badge> : <Badge variant="outline" className="text-muted-foreground">Not marked</Badge>}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Progress value={pct} className="h-2 mb-3" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span className="text-success font-medium">{s.present} present</span>
+                      <span className="text-destructive font-medium">{s.absent} absent</span>
+                      <span className="text-warning font-medium">{s.late} late</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Dialog open={markOpen} onOpenChange={setMarkOpen}>

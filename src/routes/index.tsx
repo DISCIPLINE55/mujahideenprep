@@ -8,7 +8,8 @@ import { Lock, Mail, ShieldCheck, GraduationCap, Users } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ROLE_CREDENTIALS, setAuth, type UserRole, type AuthState } from "@/lib/auth";
+import { type UserRole, type AuthState } from "@/lib/auth";
+import { supabase } from "@/lib/supabaseClient";
 import logoImg from "@/assets/logo.png";
 
 export const Route = createFileRoute("/")({
@@ -32,34 +33,37 @@ const ROLES: { key: UserRole; label: string; icon: typeof ShieldCheck; desc: str
 function LoginPage() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
-  const [email, setEmail] = useState(ROLE_CREDENTIALS.admin.email);
-  const [password, setPassword] = useState(ROLE_CREDENTIALS.admin.password);
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  function handleRoleSelect(role: UserRole) {
-    setSelectedRole(role);
-    setEmail(ROLE_CREDENTIALS[role].email);
-    setPassword(ROLE_CREDENTIALS[role].password);
-  }
-
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const creds = ROLE_CREDENTIALS[selectedRole];
-    if (email !== creds.email || password !== creds.password) {
-      toast.error("Invalid credentials. Use the default credentials for the selected role.");
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
       return;
     }
-    const auth: AuthState = {
-      loggedIn: true,
-      role: selectedRole,
-      name: creds.name,
-      email: creds.email,
-      teacherId: creds.teacherId,
-      studentIds: creds.studentIds,
-    };
-    setAuth(auth);
-    const dest = selectedRole === "teacher" ? "/teacher-dashboard" : selectedRole === "parent" ? "/parent-dashboard" : "/dashboard";
-    window.location.href = dest;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast.success("Logged in successfully!");
+        const role = data.user.user_metadata.role || "admin";
+        const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
+        window.location.href = dest;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Authentication failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleForgotPassword() {
@@ -120,27 +124,6 @@ function LoginPage() {
             <h2 className="text-2xl font-bold text-foreground mb-1">Welcome back</h2>
             <p className="text-muted-foreground mb-6">Select your role and sign in</p>
 
-            {/* Role selector */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              {ROLES.map((r) => (
-                <button
-                  key={r.key}
-                  type="button"
-                  onClick={() => handleRoleSelect(r.key)}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all text-center",
-                    selectedRole === r.key
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border hover:border-primary/40"
-                  )}
-                >
-                  <r.icon className={cn("h-5 w-5", selectedRole === r.key ? "text-primary" : "text-muted-foreground")} />
-                  <span className={cn("text-xs font-semibold", selectedRole === r.key ? "text-primary" : "text-foreground")}>{r.label}</span>
-                  <span className="text-[10px] text-muted-foreground leading-tight">{r.desc}</span>
-                </button>
-              ))}
-            </div>
-
             <form className="space-y-4" onSubmit={handleLogin}>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -163,8 +146,8 @@ function LoginPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-10">
-                Sign In as {ROLES.find((r) => r.key === selectedRole)?.label}
+              <Button type="submit" className="w-full h-10" disabled={loading}>
+                {loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
 

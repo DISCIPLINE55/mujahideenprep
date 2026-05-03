@@ -12,6 +12,8 @@ import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, getItems, type Subject, type Teacher, type TimetableSlot } from "@/lib/storage";
 import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
+import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
+import { getAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/timetable")({
   head: () => ({
@@ -27,6 +29,64 @@ export const Route = createFileRoute("/_app/timetable")({
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const PERIODS = ["Period 1", "Period 2", "Period 3", "Period 4", "Period 5", "Period 6", "Period 7", "Period 8"];
 
+const SUBJECT_COLORS: Record<string, string> = {
+  "Mathematics": "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+  "English": "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800",
+  "Science": "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800",
+  "Social Studies": "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800",
+  "ICT": "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800",
+  "RME": "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800",
+  "Creative Arts": "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800",
+  "French": "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800",
+  "Physical Education": "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
+};
+
+function getSubjectColor(subject: string) {
+  return SUBJECT_COLORS[subject] || "bg-secondary/10 text-secondary-foreground border-secondary/20";
+}
+
+function DroppableCell({ id, onClick, children }: { id: string, onClick?: () => void, children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`p-2 border rounded-lg min-h-[60px] cursor-pointer transition-colors relative group ${isOver ? 'bg-primary/20 border-primary' : 'hover:bg-accent/20'}`}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DraggableSlot({ id, slot, onDelete, disabled }: { id: string, slot: TimetableSlot, onDelete: () => void, disabled: boolean }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id, disabled });
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 } : undefined;
+  
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...listeners} 
+      {...attributes} 
+      className={`w-full h-full p-1.5 rounded-md border flex flex-col justify-center relative focus:outline-none transition-all ${getSubjectColor(slot.subject)}`}
+    >
+      <p className="text-[10px] font-bold leading-tight truncate">{slot.subject}</p>
+      <p className="text-[9px] opacity-80 truncate">{slot.teacher}</p>
+      {!disabled && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-4 w-4 absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-background shadow-sm rounded-full"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Trash2 className="h-2.5 w-2.5 text-destructive" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function TimetablePage() {
   const store = useStore<TimetableSlot>(KEYS.TIMETABLE, []);
   const subjects = getItems<Subject>(KEYS.SUBJECTS, defaultSubjects);
@@ -37,6 +97,9 @@ function TimetablePage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+
+  const auth = typeof window !== "undefined" ? getAuth() : null;
+  const isAdmin = auth?.role === "admin";
 
   async function handleAISuggest() {
     setAiOpen(true); setAiText(""); setAiLoading(true);
@@ -83,8 +146,34 @@ function TimetablePage() {
   }
 
   function openAddForSlot(day: string, period: string) {
+    if (!isAdmin) return;
     setForm({ day, period, subject: "", teacher: "", className: selectedClass });
     setOpen(true);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    if (!isAdmin) return;
+    const { active, over } = event;
+    if (!over) return;
+    const sourceId = active.id as string;
+    const targetId = over.id as string;
+
+    const slot = store.items.find(s => s.id === sourceId);
+    if (!slot) return;
+
+    const [day, period] = targetId.split("-");
+    if (!day || !period) return;
+
+    const existing = store.items.find(
+      (s) => s.className === selectedClass && s.day === day && s.period === period
+    );
+    
+    if (existing && existing.id !== slot.id) {
+       store.remove(existing.id);
+    }
+
+    store.update({ ...slot, day, period });
+    toast.success("Timetable updated");
   }
 
   return (
@@ -97,10 +186,12 @@ function TimetablePage() {
             <p className="text-sm text-muted-foreground">Weekly schedule for each class</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleAISuggest} disabled={aiLoading}>
-              {aiLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-              AI Suggest
-            </Button>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={handleAISuggest} disabled={aiLoading}>
+                {aiLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                AI Suggest
+              </Button>
+            )}
             <Select value={selectedClass} onValueChange={setSelectedClass}>
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
@@ -108,50 +199,49 @@ function TimetablePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="min-w-[800px]">
-            <div className="grid grid-cols-[120px_repeat(5,1fr)] gap-1">
-              <div className="p-2 font-bold text-sm text-muted-foreground" />
-              {DAYS.map((d) => (
-                <div key={d} className="p-2 text-center font-bold text-sm bg-primary text-primary-foreground rounded-t-lg">{d}</div>
-              ))}
-              {PERIODS.map((period) => (
-                <div key={period} className="contents">
-                  <div className="p-2 text-xs font-medium text-muted-foreground flex items-center">{period}</div>
-                  {DAYS.map((day) => {
-                    const slot = getSlot(day, period);
-                    return (
-                      <div
-                        key={`${day}-${period}`}
-                        className="p-2 border rounded-lg min-h-[60px] cursor-pointer hover:bg-accent/20 transition-colors relative group"
-                        onClick={() => !slot && openAddForSlot(day, period)}
-                      >
-                        {slot ? (
-                          <div>
-                            <p className="text-xs font-semibold text-foreground">{slot.subject}</p>
-                            <p className="text-[10px] text-muted-foreground">{slot.teacher}</p>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-5 w-5 absolute top-1 right-1 opacity-0 group-hover:opacity-100"
-                              onClick={(e) => { e.stopPropagation(); handleDelete(slot.id); }}
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center h-full opacity-0 group-hover:opacity-100">
-                            <Plus className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+        <DndContext onDragEnd={handleDragEnd}>
+          <div className="overflow-x-auto">
+            <div className="min-w-[800px]">
+              <div className="grid grid-cols-[120px_repeat(5,1fr)] gap-1">
+                <div className="p-2 font-bold text-sm text-muted-foreground" />
+                {DAYS.map((d) => (
+                  <div key={d} className="p-2 text-center font-bold text-sm bg-primary text-primary-foreground rounded-t-lg">{d}</div>
+                ))}
+                {PERIODS.map((period) => (
+                  <div key={period} className="contents">
+                    <div className="p-2 text-xs font-medium text-muted-foreground flex items-center">{period}</div>
+                    {DAYS.map((day) => {
+                      const slot = getSlot(day, period);
+                      const cellId = `${day}-${period}`;
+                      return (
+                        <DroppableCell
+                          key={cellId}
+                          id={cellId}
+                          onClick={() => isAdmin && !slot && openAddForSlot(day, period)}
+                        >
+                          {slot ? (
+                            <DraggableSlot
+                              id={slot.id}
+                              slot={slot}
+                              onDelete={() => handleDelete(slot.id)}
+                              disabled={!isAdmin}
+                            />
+                          ) : (
+                            isAdmin && (
+                              <div className="flex items-center justify-center h-full opacity-0 group-hover:opacity-100">
+                                <Plus className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )
+                          )}
+                        </DroppableCell>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </DndContext>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

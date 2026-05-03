@@ -1,22 +1,29 @@
-import { Bell, Search, ChevronDown, LogOut, Moon, Sun } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Bell, Search, ChevronDown, LogOut, Moon, Sun, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getItems, KEYS, type Notification } from "@/lib/storage";
 import { Link } from "@tanstack/react-router";
-import { getAuth, clearAuth } from "@/lib/auth";
+import { getAuth, getAuthSync, signOut } from "@/lib/auth";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { UserProfileDialog } from "@/components/UserProfileDialog";
+import { CommandMenu } from "@/components/CommandMenu";
 
 export function TopBar({ title }: { title: string }) {
   const [unreadCount, setUnreadCount] = useState(0);
-  const [auth, setAuth] = useState(() => (typeof window !== "undefined" ? getAuth() : null));
+  const [auth, setAuth] = useState(() => (typeof window !== "undefined" ? getAuthSync() : null));
+  const { t, i18n } = useTranslation();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(() => (typeof window !== "undefined" && auth ? localStorage.getItem(`avatar_${auth.email}`) : ""));
 
   useEffect(() => {
-    function refresh() {
+    async function refresh() {
       const notifications = getItems<Notification>(KEYS.NOTIFICATIONS, []);
-      const a = getAuth();
+      const a = await getAuth();
       setAuth(a);
+      if (a && typeof window !== "undefined") setAvatarUrl(localStorage.getItem(`avatar_${a.email}`) || "");
       const visible = notifications.filter((n) => {
         if (!a || a.role === "admin") return true;
         if (n.audience === "All") return true;
@@ -39,8 +46,7 @@ export function TopBar({ title }: { title: string }) {
   }, []);
 
   function handleLogout() {
-    clearAuth();
-    window.location.href = "/";
+    signOut();
   }
 
   function toggleDarkMode() {
@@ -59,36 +65,38 @@ export function TopBar({ title }: { title: string }) {
   const roleLabel = auth?.role === "teacher" ? "Teacher" : auth?.role === "parent" ? "Parent" : "Administrator";
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b bg-card px-3 sm:px-6 pl-14 lg:pl-6">
+    <>
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b bg-card px-3 sm:px-6 pl-14 lg:pl-6">
       <h1 className="truncate text-base sm:text-lg font-bold text-foreground">{title}</h1>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new Event("mpsms:open-search"))}
-          className="hidden md:flex items-center gap-2 w-48 lg:w-64 h-9 rounded-md border bg-background px-3 text-sm text-muted-foreground hover:bg-accent transition-colors"
-          aria-label="Open search"
-        >
-          <Search className="h-4 w-4" />
-          <span className="flex-1 text-left">Search...</span>
-          <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium">
-            ⌘K
-          </kbd>
-        </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 md:hidden"
-          onClick={() => window.dispatchEvent(new Event("mpsms:open-search"))}
-          aria-label="Search"
-        >
-          <Search className="h-5 w-5" />
-        </Button>
+        <div className="flex-1 max-w-[240px] hidden md:block">
+          <CommandMenu />
+        </div>
+        <div className="md:hidden">
+           <CommandMenu />
+        </div>
 
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleDarkMode}>
           <Sun className="h-5 w-5 dark:hidden" />
           <Moon className="h-5 w-5 hidden dark:block" />
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 font-bold text-xs uppercase">
+              {i18n.language.substring(0, 2)}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-32">
+            <DropdownMenuItem onClick={() => i18n.changeLanguage("en")}>
+              English (EN)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => i18n.changeLanguage("ar")}>
+              العربية (AR)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Link to="/notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent transition-colors">
           <Bell className="h-5 w-5" />
@@ -103,6 +111,7 @@ export function TopBar({ title }: { title: string }) {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
+                <AvatarImage src={avatarUrl || undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                   {initials}
                 </AvatarFallback>
@@ -117,17 +126,23 @@ export function TopBar({ title }: { title: string }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+              <User className="mr-2 h-4 w-4" />
+              {t("Profile")}
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/settings">Settings</Link>
+              <Link to="/settings">{t("Settings")}</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
-              Logout
+              {t("Logout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>
+      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+    </>
   );
 }

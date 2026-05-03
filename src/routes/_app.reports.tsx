@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { Download, Printer, BarChart3, Sparkles, Loader2 } from "lucide-react";
 import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultPayments, KEYS, CLASS_LIST, type Student, type Teacher, type SchoolClass, type Payment, type AttendanceRecord, type ExamResult } from "@/lib/storage";
 import { toast } from "sonner";
+import { stripMarkdown } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/reports")({
   head: () => ({
@@ -75,7 +76,17 @@ function ReportsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({
-          messages: [{ role: "user", content: `Summarize this school report data in 3-4 bullet points with insights and recommendations:\n${context}` }],
+          messages: [{ 
+            role: "user", 
+            content: `As an educational consultant for Mujahideen Preparatory School, analyze the following ${reportType} data and provide a professional executive summary. 
+            Include:
+            1. Key Performance Indicators (KPIs) and their current status.
+            2. Identified trends or potential issues.
+            3. Actionable recommendations for the school administration to improve outcomes.
+            
+            Keep the tone formal, encouraging, and highly professional.
+            Data: ${context}` 
+          }],
           type: "chat",
         }),
       });
@@ -96,10 +107,16 @@ function ReportsPage() {
           if (!line.startsWith("data: ")) continue;
           const json = line.slice(6).trim();
           if (json === "[DONE]") break;
-          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) result += c; } catch {}
+          try { 
+            const p = JSON.parse(json); 
+            const c = p.choices?.[0]?.delta?.content; 
+            if (c) {
+              result += c;
+              setAiSummary(stripMarkdown(result)); // Update real-time for streaming effect
+            }
+          } catch {}
         }
       }
-      setAiSummary(result);
     } catch {
       toast.error("Failed to generate AI summary");
     }

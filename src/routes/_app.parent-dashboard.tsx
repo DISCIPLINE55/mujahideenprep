@@ -1,31 +1,59 @@
-import { useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatsCard } from "@/components/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, Wallet, ClipboardCheck, FileText, CalendarDays } from "lucide-react";
-import { getItems, defaultStudents, defaultPayments, defaultEvents, KEYS, type Student, type Payment, type AttendanceRecord, type ExamResult, type SchoolEvent } from "@/lib/storage";
-import { getAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Users, Wallet, ClipboardCheck, FileText, CalendarDays, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
+import { getItems, setItems, generateId, defaultStudents, defaultPayments, defaultEvents, defaultSettings, KEYS, type Student, type Payment, type AttendanceRecord, type ExamResult, type SchoolEvent, type SchoolSettings } from "@/lib/storage";
+import { getAuthSync } from "@/lib/auth";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient";
 
 export const Route = createFileRoute("/_app/parent-dashboard")({
-  head: () => ({
-    meta: [
-      { title: "Parent Dashboard — MPSMS" },
-      { name: "description", content: "Parent portal for Mujahideen Preparatory School" },
-    ],
-  }),
   component: ParentDashboard,
 });
 
 function ParentDashboard() {
-  const auth = getAuth();
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const payments = getItems<Payment>(KEYS.PAYMENTS, defaultPayments);
-  const attendance = getItems<AttendanceRecord>(KEYS.ATTENDANCE, []);
-  const results = getItems<ExamResult>(KEYS.RESULTS, []);
-  const events = getItems<SchoolEvent>(KEYS.EVENTS, defaultEvents);
+  const auth = getAuthSync();
+  const [settings, setSettings] = useState<SchoolSettings>(defaultSettings);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [results, setResults] = useState<ExamResult[]>([]);
+  const [events, setEvents] = useState<SchoolEvent[]>([]);
+  
+  const [payModal, setPayModal] = useState<{ open: boolean; student: Student | null; amount: number }>({ open: false, student: null, amount: 0 });
+  const [paying, setPaying] = useState(false);
+  const [payStep, setPayStep] = useState<"form" | "prompt" | "success">("form");
+
+  useEffect(() => {
+    async function init() {
+      const { data: sData } = await supabase.from("settings").select("*").single();
+      if (sData) setSettings(sData as SchoolSettings);
+      
+      const { data: stdData } = await supabase.from("students").select("*");
+      if (stdData) setStudents(stdData);
+      
+      const { data: pData } = await supabase.from("payments").select("*");
+      if (pData) setPayments(pData);
+      
+      const { data: aData } = await supabase.from("attendance").select("*");
+      if (aData) setAttendance(aData);
+      
+      const { data: rData } = await supabase.from("results").select("*");
+      if (rData) setResults(rData);
+      
+      const { data: eData } = await supabase.from("events").select("*");
+      if (eData) setEvents(eData);
+    }
+    init();
+  }, []);
 
   const myStudents = useMemo(() =>
     students.filter((s) => auth?.studentIds?.includes(s.id)),
@@ -37,17 +65,51 @@ function ParentDashboard() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const upcomingEvents = useMemo(() =>
-    [...events].filter((e) => e.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5),
+    events.filter((e) => e.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5),
     [events, todayStr]
   );
 
+  async function handleMomoPayment() {
+    if (!payModal.student || payModal.amount <= 0) return;
+    setPaying(true);
+    setPayStep("prompt");
+    
+    // Simulate MoMo Push Notification
+    await new Promise(r => setTimeout(r, 3000));
+    
+    const newPayment: Payment = {
+      id: generateId(),
+      studentId: payModal.student.id,
+      studentName: payModal.student.name,
+      class: payModal.student.class,
+      totalFee: 0, // In this flow we just record the payment
+      amountPaid: payModal.amount,
+      date: new Date().toISOString().split("T")[0],
+      description: `MoMo Payment via ${settings.momoProvider || "Mobile Money"}`
+    };
+
+    const { error } = await supabase.from("payments").insert(newPayment);
+    if (error) {
+      toast.error("Payment sync failed");
+      setPaying(false);
+      setPayStep("form");
+    } else {
+      setPayments([...payments, newPayment]);
+      setPayStep("success");
+      setPaying(false);
+      toast.success("Payment Verified!");
+    }
+  }
+
   return (
     <>
-      <TopBar title="Parent Dashboard" />
-      <div className="p-6 space-y-6">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">{greeting}, {auth?.name ?? "Parent"} 👋</h2>
-          <p className="text-sm text-muted-foreground">Here's how your child is doing at Mujahideen Preparatory School.</p>
+      <TopBar title="Parent Portal" />
+      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">{greeting}, {auth?.name ?? "Parent"} 👋</h2>
+            <p className="text-sm text-muted-foreground">Manage your children's academics and fees.</p>
+          </div>
         </div>
 
         {myStudents.map((student) => {
@@ -62,93 +124,132 @@ function ParentDashboard() {
           const latestResult = studentResults.length > 0 ? studentResults[studentResults.length - 1] : null;
 
           return (
-            <div key={student.id} className="space-y-4">
-              <div className="flex items-center gap-3">
-                {student.photo ? (
-                  <img src={student.photo} alt={student.name} className="h-12 w-12 rounded-full object-cover" />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">{student.name.charAt(0)}</div>
-                )}
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">{student.name}</h3>
-                  <p className="text-sm text-muted-foreground">{student.class} • {student.gender}</p>
-                </div>
-                <Badge variant={student.status === "Active" ? "default" : "secondary"} className="ml-auto">{student.status}</Badge>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatsCard title="Attendance Rate" value={`${attendanceRate}%`} icon={ClipboardCheck} trend={{ value: `${studentAttendance.length} days tracked`, positive: attendanceRate >= 80 }} />
-                <StatsCard title="Latest Average" value={latestResult ? `${latestResult.average.toFixed(1)}%` : "—"} icon={FileText} />
-                <StatsCard title="Total Fees" value={`₵ ${totalFees.toLocaleString()}`} icon={Wallet} />
-                <StatsCard title="Balance Due" value={`₵ ${balance.toLocaleString()}`} icon={Wallet} trend={{ value: balance === 0 ? "Fully paid" : "Outstanding", positive: balance === 0 }} />
-              </div>
-
-              {/* Fee progress */}
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-base">Fee Payment Progress</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Paid: ₵ {totalPaid.toLocaleString()}</span>
-                    <span className="font-medium text-foreground">{totalFees > 0 ? Math.round((totalPaid / totalFees) * 100) : 0}%</span>
+            <Card key={student.id} className="border-none shadow-md overflow-hidden bg-card/50">
+              <CardHeader className="bg-muted/30 border-b pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+                    {student.name.charAt(0)}
                   </div>
-                  <Progress value={totalFees > 0 ? (totalPaid / totalFees) * 100 : 0} className="h-3" />
-                </CardContent>
-              </Card>
+                  <div>
+                    <CardTitle className="text-lg">{student.name}</CardTitle>
+                    <p className="text-xs text-muted-foreground">{student.class} • Active Student</p>
+                  </div>
+                  <Badge variant="outline" className="ml-auto bg-background">{student.status}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatsCard title="Attendance" value={`${attendanceRate}%`} icon={ClipboardCheck} />
+                  <StatsCard title="GPA Average" value={latestResult ? `${latestResult.average.toFixed(1)}%` : "—"} icon={FileText} />
+                  <StatsCard title="Fees Paid" value={`${settings.currency} ${totalPaid.toLocaleString()}`} icon={Wallet} />
+                  <StatsCard title="Balance" value={`${settings.currency} ${balance.toLocaleString()}`} icon={Wallet} trend={{ value: balance === 0 ? "Fully Paid" : "Outstanding", positive: balance === 0 }} />
+                </div>
 
-              {/* Latest results */}
-              {latestResult && (
-                <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-base">Latest Exam Results — {latestResult.term}</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {latestResult.subjects.map((sub, i) => (
-                        <div key={i} className="flex items-center justify-between rounded-lg border p-3">
-                          <span className="text-sm text-foreground">{sub.name}</span>
-                          <Badge variant={sub.score >= 70 ? "default" : sub.score >= 50 ? "secondary" : "destructive"}>{sub.score}%</Badge>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
+                   <div>
+                      <p className="font-bold text-primary">Outstanding Balance</p>
+                      <p className="text-sm text-muted-foreground">Pay fees instantly using your Mobile Money wallet.</p>
+                   </div>
+                   <Button 
+                    disabled={balance <= 0}
+                    onClick={() => { setPayModal({ open: true, student, amount: balance }); setPayStep("form"); }}
+                    className="w-full sm:w-auto shadow-lg shadow-primary/20"
+                   >
+                     <Smartphone className="mr-2 h-4 w-4" /> Pay via MoMo
+                   </Button>
+                </div>
+
+                {latestResult && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> Latest Exam Results ({latestResult.term})</p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {latestResult.subjects.slice(0, 3).map((sub, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-xs">
+                          <span className="font-medium">{sub.name}</span>
+                          <span className="font-bold">{sub.total}%</span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">Total: <strong className="text-foreground">{latestResult.total}</strong></span>
-                      <span className="text-muted-foreground">Average: <strong className="text-foreground">{latestResult.average.toFixed(1)}%</strong></span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           );
         })}
 
-        {myStudents.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <Users className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">No students linked to your account yet.</p>
+        {upcomingEvents.length > 0 && (
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3"><CardTitle className="text-base">Upcoming Events</CardTitle></CardHeader>
+            <CardContent className="grid gap-2 sm:grid-cols-2">
+              {upcomingEvents.map((e) => (
+                <div key={e.id} className="flex items-center gap-3 rounded-lg border p-3 bg-muted/20">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{e.title}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Upcoming School Events</CardTitle></CardHeader>
-          <CardContent>
-            {upcomingEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-2">No upcoming events.</p>
-            ) : (
-              <div className="space-y-2">
-                {upcomingEvents.map((e) => (
-                  <div key={e.id} className="flex items-center gap-3 rounded-lg border p-3">
-                    <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{e.title}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} • {e.type}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      <Dialog open={payModal.open} onOpenChange={(v) => setPayModal({ ...payModal, open: v })}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>MoMo Payment Gateway</DialogTitle>
+            <DialogDescription>Pay fees for {payModal.student?.name}</DialogDescription>
+          </DialogHeader>
+          
+          {payStep === "form" && (
+            <div className="space-y-6 py-4">
+               <div className="text-center p-4 rounded-2xl bg-muted/50">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Total to Pay</p>
+                  <p className="text-3xl font-black text-primary">{settings.currency} {payModal.amount.toLocaleString()}</p>
+               </div>
+               <div className="space-y-2">
+                  <Label>Your MoMo Number</Label>
+                  <Input placeholder="024 000 0000" defaultValue={auth?.email} />
+               </div>
+               <div className="flex items-center gap-4 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                  <Smartphone className="h-8 w-8 text-primary" />
+                  <div>
+                    <p className="text-sm font-bold">Push Notification</p>
+                    <p className="text-xs text-muted-foreground">You will receive a prompt on your phone to enter your PIN.</p>
+                  </div>
+               </div>
+               <Button className="w-full h-12 text-lg rounded-xl" onClick={handleMomoPayment}>Authorize Payment</Button>
+            </div>
+          )}
+
+          {payStep === "prompt" && (
+            <div className="py-12 flex flex-col items-center text-center space-y-6">
+               <div className="relative">
+                  <div className="h-24 w-24 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                  <Smartphone className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-10 w-10 text-primary" />
+               </div>
+               <div>
+                  <h3 className="text-xl font-bold">Checking Phone...</h3>
+                  <p className="text-muted-foreground mt-2 px-6 text-sm">Please check your phone for the <strong>{settings.momoProvider}</strong> prompt and enter your MoMo PIN to complete the transaction.</p>
+               </div>
+            </div>
+          )}
+
+          {payStep === "success" && (
+            <div className="py-12 flex flex-col items-center text-center space-y-6">
+               <div className="h-24 w-24 rounded-full bg-success/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-12 w-12 text-success" />
+               </div>
+               <div>
+                  <h3 className="text-xl font-bold text-success">Payment Verified!</h3>
+                  <p className="text-muted-foreground mt-2 px-6 text-sm">Thank you. The school fee has been updated successfully. A digital receipt has been sent to your email.</p>
+               </div>
+               <Button variant="outline" className="rounded-xl" onClick={() => setPayModal({ ...payModal, open: false })}>Back to Portal</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

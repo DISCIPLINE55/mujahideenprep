@@ -9,7 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, MessageSquare, Send, Sparkles, Loader2 } from "lucide-react";
+import { Plus, MessageSquare, Send, Sparkles, Loader2, Bold, Italic, List, Users } from "lucide-react";
+import { BulkWhatsAppDialog, type Recipient } from "@/components/BulkWhatsAppDialog";
+import { stripMarkdown } from "@/lib/utils";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
 import { useStore } from "@/hooks/use-store";
 import { KEYS, getItems, defaultStudents, defaultClasses, CLASS_LIST, type Student, type SchoolClass } from "@/lib/storage";
 import { toast } from "sonner";
@@ -40,6 +45,19 @@ function CommunicationsPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [form, setForm] = useState({ audience: "All Parents", subject: "", message: "" });
   const [aiLoading, setAiLoading] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRecipients, setBulkRecipients] = useState<Recipient[]>([]);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: "Type your message..." })
+    ],
+    content: form.message,
+    onUpdate: ({ editor }) => {
+      setForm((f) => ({ ...f, message: editor.getHTML() }));
+    }
+  });
 
   const audiences = ["All Parents", ...CLASS_LIST.map((c) => `${c} Parents`), ...students.map((s) => `Parent of ${s.name}`)];
 
@@ -85,7 +103,9 @@ function CommunicationsPage() {
         }
       }
 
-      setForm((f) => ({ ...f, message: result }));
+      const formattedResult = `<p>${result.replace(/\n/g, '<br>')}</p>`;
+      setForm((f) => ({ ...f, message: formattedResult }));
+      editor?.commands.setContent(formattedResult);
       toast.success("AI message generated!");
     } catch {
       toast.error("Failed to generate AI message");
@@ -105,6 +125,41 @@ function CommunicationsPage() {
     toast.success("Message sent!");
     setComposeOpen(false);
     setForm({ audience: "All Parents", subject: "", message: "" });
+    editor?.commands.setContent("");
+  }
+
+  function handleWhatsAppSend() {
+    if (!form.message.trim()) return;
+    
+    let targetStudents: Student[] = [];
+    if (form.audience === "All Parents") {
+      targetStudents = students;
+    } else if (form.audience.endsWith(" Parents")) {
+      const className = form.audience.replace(" Parents", "");
+      targetStudents = students.filter(s => s.class === className);
+    } else if (form.audience.startsWith("Parent of ")) {
+      const studentName = form.audience.replace("Parent of ", "");
+      targetStudents = students.filter(s => s.name === studentName);
+    }
+
+    const recipients: Recipient[] = targetStudents
+      .filter(s => s.phone || s.emergencyContactPhone)
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        guardian: s.guardian || "Guardian",
+        phone: s.phone || s.emergencyContactPhone || "",
+        message: `${form.subject ? `*${form.subject}*\n\n` : ""}${stripMarkdown(editor?.getText() || "")}`,
+        status: "pending"
+      }));
+
+    if (recipients.length === 0) {
+      toast.warning("No recipients with valid phone numbers found for this audience.");
+      return;
+    }
+
+    setBulkRecipients(recipients);
+    setBulkOpen(true);
   }
 
   return (
@@ -135,7 +190,10 @@ function CommunicationsPage() {
                     </div>
                     <Badge variant={msg.status === "Sent" ? "default" : "secondary"}>{msg.status}</Badge>
                   </div>
-                  <p className="text-sm text-foreground/80 whitespace-pre-line line-clamp-3">{msg.message}</p>
+                  <div 
+                    className="text-sm text-foreground/80 prose prose-sm dark:prose-invert line-clamp-3 max-w-none" 
+                    dangerouslySetInnerHTML={{ __html: msg.message }} 
+                  />
                 </CardContent>
               </Card>
             ))}
@@ -166,17 +224,44 @@ function CommunicationsPage() {
                   AI Generate
                 </Button>
               </div>
-              <Textarea rows={6} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Type your message..." />
+              <div className="border rounded-md overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-ring">
+                <div className="bg-muted/50 border-b p-1 flex items-center gap-1">
+                  <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor?.chain().focus().toggleBold().run()} data-active={editor?.isActive('bold') ? 'true' : 'false'}>
+                    <Bold className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor?.chain().focus().toggleItalic().run()} data-active={editor?.isActive('italic') ? 'true' : 'false'}>
+                    <Italic className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor?.chain().focus().toggleBulletList().run()} data-active={editor?.isActive('bulletList') ? 'true' : 'false'}>
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="p-3 min-h-[150px] cursor-text" onClick={() => editor?.commands.focus()}>
+                  <EditorContent editor={editor} className="prose prose-sm max-w-none focus:outline-none dark:prose-invert [&_.is-editor-empty:first-child::before]:text-muted-foreground [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none" />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setComposeOpen(false)}>Cancel</Button>
-            <Button onClick={handleSend} disabled={!form.subject.trim() || !form.message.trim()}>
-              <Send className="h-4 w-4 mr-1" /> Send
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="text-success border-success/30 hover:bg-success/5" onClick={handleWhatsAppSend} disabled={!form.message.trim()}>
+                <Users className="h-4 w-4 mr-1" /> Send via WhatsApp
+              </Button>
+              <Button onClick={handleSend} disabled={!form.subject.trim() || !form.message.trim()}>
+                <Send className="h-4 w-4 mr-1" /> Send to Portal
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkWhatsAppDialog 
+        open={bulkOpen} 
+        onOpenChange={setBulkOpen} 
+        recipients={bulkRecipients} 
+        title={`Bulk WhatsApp: ${form.audience}`}
+      />
     </>
   );
 }

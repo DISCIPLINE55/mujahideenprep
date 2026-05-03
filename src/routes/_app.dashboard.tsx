@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatsCard } from "@/components/StatsCard";
@@ -19,11 +19,15 @@ import {
   CalendarDays,
   Plus,
   Trash2,
+  Activity,
+  ChevronRight,
+  BarChart3
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { useStore } from "@/hooks/use-store";
-import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultPayments, defaultEvents, KEYS, type Student, type Teacher, type SchoolClass, type Payment, type AttendanceRecord, type SchoolEvent } from "@/lib/storage";
-import { getAuth, getActivity } from "@/lib/auth";
+import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultPayments, defaultEvents, KEYS, type Student, type Teacher, type SchoolClass, type Payment, type AttendanceRecord, type SchoolEvent, type Expense } from "@/lib/storage";
+import { getAuthSync, getActivity } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -45,15 +49,19 @@ function DashboardPage() {
   const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
   const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
   const payments = getItems<Payment>(KEYS.PAYMENTS, defaultPayments);
+  const expenses = getItems<Expense>(KEYS.EXPENSES, []);
   const eventStore = useStore<SchoolEvent>(KEYS.EVENTS, defaultEvents);
 
   const [eventOpen, setEventOpen] = useState(false);
   const [eventForm, setEventForm] = useState({ title: "", date: "", type: "Event" as SchoolEvent["type"] });
 
-  const { totalCollected, activeStudents } = useMemo(() => ({
+  const { totalCollected, totalExpenses, activeStudents } = useMemo(() => ({
     totalCollected: payments.reduce((s, p) => s + p.amountPaid, 0),
+    totalExpenses: expenses.reduce((s, e) => s + e.amount, 0),
     activeStudents: students.filter((s) => s.status === "Active").length,
-  }), [students, payments]);
+  }), [students, payments, expenses]);
+
+  const netIncome = totalCollected - totalExpenses;
 
   const feeData = useMemo(() => {
     const paid = payments.filter((p) => p.amountPaid >= p.totalFee).length;
@@ -88,153 +96,201 @@ function DashboardPage() {
     setEventForm({ title: "", date: "", type: "Event" });
   }
 
-  const auth = getAuth();
-  const activity = getActivity();
+  const auth = getAuthSync();
+  const [activity, setActivity] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchActivity() {
+      const data = await getActivity();
+      setActivity(data);
+    }
+    fetchActivity();
+  }, []);
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const item = {
+    hidden: { y: 20, opacity: 0 },
+    show: { y: 0, opacity: 1 }
+  };
 
   return (
     <>
       <TopBar title="Dashboard" />
-      <div className="p-6 space-y-6">
-        <div>
+      <motion.div 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="p-6 space-y-6"
+      >
+        <motion.div variants={item}>
           <h2 className="text-xl font-bold text-foreground">{greeting}, {auth?.name ?? "Admin"} 👋</h2>
           <p className="text-sm text-muted-foreground">Here's what's happening at Mujahideen Preparatory School today.</p>
-        </div>
+        </motion.div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <motion.div variants={item} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard title="Total Students" value={students.length} icon={Users} trend={{ value: `${activeStudents} active`, positive: true }} />
           <StatsCard title="Teachers" value={teachers.length} icon={GraduationCap} trend={{ value: `${teachers.filter(t => t.status === "Active").length} active`, positive: true }} />
-          <StatsCard title="Classes" value={classes.length} icon={School} />
           <StatsCard title="Fees Collected" value={`₵ ${totalCollected.toLocaleString()}`} icon={Wallet} trend={{ value: `${payments.length} payments`, positive: true }} />
-        </div>
+          <StatsCard title="Net Income" value={`₵ ${netIncome.toLocaleString()}`} icon={BarChart3} trend={{ value: `Expenses: ₵${totalExpenses.toLocaleString()}`, positive: netIncome >= 0 }} />
+        </motion.div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Enrollment by Level</CardTitle></CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={enrollmentData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="students" fill="oklch(0.28 0.14 280)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Fee Collection Status</CardTitle></CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={feeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
-                      {feeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Recent Students</CardTitle>
-              <Link to="/students" className="text-xs text-secondary hover:underline font-medium">View all</Link>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {students.slice(0, 5).map((s) => (
-                  <div key={s.id} className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex items-center gap-3">
-                      {s.photo ? (
-                        <img src={s.photo} alt={s.name} className="h-9 w-9 rounded-full object-cover" />
-                      ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/10 text-sm font-bold text-secondary">{s.name.charAt(0)}</div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">{s.class}</p>
-                      </div>
-                    </div>
-                    <Badge variant={s.status === "Active" ? "default" : "secondary"}>{s.status}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base">Quick Stats</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Active Students</span>
-                    <span className="font-medium text-foreground">{Math.round((activeStudents / (students.length || 1)) * 100)}%</span>
-                  </div>
-                  <Progress value={(activeStudents / (students.length || 1)) * 100} className="h-2" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-lg bg-success/10 p-2">
-                    <p className="text-lg font-bold text-success">{activeStudents}</p>
-                    <p className="text-[11px] text-muted-foreground">Active</p>
-                  </div>
-                  <div className="rounded-lg bg-destructive/10 p-2">
-                    <p className="text-lg font-bold text-destructive">{students.length - activeStudents}</p>
-                    <p className="text-[11px] text-muted-foreground">Inactive</p>
-                  </div>
-                  <div className="rounded-lg bg-info/10 p-2">
-                    <p className="text-lg font-bold text-info">{teachers.length}</p>
-                    <p className="text-[11px] text-muted-foreground">Staff</p>
-                  </div>
+          <motion.div variants={item}>
+            <Card className="h-full border-none shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-2 text-primary font-bold">
+                 <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    <CardTitle className="text-base uppercase tracking-wider">Enrollment Distribution</CardTitle>
+                 </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={enrollmentData}>
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      />
+                      <Bar dataKey="students" fill="oklch(0.28 0.14 280)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
+          </motion.div>
 
-            <Card>
+          <motion.div variants={item}>
+            <Card className="h-full border-none shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-2 text-primary font-bold">
+                <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4" />
+                    <CardTitle className="text-base uppercase tracking-wider">Fee Collection Status</CardTitle>
+                 </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={feeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
+                        {feeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={0} />)}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <motion.div variants={item} className="lg:col-span-2">
+            <Card className="border-none shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-base">Upcoming Events</CardTitle>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEventOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+                <CardTitle className="text-base">Recent Students</CardTitle>
+                <Link to="/students" className="text-xs text-secondary hover:underline font-medium">View all</Link>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {sortedEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-2">No events. Click + to add.</p>
-                  ) : sortedEvents.slice(0, 5).map((e) => (
-                    <div key={e.id} className="flex items-center gap-3 group">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent">
-                        <CalendarDays className="h-4 w-4 text-accent-foreground" />
+                  {students.slice(0, 5).map((s) => (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-3">
+                        {s.photo ? (
+                          <img src={s.photo} alt={s.name} className="h-9 w-9 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/10 text-sm font-bold text-secondary">{s.name.charAt(0)}</div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.class}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} • {e.type}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => eventStore.remove(e.id)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      <Badge variant={s.status === "Active" ? "default" : "secondary"}>{s.status}</Badge>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+          </motion.div>
+
+          <div className="space-y-6">
+            <motion.div variants={item}>
+              <Card className="border-none shadow-sm bg-primary/5">
+                <CardHeader className="pb-3 text-primary font-bold">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    <CardTitle className="text-base uppercase tracking-wider">System Activity</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                     {activity.slice(0, 4).map((a, i) => (
+                       <div key={i} className="relative flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border shadow-sm z-10 text-primary">
+                               <Activity className="h-4 w-4" />
+                            </div>
+                            <div>
+                               <p className="text-sm font-medium leading-none">{a.action}</p>
+                               <p className="text-[10px] text-muted-foreground mt-1">{new Date(a.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={item}>
+              <Card className="border-none shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <CardTitle className="text-base">Upcoming Events</CardTitle>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEventOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {sortedEvents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-2">No events. Click + to add.</p>
+                    ) : sortedEvents.slice(0, 5).map((e) => (
+                      <div key={e.id} className="flex items-center gap-3 group">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent">
+                          <CalendarDays className="h-4 w-4 text-accent-foreground" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} • {e.type}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => eventStore.remove(e.id)}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <Dialog open={eventOpen} onOpenChange={setEventOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Add Event</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-sm shadow-2xl">
+          <DialogHeader><DialogTitle className="text-xl font-bold">Add New Event</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>Title *</Label><Input value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} placeholder="Event title" /></div>
             <div className="space-y-2"><Label>Date *</Label><Input type="date" value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })} /></div>

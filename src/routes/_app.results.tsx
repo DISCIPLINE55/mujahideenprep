@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Upload, Download, Pencil, Trash2, FileText, Sparkles, Loader2 } from "lucide-react";
+import { getItems, setItems, generateId, defaultStudents, defaultSubjects, KEYS, type Student, type Subject, type ExamResult, type SchoolSettings, defaultSettings } from "@/lib/storage";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { LayoutGrid, ListFilter, Search, Upload, Download, Pencil, Trash2, FileText, Sparkles, Loader2, Printer, Plus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { getItems, setItems, generateId, defaultStudents, defaultSubjects, KEYS, type Student, type Subject, type ExamResult } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printReportCard } from "@/components/ReportCard";
@@ -38,6 +40,20 @@ function ResultsPage() {
   const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
   const subjects = getItems<Subject>(KEYS.SUBJECTS, defaultSubjects);
   const [allResults, setResults] = useState<ExamResult[]>(() => getItems<ExamResult>(KEYS.RESULTS, []));
+  const settings = getItems<SchoolSettings>(KEYS.SETTINGS, [defaultSettings])[0] || defaultSettings;
+
+  // Grade helper
+  const getGrade = (score: number) => {
+    if (score >= 80) return { grade: "A1", remark: "Excellent" };
+    if (score >= 70) return { grade: "B2", remark: "Very Good" };
+    if (score >= 60) return { grade: "B3", remark: "Good" };
+    if (score >= 55) return { grade: "C4", remark: "Credit" };
+    if (score >= 50) return { grade: "C5", remark: "Credit" };
+    if (score >= 45) return { grade: "C6", remark: "Credit" };
+    if (score >= 40) return { grade: "D7", remark: "Pass" };
+    if (score >= 35) return { grade: "E8", remark: "Pass" };
+    return { grade: "F9", remark: "Fail" };
+  };
 
   // Scope data per role
   const allowedClassNames = useMemo(() => {
@@ -73,6 +89,54 @@ function ResultsPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Bulk Entry State
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkClass, setBulkClass] = useState("");
+  const [bulkSubject, setBulkSubject] = useState("");
+  const [bulkData, setBulkData] = useState<Record<string, { class: number, exam: number }>>({});
+
+  // Bulk Print State
+  const [bulkPrintOpen, setBulkPrintOpen] = useState(false);
+  const [printClass, setPrintClass] = useState("");
+
+  function handleBulkPrint() {
+    if (!printClass) return;
+    const classResults = results.filter(r => r.class === printClass);
+    if (classResults.length === 0) {
+      toast.error("No results found for this class.");
+      return;
+    }
+
+    // Sort by student name
+    classResults.sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+    const win = window.open("", "_blank");
+    if (win) {
+      const html = classResults.map(res => {
+        // Find position in class for this specific subject/result set? 
+        // Actually, printReportCard logic handles the UI.
+        // We'll need a way to combine them.
+        return `<div class="print-page">${printReportCard({ result: res, position: 0, totalInClass: 0, nhisNumber: "" }, true)}</div>`;
+      }).join('<div style="page-break-after: always;"></div>');
+
+      win.document.write(`
+        <html>
+          <head>
+            <title>Bulk Reports - ${printClass}</title>
+            <style>
+              @media print { .print-page { page-break-after: always; } }
+              body { margin: 0; padding: 0; }
+            </style>
+          </head>
+          <body>${html}</body>
+        </html>
+      `);
+      win.document.close();
+      setTimeout(() => win.print(), 500);
+    }
+    setBulkPrintOpen(false);
+  }
+
   const filtered = useMemo(() => results.filter((r) =>
     r.studentName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
     r.class.toLowerCase().includes(debouncedSearch.toLowerCase())
@@ -82,7 +146,10 @@ function ResultsPage() {
   function openEdit(r: ExamResult) {
     setEditing(r); setSelectedStudent(r.studentId);
     const s: Record<string, number> = {};
-    r.subjects.forEach((sub) => { s[sub.name] = sub.score; });
+    r.subjects.forEach((sub) => { 
+      s[`${sub.name}_class`] = sub.classScore;
+      s[`${sub.name}_exam`] = sub.examScore;
+    });
     setScores(s); setRemarks(""); setOpen(true);
   }
 
@@ -90,21 +157,84 @@ function ResultsPage() {
     if (!selectedStudent) return;
     const student = students.find((s) => s.id === selectedStudent);
     if (!student) return;
-    const subjectScores = Object.entries(scores).filter(([, v]) => v > 0).map(([name, score]) => ({ name, score: Math.min(100, Math.max(0, score)) }));
-    const total = subjectScores.reduce((s, sub) => s + sub.score, 0);
-    const average = subjectScores.length > 0 ? Math.round(total / subjectScores.length) : 0;
+
+    const subjectScores = subjects
+      .filter(sub => scores[`${sub.name}_exam`] !== undefined || scores[`${sub.name}_class`] !== undefined)
+      .map(sub => {
+        const classScore = scores[`${sub.name}_class`] || 0;
+        const examScore = scores[`${sub.name}_exam`] || 0;
+        const weightedTotal = Math.round((classScore * (settings.classWorkWeight / 100)) + (examScore * (settings.examWeight / 100)));
+        const { grade, remark } = getGrade(weightedTotal);
+        return { name: sub.name, classScore, examScore, total: weightedTotal, grade, remark };
+      });
+
+    const totalScore = subjectScores.reduce((s, sub) => s + sub.total, 0);
+    const average = subjectScores.length > 0 ? Math.round(totalScore / subjectScores.length) : 0;
 
     if (editing) {
-      const updated = allResults.map((r) => r.id === editing.id ? { ...r, studentId: selectedStudent, studentName: student.name, class: student.class, subjects: subjectScores, total, average } : r);
+      const updated = allResults.map((r) => r.id === editing.id ? { 
+        ...r, studentId: selectedStudent, studentName: student.name, class: student.class, 
+        subjects: subjectScores, totalScore, average 
+      } : r);
       setItems(KEYS.RESULTS, updated); setResults(updated);
       toast.success("Scores updated");
     } else {
-      const newResult: ExamResult = { id: generateId(), studentId: selectedStudent, studentName: student.name, class: student.class, term: "Term 2", subjects: subjectScores, total, average };
+      const newResult: ExamResult = { 
+        id: generateId(), studentId: selectedStudent, studentName: student.name, class: student.class, 
+        term: settings.currentTerm, subjects: subjectScores, totalScore, average 
+      };
       const updated = [...allResults, newResult];
       setItems(KEYS.RESULTS, updated); setResults(updated);
       toast.success("Scores saved");
     }
     setOpen(false);
+  }
+
+  function handleBulkSave() {
+    if (!bulkClass || !bulkSubject) return;
+    
+    let updatedResults = [...allResults];
+    const classStudents = allStudents.filter(s => s.class === bulkClass);
+    
+    classStudents.forEach(student => {
+      const entry = bulkData[student.id];
+      if (!entry) return;
+
+      const weightedTotal = Math.round((entry.class * (settings.classWorkWeight / 100)) + (entry.exam * (settings.examWeight / 100)));
+      const { grade, remark } = getGrade(weightedTotal);
+      const subjectData = { name: bulkSubject, classScore: entry.class, examScore: entry.exam, total: weightedTotal, grade, remark };
+
+      const existingIndex = updatedResults.findIndex(r => r.studentId === student.id && r.term === settings.currentTerm);
+      
+      if (existingIndex > -1) {
+        const result = updatedResults[existingIndex];
+        const subIndex = result.subjects.findIndex(s => s.name === bulkSubject);
+        const newSubjects = [...result.subjects];
+        if (subIndex > -1) newSubjects[subIndex] = subjectData;
+        else newSubjects.push(subjectData);
+        
+        const totalScore = newSubjects.reduce((s, sub) => s + sub.total, 0);
+        const average = Math.round(totalScore / newSubjects.length);
+        
+        updatedResults[existingIndex] = { ...result, subjects: newSubjects, totalScore, average };
+      } else {
+        updatedResults.push({
+          id: generateId(),
+          studentId: student.id,
+          studentName: student.name,
+          class: student.class,
+          term: settings.currentTerm,
+          subjects: [subjectData],
+          totalScore: weightedTotal,
+          average: weightedTotal,
+        });
+      }
+    });
+
+    setItems(KEYS.RESULTS, updatedResults);
+    setResults(updatedResults);
+    setBulkOpen(false);
+    toast.success(`Bulk scores for ${bulkSubject} saved!`);
   }
 
   function handleDelete() {
@@ -117,7 +247,7 @@ function ResultsPage() {
 
   function handleExport() {
     downloadCSV("results", ["Student", "Class", "Term", "Total", "Average", "Subjects"],
-      results.map((r) => [r.studentName, r.class, r.term, String(r.total), String(r.average), r.subjects.map(s => `${s.name}:${s.score}`).join("; ")]));
+      results.map((r) => [r.studentName, r.class, r.term, String(r.totalScore), String(r.average), r.subjects.map(s => `${s.name}:${s.total}`).join("; ")]));
     toast.success("Results exported to CSV");
   }
 
@@ -142,7 +272,7 @@ function ResultsPage() {
   const columns = useMemo(() => [
     { key: "studentName", header: "Student", render: (row: ExamResult) => <span className="font-medium text-foreground">{row.studentName}</span> },
     { key: "class" as const, header: "Class" },
-    { key: "total" as const, header: "Total" },
+    { key: "totalScore" as const, header: "Total" },
     {
       key: "average", header: "Average",
       render: (row: ExamResult) => <Badge variant={row.average >= 80 ? "default" : row.average >= 60 ? "secondary" : "destructive"}>{row.average}%</Badge>,
@@ -155,7 +285,16 @@ function ResultsPage() {
       key: "actions", header: "Actions",
       render: (row: ExamResult) => (
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Report Card" onClick={(e) => { e.stopPropagation(); printReportCard({ result: row, position: positions.get(row.id) ?? 0, totalInClass: classCounts.get(row.class) ?? 0 }); }}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Print Report Card" onClick={(e) => { 
+            e.stopPropagation(); 
+            const student = allStudents.find(s => s.id === row.studentId);
+            printReportCard({ 
+              result: row, 
+              position: positions.get(row.id) ?? 0, 
+              totalInClass: classCounts.get(row.class) ?? 0,
+              nhisNumber: student?.nhisNumber
+            }); 
+          }}>
             <FileText className="h-4 w-4" />
           </Button>
           {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4" /></Button>}
@@ -176,7 +315,17 @@ function ResultsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
-            {canEdit && <Button size="sm" onClick={openAdd}><Upload className="mr-1 h-4 w-4" /> Upload Scores</Button>}
+            <Button variant="outline" size="sm" className="text-primary border-primary/30 hover:bg-primary/5" onClick={() => setBulkPrintOpen(true)}>
+              <Printer className="mr-1 h-4 w-4" /> Bulk Print
+            </Button>
+            {canEdit && (
+              <>
+                <Button variant="outline" size="sm" className="text-success border-success/30 hover:bg-success/5" onClick={() => setBulkOpen(true)}>
+                  <LayoutGrid className="mr-1 h-4 w-4" /> Bulk Entry
+                </Button>
+                <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Record Score</Button>
+              </>
+            )}
           </div>
         </div>
         <div className="relative max-w-sm">
@@ -204,23 +353,36 @@ function ResultsPage() {
               </Select>
             </div>
             {selectedStudent && (
-              <div className="space-y-3">
-                <Label>Subject Scores (0–100)</Label>
+              <div className="space-y-4">
+                <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase text-muted-foreground border-b pb-1">
+                  <div className="col-span-6">Subject</div>
+                  <div className="col-span-3 text-center">Class ({settings.classWorkWeight}%)</div>
+                  <div className="col-span-3 text-center">Exam ({settings.examWeight}%)</div>
+                </div>
                 {subjects.filter(s => s.status === "Active").map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-foreground">{sub.name}</span>
-                    <Input type="number" min="0" max="100" className="w-20 h-8 text-sm" value={scores[sub.name] ?? ""} onChange={(e) => setScores({ ...scores, [sub.name]: Number(e.target.value) })} placeholder="0" />
+                  <div key={sub.id} className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-6 text-sm">{sub.name}</span>
+                    <Input type="number" className="col-span-3 h-8 text-center" 
+                      value={scores[`${sub.name}_class`] ?? ""} 
+                      onChange={(e) => setScores({ ...scores, [`${sub.name}_class`]: Number(e.target.value) })} 
+                    />
+                    <Input type="number" className="col-span-3 h-8 text-center" 
+                      value={scores[`${sub.name}_exam`] ?? ""} 
+                      onChange={(e) => setScores({ ...scores, [`${sub.name}_exam`]: Number(e.target.value) })} 
+                    />
                   </div>
                 ))}
                 <div className="space-y-2 pt-2 border-t">
                   <div className="flex items-center justify-between">
                     <Label>Teacher's Remarks</Label>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={aiLoading || Object.values(scores).filter(v => v > 0).length === 0} onClick={async () => {
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={aiLoading || Object.values(scores).length === 0} onClick={async () => {
                       const student = students.find(s => s.id === selectedStudent);
                       if (!student) return;
                       setAiLoading(true);
                       try {
-                        const subjectScores = Object.entries(scores).filter(([, v]) => v > 0).map(([n, s]) => `${n}: ${s}`).join(", ");
+                        const subjectScores = Object.entries(scores)
+                          .filter(([k]) => k.endsWith("_exam"))
+                          .map(([k, s]) => `${k.replace("_exam", "")}: ${s}`).join(", ");
                         const text = await callSchoolAI({
                           type: "report_comment",
                           prompt: `Student: ${student.name} (${student.class}). Scores — ${subjectScores}. Write a personalized teacher's remark.`,
@@ -255,6 +417,89 @@ function ResultsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader><DialogTitle>Gradebook — Bulk Entry</DialogTitle></DialogHeader>
+          <div className="flex gap-4 py-4">
+            <div className="w-1/2 space-y-2">
+              <Label>Class</Label>
+              <Select value={bulkClass} onValueChange={setBulkClass}>
+                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                <SelectContent>{(allowedClassNames || defaultClasses.map(c => c.name)).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="w-1/2 space-y-2">
+              <Label>Subject</Label>
+              <Select value={bulkSubject} onValueChange={setBulkSubject}>
+                <SelectTrigger><SelectValue placeholder="Select Subject" /></SelectTrigger>
+                <SelectContent>{subjects.filter(s => s.status === "Active").map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1 border rounded-md">
+            <Table>
+              <TableHeader className="sticky top-0 bg-muted">
+                <TableRow>
+                  <TableHead className="w-[200px]">Student Name</TableHead>
+                  <TableHead className="text-center">Class Score ({settings.classWorkWeight}%)</TableHead>
+                  <TableHead className="text-center">Exam Score ({settings.examWeight}%)</TableHead>
+                  <TableHead className="text-center">Total (100%)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bulkClass && bulkSubject ? (
+                  allStudents.filter(s => s.class === bulkClass).map(student => {
+                    const entry = bulkData[student.id] || { class: 0, exam: 0 };
+                    const total = Math.round((entry.class * (settings.classWorkWeight / 100)) + (entry.exam * (settings.examWeight / 100)));
+                    return (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">{student.name}</TableCell>
+                        <TableCell>
+                          <Input type="number" className="h-8 text-center" value={entry.class || ""} onChange={(e) => setBulkData({ ...bulkData, [student.id]: { ...entry, class: Number(e.target.value) } })} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" className="h-8 text-center" value={entry.exam || ""} onChange={(e) => setBulkData({ ...bulkData, [student.id]: { ...entry, exam: Number(e.target.value) } })} />
+                        </TableCell>
+                        <TableCell className="text-center font-bold">
+                          {total}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">Select a class and subject to begin grading.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkSave} disabled={!bulkClass || !bulkSubject}>Save Bulk Scores</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={bulkPrintOpen} onOpenChange={setBulkPrintOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Bulk Print Report Cards</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Select Class</Label>
+              <Select value={printClass} onValueChange={setPrintClass}>
+                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                <SelectContent>{(allowedClassNames || defaultClasses.map(c => c.name)).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">This will generate a combined document with report cards for all students in the selected class.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPrintOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkPrint} disabled={!printClass}>Generate Bulk PDF</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

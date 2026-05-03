@@ -23,6 +23,7 @@ import { Route as AppParentDashboardRouteImport } from './routes/_app.parent-das
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLibraryRouteImport } from './routes/_app.library'
 import { Route as AppFeesRouteImport } from './routes/_app.fees'
+import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCommunicationsRouteImport } from './routes/_app.communications'
 import { Route as AppClassesRouteImport } from './routes/_app.classes'
@@ -101,6 +102,11 @@ const AppFeesRoute = AppFeesRouteImport.update({
   path: '/fees',
   getParentRoute: () => AppRoute,
 } as any)
+const AppExpensesRoute = AppExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/classes': typeof AppClassesRoute
   '/communications': typeof AppCommunicationsRoute
   '/dashboard': typeof AppDashboardRoute
+  '/expenses': typeof AppExpensesRoute
   '/fees': typeof AppFeesRoute
   '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/classes': typeof AppClassesRoute
   '/communications': typeof AppCommunicationsRoute
   '/dashboard': typeof AppDashboardRoute
+  '/expenses': typeof AppExpensesRoute
   '/fees': typeof AppFeesRoute
   '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/_app/classes': typeof AppClassesRoute
   '/_app/communications': typeof AppCommunicationsRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/expenses': typeof AppExpensesRoute
   '/_app/fees': typeof AppFeesRoute
   '/_app/library': typeof AppLibraryRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/communications'
     | '/dashboard'
+    | '/expenses'
     | '/fees'
     | '/library'
     | '/notifications'
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/communications'
     | '/dashboard'
+    | '/expenses'
     | '/fees'
     | '/library'
     | '/notifications'
@@ -270,6 +281,7 @@ export interface FileRouteTypes {
     | '/_app/classes'
     | '/_app/communications'
     | '/_app/dashboard'
+    | '/_app/expenses'
     | '/_app/fees'
     | '/_app/library'
     | '/_app/notifications'
@@ -391,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFeesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/expenses': {
+      id: '/_app/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof AppExpensesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -481,6 +500,7 @@ interface AppRouteChildren {
   AppClassesRoute: typeof AppClassesRoute
   AppCommunicationsRoute: typeof AppCommunicationsRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppExpensesRoute: typeof AppExpensesRoute
   AppFeesRoute: typeof AppFeesRoute
   AppLibraryRoute: typeof AppLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -502,6 +522,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClassesRoute: AppClassesRoute,
   AppCommunicationsRoute: AppCommunicationsRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppExpensesRoute: AppExpensesRoute,
   AppFeesRoute: AppFeesRoute,
   AppLibraryRoute: AppLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
