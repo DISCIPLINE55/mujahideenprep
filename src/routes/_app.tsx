@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useEffect, useState } from "react";
 import { getAuth, getAuthSync, ROLE_NAV, type AuthState, type UserRole } from "@/lib/auth";
+import { syncCloudToLocal } from "@/lib/storage";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -49,6 +50,8 @@ function AuthGuardLayout() {
       }
       setAuthState(a);
       setChecked(true);
+      // Background sync: pull cloud data into localStorage cache
+      syncCloudToLocal().catch(console.error);
     }
     verify();
   }, [navigate]);

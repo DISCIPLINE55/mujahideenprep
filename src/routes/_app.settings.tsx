@@ -435,7 +435,7 @@ function SettingsPage() {
                       <p className="text-xs text-muted-foreground">Upload all existing local records to Supabase.</p>
                     </div>
                     <Button variant="default" className="bg-primary" onClick={async () => {
-                        const loader = toast.loading("Syncing...");
+                        const loader = toast.loading("Syncing all local data to cloud...");
                         try {
                           const keysToTables: Record<string, string> = {
                             [KEYS.STUDENTS]: "students",
@@ -449,15 +449,18 @@ function SettingsPage() {
                             [KEYS.EVENTS]: "events",
                             [KEYS.SETTINGS]: "settings",
                             [KEYS.TIMETABLE]: "timetable",
+                            [KEYS.NOTIFICATIONS]: "notifications",
+                            [KEYS.BOOKS]: "library_books",
+                            [KEYS.ISSUES]: "library_issues",
+                            [KEYS.FEE_STRUCTURE]: "fee_structure",
                           };
-                          for (const [key, table] of Object.entries(keysToTables)) {
-                            const data = localStorage.getItem(key);
-                            if (data) {
-                              const items = JSON.parse(data);
-                              await supabase.from(table).upsert(Array.isArray(items) ? items : [items]);
-                            }
+                          const { syncLocalToCloud } = await import("@/lib/db");
+                          const { synced, failed } = await syncLocalToCloud(keysToTables);
+                          if (failed.length > 0) {
+                            toast.warning(`Synced ${synced.length} tables. Failed: ${failed.join(", ")}`, { id: loader });
+                          } else {
+                            toast.success(`All ${synced.length} tables synced!`, { id: loader });
                           }
-                          toast.success("Sync complete!", { id: loader });
                         } catch (err: any) { toast.error(err.message, { id: loader }); }
                     }}>Run Cloud Sync</Button>
                   </div>

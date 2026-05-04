@@ -1,6 +1,9 @@
 import { supabase } from "./supabaseClient";
 
-// Generic localStorage CRUD utilities
+// ===== Table mapping =====
+const TABLE_MAP: Record<string, string> = {} as any; // populated after KEYS is defined
+
+// ===== Generic storage utilities (Supabase-first, localStorage fallback) =====
 
 export function getItems<T>(key: string, defaults: T[]): T[] {
   try {
@@ -13,29 +16,32 @@ export function getItems<T>(key: string, defaults: T[]): T[] {
   }
 }
 
+/** Async version: tries Supabase first, falls back to localStorage */
+export async function getItemsAsync<T>(key: string, defaults: T[]): Promise<T[]> {
+  const table = TABLE_MAP[key];
+  if (table) {
+    try {
+      const { data, error } = await supabase.from(table).select("*");
+      if (!error && data && data.length > 0) {
+        // Cache in localStorage for offline access
+        localStorage.setItem(key, JSON.stringify(data));
+        return data as T[];
+      }
+    } catch {
+      // Fall through to localStorage
+    }
+  }
+  return getItems<T>(key, defaults);
+}
+
 export function setItems<T>(key: string, items: T[] | T): void {
   try {
     localStorage.setItem(key, JSON.stringify(items));
-    
-    // Background sync to Supabase
-    const tableMap: Record<string, string> = {
-      [KEYS.STUDENTS]: "students",
-      [KEYS.TEACHERS]: "teachers",
-      [KEYS.CLASSES]: "classes",
-      [KEYS.SUBJECTS]: "subjects",
-      [KEYS.RESULTS]: "results",
-      [KEYS.PAYMENTS]: "payments",
-      [KEYS.EXPENSES]: "expenses",
-      [KEYS.ATTENDANCE]: "attendance",
-      [KEYS.EVENTS]: "events",
-      [KEYS.SETTINGS]: "settings",
-      [KEYS.TIMETABLE]: "timetable",
-    };
 
-    const table = tableMap[key];
+    // Background sync to Supabase
+    const table = TABLE_MAP[key];
     if (table) {
       const data = Array.isArray(items) ? items : [items];
-      // Supabase upsert requires id or primary key
       supabase.from(table).upsert(data).then(({ error }) => {
         if (error) console.error(`Sync error for ${table}:`, error);
       });
@@ -45,27 +51,49 @@ export function setItems<T>(key: string, items: T[] | T): void {
   }
 }
 
+/** Async version: writes to Supabase first, then caches in localStorage */
+export async function setItemsAsync<T>(key: string, items: T[] | T): Promise<void> {
+  const table = TABLE_MAP[key];
+  if (table) {
+    try {
+      const data = Array.isArray(items) ? items : [items];
+      const { error } = await supabase.from(table).upsert(data);
+      if (error) console.error(`Sync error for ${table}:`, error);
+    } catch (err) {
+      console.error(`Supabase write error for ${table}:`, err);
+    }
+  }
+  // Always update localStorage as cache
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch {}
+}
+
+/** Delete a single record from Supabase + localStorage */
+export async function deleteItemAsync<T extends { id: string }>(
+  key: string,
+  id: string,
+  defaults: T[]
+): Promise<T[]> {
+  const table = TABLE_MAP[key];
+  if (table) {
+    try {
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) console.error(`Delete error for ${table}:`, error);
+    } catch {}
+  }
+  const items = getItems<T>(key, defaults).filter((i) => i.id !== id);
+  try { localStorage.setItem(key, JSON.stringify(items)); } catch {}
+  return items;
+}
+
 export async function syncCloudToLocal(): Promise<void> {
   try {
-    const tableMap: Record<string, string> = {
-      "students": KEYS.STUDENTS,
-      "teachers": KEYS.TEACHERS,
-      "classes": KEYS.CLASSES,
-      "subjects": KEYS.SUBJECTS,
-      "results": KEYS.RESULTS,
-      "payments": KEYS.PAYMENTS,
-      "expenses": KEYS.EXPENSES,
-      "attendance": KEYS.ATTENDANCE,
-      "events": KEYS.EVENTS,
-      "settings": KEYS.SETTINGS,
-      "timetable": KEYS.TIMETABLE,
-    };
-
-    for (const [table, key] of Object.entries(tableMap)) {
+    for (const [key, table] of Object.entries(TABLE_MAP)) {
       const { data, error } = await supabase.from(table).select("*");
       if (error) {
-         console.warn(`Could not sync ${table}:`, error);
-         continue;
+        console.warn(`Could not sync ${table}:`, error);
+        continue;
       }
       if (data) {
         if (table === "settings") {
@@ -103,7 +131,7 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-// ===== Default Data =====
+// ===== Type Interfaces =====
 
 export interface Student {
   id: string;
@@ -177,12 +205,12 @@ export interface ExamResult {
   studentName: string;
   class: string;
   term: string;
-  subjects: { 
-    name: string; 
-    classScore: number; 
-    examScore: number; 
-    total: number; 
-    grade: string; 
+  subjects: {
+    name: string;
+    classScore: number;
+    examScore: number;
+    total: number;
+    grade: string;
     remark: string;
   }[];
   totalScore: number;
@@ -281,11 +309,36 @@ export interface DisciplineRecord {
   severity: "Low" | "Medium" | "High";
 }
 
+export interface LibraryBook {
+  id: string;
+  title: string;
+  author: string;
+  isbn: string;
+  category: string;
+  copies: number;
+  available: number;
+  location: string;
+}
+
+export interface LibraryIssue {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  studentId: string;
+  studentName: string;
+  issueDate: string;
+  dueDate: string;
+  returnDate: string;
+  status: string;
+}
+
 export const CLASS_LIST = [
   "Creche", "Nursery 1", "Nursery 2", "KG 1", "KG 2",
   "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
   "JHS 1", "JHS 2", "JHS 3",
 ];
+
+// ===== Default Data =====
 
 export const defaultStudents: Student[] = [
   { id: "s1", name: "Amina Ibrahim", class: "JHS 3", gender: "Female", guardian: "Ibrahim Mensah", phone: "024-555-0201", dob: "2011-03-15", status: "Active", fees: "Paid", address: "Mankessim" },
@@ -384,6 +437,26 @@ export const KEYS = {
   FEE_STRUCTURE: "mpsms_fee_structure",
 };
 
+// Populate TABLE_MAP after KEYS is defined
+Object.assign(TABLE_MAP, {
+  [KEYS.STUDENTS]: "students",
+  [KEYS.TEACHERS]: "teachers",
+  [KEYS.CLASSES]: "classes",
+  [KEYS.SUBJECTS]: "subjects",
+  [KEYS.RESULTS]: "results",
+  [KEYS.PAYMENTS]: "payments",
+  [KEYS.EXPENSES]: "expenses",
+  [KEYS.ATTENDANCE]: "attendance",
+  [KEYS.EVENTS]: "events",
+  [KEYS.SETTINGS]: "settings",
+  [KEYS.TIMETABLE]: "timetable",
+  [KEYS.NOTIFICATIONS]: "notifications",
+  [KEYS.DISCIPLINE]: "discipline",
+  [KEYS.BOOKS]: "library_books",
+  [KEYS.ISSUES]: "library_issues",
+  [KEYS.FEE_STRUCTURE]: "fee_structure",
+});
+
 export const defaultFeeStructure: FeeStructure[] = CLASS_LIST.map((name, i) => ({
   id: `fee-${i}`,
   className: name,
@@ -418,4 +491,9 @@ export function importAllData(json: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Get the Supabase table name for a given storage key */
+export function getTableName(key: string): string | undefined {
+  return TABLE_MAP[key];
 }
