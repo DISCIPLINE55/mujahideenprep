@@ -122,7 +122,8 @@ export function generateFeeStatement(d: FeeStatementData) {
   doc.text(`Total Fee:        ₵ ${d.totalFee.toFixed(2)}`, 130, yEnd);
   doc.text(`Total Paid:       ₵ ${paid.toFixed(2)}`, 130, yEnd + 6);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...(balance > 0 ? [200, 30, 30] : [4, 132, 75]) as any);
+  const c: [number, number, number] = balance > 0 ? [200, 30, 30] : [4, 132, 75];
+  doc.setTextColor(c[0], c[1], c[2]);
   doc.text(`Balance:          ₵ ${balance.toFixed(2)}`, 130, yEnd + 12);
 
   footer(doc);
