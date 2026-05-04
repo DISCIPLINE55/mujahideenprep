@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import { Download, Printer, BarChart3, Sparkles, Loader2 } from "lucide-react";
+import { Download, Printer, Sparkles, Loader2, FileText } from "lucide-react";
 import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultPayments, KEYS, CLASS_LIST, type Student, type Teacher, type SchoolClass, type Payment, type AttendanceRecord, type ExamResult } from "@/lib/storage";
+import { generateAttendanceSummary, generateClassList, generateFeeStatement, generateReportCard } from "@/lib/pdf";
 import { toast } from "sonner";
 import { stripMarkdown } from "@/lib/utils";
 
@@ -34,6 +35,8 @@ function ReportsPage() {
   const [reportType, setReportType] = useState("enrollment");
   const [aiSummary, setAiSummary] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>(CLASS_LIST[0]);
 
   const enrollmentData = useMemo(() =>
     CLASS_LIST.map((c) => ({ name: c, students: students.filter((s) => s.class === c).length })).filter((d) => d.students > 0),
@@ -49,6 +52,66 @@ function ReportsPage() {
 
   const totalFees = payments.reduce((s, p) => s + p.totalFee, 0);
   const totalCollected = payments.reduce((s, p) => s + p.amountPaid, 0);
+
+  function downloadReportCard() {
+    const s = students.find((x) => x.id === selectedStudentId);
+    if (!s) { toast.error("Select a student first"); return; }
+    const studentResults = results.filter((r) => r.studentId === s.id);
+    if (studentResults.length === 0) { toast.error("No exam results recorded for this student"); return; }
+    generateReportCard({
+      studentName: s.name,
+      studentClass: s.class,
+      term: studentResults[0]?.term,
+      academicYear: studentResults[0]?.academicYear,
+      results: studentResults.map((r) => ({ subject: r.subject, score: Number(r.score) || 0, grade: r.grade, remarks: r.remarks })),
+    });
+    toast.success("Report card PDF downloaded");
+  }
+
+  function downloadFeeStatement() {
+    const s = students.find((x) => x.id === selectedStudentId);
+    if (!s) { toast.error("Select a student first"); return; }
+    const studentPayments = payments.filter((p) => p.studentId === s.id);
+    const totalFee = studentPayments[0]?.totalFee || 0;
+    generateFeeStatement({
+      studentName: s.name,
+      studentClass: s.class,
+      totalFee,
+      payments: studentPayments.map((p) => ({ date: p.date, amount: p.amountPaid, description: p.description })),
+    });
+    toast.success("Fee statement PDF downloaded");
+  }
+
+  function downloadAttendancePDF() {
+    const inClass = students.filter((s) => s.class === selectedClass);
+    if (inClass.length === 0) { toast.error("No students in this class"); return; }
+    const records = attendance.filter((a) => a.class === selectedClass);
+    if (records.length === 0) { toast.error("No attendance records for this class"); return; }
+    const dates = records.map((r) => r.date).sort();
+    const rows = inClass.map((stu) => {
+      const studentRecords = records.filter((r) => r.studentId === stu.id);
+      const present = studentRecords.filter((r) => r.status === "Present").length;
+      const total = studentRecords.length;
+      return { studentName: stu.name, present, absent: total - present, total };
+    });
+    generateAttendanceSummary({
+      className: selectedClass,
+      fromDate: dates[0],
+      toDate: dates[dates.length - 1],
+      rows,
+    });
+    toast.success("Attendance PDF downloaded");
+  }
+
+  function downloadClassListPDF() {
+    const inClass = students.filter((s) => s.class === selectedClass);
+    if (inClass.length === 0) { toast.error("No students in this class"); return; }
+    generateClassList({
+      className: selectedClass,
+      students: inClass.map((s) => ({ name: s.name, gender: s.gender, guardian: s.guardian, phone: s.phone, status: s.status })),
+    });
+    toast.success("Class list PDF downloaded");
+  }
 
   const attendanceData = useMemo(() => {
     if (attendance.length === 0) return [];
@@ -147,6 +210,42 @@ function ReportsPage() {
             </Button>
           </div>
         </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Downloadable PDF Reports</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Per-Student</p>
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                  <SelectTrigger><SelectValue placeholder="Select a student" /></SelectTrigger>
+                  <SelectContent>
+                    {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} — {s.class}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={downloadReportCard}><Download className="h-4 w-4 mr-1" /> Report Card</Button>
+                  <Button size="sm" variant="outline" onClick={downloadFeeStatement}><Download className="h-4 w-4 mr-1" /> Fee Statement</Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Per-Class</p>
+                <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={downloadClassListPDF}><Download className="h-4 w-4 mr-1" /> Class List</Button>
+                  <Button size="sm" variant="outline" onClick={downloadAttendancePDF}><Download className="h-4 w-4 mr-1" /> Attendance Summary</Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {aiSummary && (
           <Card className="border-primary/20 bg-primary/5">
