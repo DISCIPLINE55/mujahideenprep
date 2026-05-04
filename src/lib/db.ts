@@ -24,11 +24,35 @@ export async function fetchFromSupabase<T>(table: string): Promise<T[]> {
 }
 
 export async function saveToSupabase<T>(table: string, item: T) {
-  const { error } = await supabase.from(table).upsert(item);
+  const { error } = await supabase.from(table).upsert(item as any);
   if (error) throw error;
 }
 
 export async function deleteFromSupabase(table: string, id: string) {
   const { error } = await supabase.from(table).delete().eq('id', id);
   if (error) throw error;
+}
+
+/** Push localStorage caches up to Supabase for each mapped table. */
+export async function syncLocalToCloud(
+  keysToTables: Record<string, string>
+): Promise<{ synced: string[]; failed: string[] }> {
+  const synced: string[] = [];
+  const failed: string[] = [];
+  for (const [key, table] of Object.entries(keysToTables)) {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+      if (!raw) { synced.push(table); continue; }
+      const parsed = JSON.parse(raw);
+      const rows = Array.isArray(parsed) ? parsed : [parsed];
+      if (rows.length === 0) { synced.push(table); continue; }
+      const { error } = await supabase.from(table).upsert(rows as any);
+      if (error) throw error;
+      synced.push(table);
+    } catch (err) {
+      console.error(`syncLocalToCloud(${table}) failed:`, err);
+      failed.push(table);
+    }
+  }
+  return { synced, failed };
 }
