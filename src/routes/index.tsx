@@ -55,7 +55,12 @@ function LoginPage() {
 
       if (data.user) {
         toast.success("Logged in successfully!");
-        const role = data.user.user_metadata.role || "admin";
+        // Fetch role from user_roles table (single source of truth)
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id);
+        const role = roles?.[0]?.role || data.user.user_metadata.role || "parent";
         const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
         window.location.href = dest;
       }
@@ -66,14 +71,22 @@ function LoginPage() {
     }
   }
 
-  function handleForgotPassword() {
+  async function handleForgotPassword() {
     if (!resetEmail.trim() || !/\S+@\S+\.\S+/.test(resetEmail)) {
       toast.error("Please enter a valid email address");
       return;
     }
-    toast.success("Password reset link sent! Check your email.");
-    setForgotOpen(false);
-    setResetEmail("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Password reset link sent! Check your email.");
+      setForgotOpen(false);
+      setResetEmail("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reset link");
+    }
   }
 
   return (

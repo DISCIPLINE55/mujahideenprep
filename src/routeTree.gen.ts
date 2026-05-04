@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTimetableRouteImport } from './routes/_app.timetable'
@@ -19,6 +20,7 @@ import { Route as AppStudentsRouteImport } from './routes/_app.students'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppResultsRouteImport } from './routes/_app.results'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppParentsRouteImport } from './routes/_app.parents'
 import { Route as AppParentDashboardRouteImport } from './routes/_app.parent-dashboard'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLibraryRouteImport } from './routes/_app.library'
@@ -33,6 +35,11 @@ import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as AppTeachersTeacherIdRouteImport } from './routes/_app.teachers.$teacherId'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app.students.$studentId'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -80,6 +87,11 @@ const AppResultsRoute = AppResultsRouteImport.update({
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppParentsRoute = AppParentsRouteImport.update({
+  id: '/parents',
+  path: '/parents',
   getParentRoute: () => AppRoute,
 } as any)
 const AppParentDashboardRoute = AppParentDashboardRouteImport.update({
@@ -150,6 +162,7 @@ const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/ai-assistant': typeof AppAiAssistantRoute
   '/attendance': typeof AppAttendanceRoute
   '/calendar': typeof AppCalendarRoute
@@ -161,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
   '/parent-dashboard': typeof AppParentDashboardRoute
+  '/parents': typeof AppParentsRoute
   '/reports': typeof AppReportsRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
@@ -174,6 +188,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/ai-assistant': typeof AppAiAssistantRoute
   '/attendance': typeof AppAttendanceRoute
   '/calendar': typeof AppCalendarRoute
@@ -185,6 +200,7 @@ export interface FileRoutesByTo {
   '/library': typeof AppLibraryRoute
   '/notifications': typeof AppNotificationsRoute
   '/parent-dashboard': typeof AppParentDashboardRoute
+  '/parents': typeof AppParentsRoute
   '/reports': typeof AppReportsRoute
   '/results': typeof AppResultsRoute
   '/settings': typeof AppSettingsRoute
@@ -200,6 +216,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/_app/ai-assistant': typeof AppAiAssistantRoute
   '/_app/attendance': typeof AppAttendanceRoute
   '/_app/calendar': typeof AppCalendarRoute
@@ -211,6 +228,7 @@ export interface FileRoutesById {
   '/_app/library': typeof AppLibraryRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/parent-dashboard': typeof AppParentDashboardRoute
+  '/_app/parents': typeof AppParentsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/results': typeof AppResultsRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -226,6 +244,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/reset-password'
     | '/ai-assistant'
     | '/attendance'
     | '/calendar'
@@ -237,6 +256,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/notifications'
     | '/parent-dashboard'
+    | '/parents'
     | '/reports'
     | '/results'
     | '/settings'
@@ -250,6 +270,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/reset-password'
     | '/ai-assistant'
     | '/attendance'
     | '/calendar'
@@ -261,6 +282,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/notifications'
     | '/parent-dashboard'
+    | '/parents'
     | '/reports'
     | '/results'
     | '/settings'
@@ -275,6 +297,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/reset-password'
     | '/_app/ai-assistant'
     | '/_app/attendance'
     | '/_app/calendar'
@@ -286,6 +309,7 @@ export interface FileRouteTypes {
     | '/_app/library'
     | '/_app/notifications'
     | '/_app/parent-dashboard'
+    | '/_app/parents'
     | '/_app/reports'
     | '/_app/results'
     | '/_app/settings'
@@ -301,10 +325,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -373,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/parents': {
+      id: '/_app/parents'
+      path: '/parents'
+      fullPath: '/parents'
+      preLoaderRoute: typeof AppParentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/parent-dashboard': {
@@ -505,6 +544,7 @@ interface AppRouteChildren {
   AppLibraryRoute: typeof AppLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppParentDashboardRoute: typeof AppParentDashboardRoute
+  AppParentsRoute: typeof AppParentsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppResultsRoute: typeof AppResultsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -527,6 +567,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLibraryRoute: AppLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppParentDashboardRoute: AppParentDashboardRoute,
+  AppParentsRoute: AppParentsRoute,
   AppReportsRoute: AppReportsRoute,
   AppResultsRoute: AppResultsRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -542,6 +583,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

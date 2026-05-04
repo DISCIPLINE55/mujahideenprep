@@ -13,7 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { getItems, setItems, generateId, defaultStudents, defaultClasses, defaultTeachers, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord, type Teacher } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { callSchoolAI } from "@/lib/ai";
-import { getAuth } from "@/lib/auth";
+import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/attendance")({
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/attendance")({
 
 function AttendancePage() {
   const navigate = useNavigate();
-  const auth = getAuth();
+  const auth = getAuthSync();
   const isTeacher = auth?.role === "teacher";
   const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
   const allClasses = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);

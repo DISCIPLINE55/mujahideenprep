@@ -13,7 +13,7 @@ import { Plus, Search, Download, Receipt, TrendingDown, Landmark, Calendar, Penc
 import { getItems, setItems, generateId, KEYS, type Expense } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
-import { logActivity, getAuth } from "@/lib/auth";
+import { logActivity, getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/expenses")({
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/expenses")({
 const CATEGORIES = ["Salary", "Utilities", "Maintenance", "Supplies", "Food", "Books", "Marketing", "Other"];
 
 function ExpensesPage() {
-  const auth = getAuth();
+  const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
   const [allExpenses, setExpenses] = useState<Expense[]>(() => getItems<Expense>(KEYS.EXPENSES, []));
   
