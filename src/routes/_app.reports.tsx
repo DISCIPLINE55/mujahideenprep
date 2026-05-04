@@ -58,12 +58,17 @@ function ReportsPage() {
     if (!s) { toast.error("Select a student first"); return; }
     const studentResults = results.filter((r) => r.studentId === s.id);
     if (studentResults.length === 0) { toast.error("No exam results recorded for this student"); return; }
+    const latest = studentResults[studentResults.length - 1];
     generateReportCard({
       studentName: s.name,
       studentClass: s.class,
-      term: studentResults[0]?.term,
-      academicYear: studentResults[0]?.academicYear,
-      results: studentResults.map((r) => ({ subject: r.subject, score: Number(r.score) || 0, grade: r.grade, remarks: r.remarks })),
+      term: latest?.term,
+      results: (latest?.subjects || []).map((sub) => ({
+        subject: sub.name,
+        score: Number(sub.total) || 0,
+        grade: sub.grade,
+        remarks: sub.remark,
+      })),
     });
     toast.success("Report card PDF downloaded");
   }
