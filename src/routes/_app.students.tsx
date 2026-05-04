@@ -9,10 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Download, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2, Eye, Upload, FileText } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { defaultStudents, KEYS, CLASS_LIST, type Student, type Payment, generateId, getItems, setItems } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
+import { CSVImportDialog } from "@/components/CSVImportDialog";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { generateClassList } from "@/lib/pdf";
 import { useDebounce } from "@/lib/debounce";
 import { logActivity } from "@/lib/auth";
 import { toast } from "sonner";
@@ -54,6 +57,8 @@ function StudentsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [promoteTo, setPromoteTo] = useState(CLASS_LIST[0]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [pdfClass, setPdfClass] = useState<string | null>(null);
 
   function handleBulkPromote() {
     if (selected.size === 0) return;
@@ -170,6 +175,28 @@ function StudentsPage() {
     toast.success("Filtered students exported to CSV");
   }
 
+  async function handleBulkImport(records: Omit<Student, "id">[]) {
+    for (const r of records) {
+      await store.add(r);
+    }
+    logActivity(`Imported ${records.length} students from CSV`);
+  }
+
+  function handlePdfClassList() {
+    const cls = filterClass !== "All" ? filterClass : pdfClass;
+    if (!cls || cls === "All") {
+      toast.error("Filter by a class first to export its list as PDF");
+      return;
+    }
+    const studentsInClass = store.items.filter((s) => s.class === cls);
+    if (studentsInClass.length === 0) { toast.error("No students in this class"); return; }
+    generateClassList({
+      className: cls,
+      students: studentsInClass.map((s) => ({ name: s.name, gender: s.gender, guardian: s.guardian, phone: s.phone, status: s.status })),
+    });
+    toast.success("Class list PDF downloaded");
+  }
+
   const columns = useMemo(() => [
     {
       key: "select", header: "",
@@ -238,6 +265,8 @@ function StudentsPage() {
               </div>
             )}
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}><Upload className="mr-1 h-4 w-4" /> Import CSV</Button>
+            <Button variant="outline" size="sm" onClick={handlePdfClassList}><FileText className="mr-1 h-4 w-4" /> Class PDF</Button>
             <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Student</Button>
           </div>
         </div>
@@ -267,8 +296,14 @@ function StudentsPage() {
           </Button>
         </div>
 
-        <DataTable columns={columns} data={filtered} />
+        {store.loading && store.items.length === 0 ? (
+          <TableSkeleton rows={8} cols={6} />
+        ) : (
+          <DataTable columns={columns} data={filtered} />
+        )}
       </div>
+
+      <CSVImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleBulkImport} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
