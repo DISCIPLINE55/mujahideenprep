@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Install dependencies (including vite)
 RUN npm install
 
 # Copy source code
@@ -24,20 +24,17 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# Copy package files and build output
-COPY --from=build /app/package.json /app/package-lock.json ./
-COPY --from=build /app/dist ./dist
+# Copy everything for simplicity in this hybrid build
+COPY --from=build /app ./
 
-# Install only production dependencies
-RUN npm install --omit=dev
-
-# Expose port (Cloud Run uses 8080 by default)
+# Expose port 8080
 ENV PORT=8080
 EXPOSE 8080
 
-# Serve the app using node
-CMD ["node", "dist/server/server.js"]
+# Serve the app using vite preview
+# This correctly handles TanStack Start SSR
+CMD ["npm", "run", "preview", "--", "--port", "8080", "--host", "0.0.0.0"]
