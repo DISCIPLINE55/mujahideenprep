@@ -34,10 +34,12 @@ function LoginPage() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Please enter both email and password.");
@@ -46,23 +48,39 @@ function LoginPage() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              role: "admin", // Initial sign up as admin for bootstrap
+            },
+          },
+        });
+        if (error) throw error;
+        toast.success("Account created! Please check your email for confirmation.");
+        setIsSignUp(false);
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data.user) {
-        toast.success("Logged in successfully!");
-        // Fetch role from user_roles table (single source of truth)
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id);
-        const role = roles?.[0]?.role || data.user.user_metadata.role || "parent";
-        const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
-        window.location.href = dest;
+        if (data.user) {
+          toast.success("Logged in successfully!");
+          // Fetch role from user_roles table (single source of truth)
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", data.user.id);
+          const role = roles?.[0]?.role || data.user.user_metadata.role || "parent";
+          const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
+          window.location.href = dest;
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Authentication failed");
@@ -126,10 +144,19 @@ function LoginPage() {
               <h2 className="text-xl font-bold text-foreground">MPSMS</h2>
             </div>
 
-            <h2 className="text-2xl font-bold text-foreground mb-1">Welcome back</h2>
-            <p className="text-muted-foreground mb-6">Select your role and sign in</p>
+            <h2 className="text-2xl font-bold text-foreground mb-1">{isSignUp ? "Create Account" : "Welcome back"}</h2>
+            <p className="text-muted-foreground mb-6">{isSignUp ? "Join the Mujahideen Prep system" : "Select your role and sign in"}</p>
 
-            <form className="space-y-4" onSubmit={handleLogin}>
+            <form className="space-y-4" onSubmit={handleAuth}>
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="fullName" type="text" className="pl-9" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" required />
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -152,9 +179,19 @@ function LoginPage() {
               </div>
 
               <Button type="submit" className="w-full h-10" disabled={loading}>
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? (isSignUp ? "Creating Account..." : "Signing In...") : (isSignUp ? "Create Account" : "Sign In")}
               </Button>
             </form>
+
+            <div className="mt-4 text-center">
+              <button 
+                type="button" 
+                onClick={() => setIsSignUp(!isSignUp)} 
+                className="text-sm text-primary hover:underline"
+              >
+                {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+              </button>
+            </div>
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
               © 2026 Mujahideen Preparatory School • ESTD 1997
