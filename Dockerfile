@@ -15,7 +15,7 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm install || npm install
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -28,14 +28,16 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install a simple static file server
-RUN npm install -g serve
-
-# Copy built files from build stage
+# Copy package files and build output
+COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/dist ./dist
 
+# Install only production dependencies
+RUN npm install --omit=dev
+
 # Expose port (Cloud Run uses 8080 by default)
+ENV PORT=8080
 EXPOSE 8080
 
-# Serve the built app
-CMD ["serve", "-s", "dist", "-l", "8080"]
+# Serve the app using node
+CMD ["node", "dist/server/server.js"]
