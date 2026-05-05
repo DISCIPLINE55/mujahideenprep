@@ -76,6 +76,20 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     }
   }, [items, key, tableName]);
 
+  const remove = useCallback(async (id: string) => {
+    const newItems = items.filter((i) => i.id !== id);
+    
+    // Update Local
+    setItems(key, newItems);
+    setItemsState(newItems);
+
+    // Update Cloud
+    if (tableName) {
+      const { error } = await supabase.from(tableName).delete().eq("id", id);
+      if (error) toast.error("Cloud delete failed");
+    }
+  }, [items, key, tableName]);
+
   const syncAll = useCallback(async (newItems: T[]) => {
     // Update Local
     setItems(key, newItems);
