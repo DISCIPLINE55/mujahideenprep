@@ -10,9 +10,9 @@ export default defineConfig({
     tanstackStart(),
     react(),
     tailwindcss(),
-    tsconfigPaths(),
   ],
   resolve: {
+    tsconfigPaths: true,
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
