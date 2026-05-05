@@ -1,4 +1,4 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute } from "@tanstack/react-router";
 import { CommandPalette } from "@/components/CommandPalette";
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/lib/i18n';
@@ -78,20 +78,9 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <HeadContent />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('mpsms_theme');if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}`,
-          }}
-        />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
+    <div className="min-h-screen bg-background font-sans antialiased">
+      {children}
+    </div>
   );
 }
 

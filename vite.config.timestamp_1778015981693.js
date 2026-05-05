@@ -1,0 +1,33 @@
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import tailwindcss from "@tailwindcss/vite";
+import path from "path";
+var vite_config_default = defineConfig({
+  plugins: [
+    tanstackStart({
+      nitro: {
+        preset: "vercel"
+      }
+    }),
+    react(),
+    tailwindcss()
+  ],
+  resolve: {
+    tsconfigPaths: true,
+    alias: {
+      "@": path.resolve(__dirname, "./src")
+    }
+  },
+  server: {
+    host: "::",
+    port: 8080
+  },
+  preview: {
+    allowedHosts: true
+  }
+});
+export {
+  vite_config_default as default
+};
