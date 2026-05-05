@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useStore } from "@/hooks/use-store";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { EmptyState } from "@/components/EmptyState";
