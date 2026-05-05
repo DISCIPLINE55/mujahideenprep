@@ -31,9 +31,15 @@ function AttendancePage() {
   const navigate = useNavigate();
   const auth = getAuthSync();
   const isTeacher = auth?.role === "teacher";
-  const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const allClasses = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+
+  const allRecords = attendanceStore.items;
+  const allStudents = studentStore.items;
+  const allClasses = classStore.items;
+  const teachers = teacherStore.items;
 
   const teacherClassNames = useMemo(() => {
     if (!isTeacher) return null;
@@ -44,7 +50,6 @@ function AttendancePage() {
   const students = useMemo(() => teacherClassNames ? allStudents.filter((s) => teacherClassNames.includes(s.class)) : allStudents, [allStudents, teacherClassNames]);
   const classes = useMemo(() => teacherClassNames ? allClasses.filter((c) => teacherClassNames.includes(c.name)) : allClasses, [allClasses, teacherClassNames]);
   const allowedClassList = useMemo(() => teacherClassNames ?? CLASS_LIST, [teacherClassNames]);
-  const [allRecords, setRecords] = useState<AttendanceRecord[]>(() => getItems<AttendanceRecord>(KEYS.ATTENDANCE, []));
   const records = useMemo(() => teacherClassNames ? allRecords.filter((r) => teacherClassNames.includes(r.class)) : allRecords, [allRecords, teacherClassNames]);
   const [markOpen, setMarkOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState(allowedClassList[0] ?? CLASS_LIST[0]);
@@ -74,7 +79,8 @@ function AttendancePage() {
     classStudents.forEach((s) => {
       updated.push({ id: generateId(), studentId: s.id, studentName: s.name, class: selectedClass, date: markDate, status: markData[s.id] ?? "Present" });
     });
-    setItems(KEYS.ATTENDANCE, updated); setRecords(updated); setMarkOpen(false);
+    attendanceStore.syncAll(updated);
+    setMarkOpen(false);
     toast.success("Attendance saved");
   }
 

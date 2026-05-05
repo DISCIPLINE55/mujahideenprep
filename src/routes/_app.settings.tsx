@@ -453,6 +453,7 @@ function SettingsPage() {
                             [KEYS.BOOKS]: "library_books",
                             [KEYS.ISSUES]: "library_issues",
                             [KEYS.FEE_STRUCTURE]: "fee_structure",
+                            [KEYS.COMMUNICATIONS]: "communications",
                           };
                           const { syncLocalToCloud } = await import("@/lib/db");
                           const { synced, failed } = await syncLocalToCloud(keysToTables);

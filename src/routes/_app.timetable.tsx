@@ -89,8 +89,10 @@ function DraggableSlot({ id, slot, onDelete, disabled }: { id: string, slot: Tim
 
 function TimetablePage() {
   const store = useStore<TimetableSlot>(KEYS.TIMETABLE, []);
-  const subjects = getItems<Subject>(KEYS.SUBJECTS, defaultSubjects);
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const subjectStore = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const subjects = subjectStore.items;
+  const teachers = teacherStore.items;
   const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ day: DAYS[0], period: PERIODS[0], subject: "", teacher: "", className: CLASS_LIST[0] });

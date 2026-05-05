@@ -31,16 +31,19 @@ export const Route = createFileRoute("/_app/communications")({
 
 interface Communication {
   id: string;
-  audience: string;
+  recipients: string;
   subject: string;
-  message: string;
+  body: string;
   date: string;
   status: "Sent" | "Draft";
+  sender: string;
 }
 
 function CommunicationsPage() {
-  const store = useStore<Communication>("mpsms_communications", []);
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const auth = getAuthSync();
+  const store = useStore<Communication>(KEYS.COMMUNICATIONS, []);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const students = studentStore.items;
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [form, setForm] = useState({ audience: "All Parents", subject: "", message: "" });
@@ -116,11 +119,12 @@ function CommunicationsPage() {
   function handleSend() {
     if (!form.subject.trim() || !form.message.trim()) return;
     store.add({
-      audience: form.audience,
+      recipients: form.audience,
       subject: form.subject,
-      message: form.message,
+      body: form.message,
       date: new Date().toISOString().split("T")[0],
       status: "Sent",
+      sender: auth?.name || "Admin",
     } as Omit<Communication, "id">);
     toast.success("Message sent!");
     setComposeOpen(false);
@@ -186,13 +190,13 @@ function CommunicationsPage() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <h4 className="text-sm font-semibold text-foreground">{msg.subject}</h4>
-                      <p className="text-xs text-muted-foreground">To: {msg.audience} • {msg.date}</p>
+                      <p className="text-xs text-muted-foreground">To: {msg.recipients} • {msg.date}</p>
                     </div>
                     <Badge variant={msg.status === "Sent" ? "default" : "secondary"}>{msg.status}</Badge>
                   </div>
                   <div 
                     className="text-sm text-foreground/80 prose prose-sm dark:prose-invert line-clamp-3 max-w-none" 
-                    dangerouslySetInnerHTML={{ __html: msg.message }} 
+                    dangerouslySetInnerHTML={{ __html: msg.body }} 
                   />
                 </CardContent>
               </Card>

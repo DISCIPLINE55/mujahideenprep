@@ -110,19 +110,11 @@ function LoginPage() {
             <p className="text-primary-foreground/40 text-xs mb-8">
               Established 1997 • Creche • Nursery • KG • Primary • JHS
             </p>
-            <div className="grid grid-cols-3 gap-6 text-primary-foreground/70 text-sm">
-              <div>
-                <p className="text-2xl font-bold text-primary-foreground">500+</p>
-                <p>Students</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary-foreground">30+</p>
-                <p>Teachers</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary-foreground">14</p>
-                <p>Classes</p>
-              </div>
+            <div className="mt-8 text-primary-foreground/70 text-sm max-w-md">
+               <p className="font-medium mb-2">Excellence • Discipline • Faith</p>
+               <p className="text-xs leading-relaxed opacity-60">
+                 Dedicated to providing quality holistic education and character building for every child.
+               </p>
             </div>
           </div>
         </div>

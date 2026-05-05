@@ -45,12 +45,18 @@ const CHART_COLORS = ["oklch(0.28 0.14 280)", "oklch(0.55 0.22 340)", "oklch(0.8
 const EVENT_TYPES: SchoolEvent["type"][] = ["Exam", "Meeting", "Event", "Holiday", "Other"];
 
 function DashboardPage() {
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
-  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const payments = getItems<Payment>(KEYS.PAYMENTS, defaultPayments);
-  const expenses = getItems<Expense>(KEYS.EXPENSES, []);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
+  const expenseStore = useStore<Expense>(KEYS.EXPENSES, []);
   const eventStore = useStore<SchoolEvent>(KEYS.EVENTS, defaultEvents);
+
+  const students = studentStore.items;
+  const teachers = teacherStore.items;
+  const classes = classStore.items;
+  const payments = paymentStore.items;
+  const expenses = expenseStore.items;
 
   const [eventOpen, setEventOpen] = useState(false);
   const [eventForm, setEventForm] = useState({ title: "", date: "", type: "Event" as SchoolEvent["type"] });

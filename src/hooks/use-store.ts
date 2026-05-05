@@ -17,6 +17,7 @@ const KEY_TO_TABLE: Record<string, string> = {
   [KEYS.SETTINGS]: "settings",
   [KEYS.TIMETABLE]: "timetable",
   [KEYS.NOTIFICATIONS]: "notifications",
+  [KEYS.COMMUNICATIONS]: "communications",
 };
 
 export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
@@ -75,19 +76,29 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     }
   }, [items, key, tableName]);
 
-  const remove = useCallback(async (id: string) => {
-    const newItems = items.filter((i) => i.id !== id);
-    
+  const syncAll = useCallback(async (newItems: T[]) => {
     // Update Local
     setItems(key, newItems);
     setItemsState(newItems);
 
     // Update Cloud
     if (tableName) {
-      const { error } = await supabase.from(tableName).delete().eq("id", id);
-      if (error) toast.error("Cloud delete failed");
+      const { error } = await supabase.from(tableName).upsert(newItems);
+      if (error) {
+        toast.error(`Cloud bulk sync failed: ${error.message}`);
+        console.error(error);
+      }
     }
   }, [items, key, tableName]);
 
-  return { items, add, update, remove, loading, refresh: fetchCloud, setAll: (v: T[]) => { setItems(key, v); setItemsState(v); } };
+  return { 
+    items, 
+    add, 
+    update, 
+    remove, 
+    loading, 
+    refresh: fetchCloud, 
+    syncAll,
+    setAll: (v: T[]) => { setItems(key, v); setItemsState(v); } 
+  };
 }

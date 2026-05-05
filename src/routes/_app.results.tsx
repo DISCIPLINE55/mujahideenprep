@@ -35,12 +35,19 @@ export const Route = createFileRoute("/_app/results")({
 function ResultsPage() {
   const auth = getAuthSync();
   const role: UserRole = auth?.role ?? "admin";
-  const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
-  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const subjects = getItems<Subject>(KEYS.SUBJECTS, defaultSubjects);
-  const [allResults, setResults] = useState<ExamResult[]>(() => getItems<ExamResult>(KEYS.RESULTS, []));
-  const settings = getItems<SchoolSettings>(KEYS.SETTINGS, [defaultSettings])[0] || defaultSettings;
+  const resultStore = useStore<ExamResult>(KEYS.RESULTS, []);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const subjectStore = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
+  const settingsStore = useStore<SchoolSettings>(KEYS.SETTINGS, [defaultSettings]);
+
+  const allResults = resultStore.items;
+  const allStudents = studentStore.items;
+  const teachers = teacherStore.items;
+  const classes = classStore.items;
+  const subjects = subjectStore.items;
+  const settings = settingsStore.items[0] || defaultSettings;
 
   // Grade helper
   const getGrade = (score: number) => {
@@ -113,9 +120,6 @@ function ResultsPage() {
     const win = window.open("", "_blank");
     if (win) {
       const html = classResults.map(res => {
-        // Find position in class for this specific subject/result set? 
-        // Actually, printReportCard logic handles the UI.
-        // We'll need a way to combine them.
         return `<div class="print-page">${printReportCard({ result: res, position: 0, totalInClass: 0, nhisNumber: "" }, true)}</div>`;
       }).join('<div style="page-break-after: always;"></div>');
 
@@ -172,19 +176,17 @@ function ResultsPage() {
     const average = subjectScores.length > 0 ? Math.round(totalScore / subjectScores.length) : 0;
 
     if (editing) {
-      const updated = allResults.map((r) => r.id === editing.id ? { 
-        ...r, studentId: selectedStudent, studentName: student.name, class: student.class, 
+      resultStore.update({ 
+        ...editing, studentId: selectedStudent, studentName: student.name, class: student.class, 
         subjects: subjectScores, totalScore, average 
-      } : r);
-      setItems(KEYS.RESULTS, updated); setResults(updated);
+      });
       toast.success("Scores updated");
     } else {
       const newResult: ExamResult = { 
         id: generateId(), studentId: selectedStudent, studentName: student.name, class: student.class, 
         term: settings.currentTerm, subjects: subjectScores, totalScore, average 
       };
-      const updated = [...allResults, newResult];
-      setItems(KEYS.RESULTS, updated); setResults(updated);
+      resultStore.add(newResult);
       toast.success("Scores saved");
     }
     setOpen(false);
@@ -231,16 +233,15 @@ function ResultsPage() {
       }
     });
 
-    setItems(KEYS.RESULTS, updatedResults);
-    setResults(updatedResults);
+    resultStore.syncAll(updatedResults);
     setBulkOpen(false);
     toast.success(`Bulk scores for ${bulkSubject} saved!`);
   }
 
   function handleDelete() {
     if (deleteId) {
-      const updated = allResults.filter((r) => r.id !== deleteId);
-      setItems(KEYS.RESULTS, updated); setResults(updated); setDeleteId(null);
+      resultStore.remove(deleteId);
+      setDeleteId(null);
       toast.success("Result deleted");
     }
   }

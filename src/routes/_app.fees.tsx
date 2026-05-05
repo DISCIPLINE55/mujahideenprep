@@ -38,9 +38,13 @@ function FeesPage() {
   const auth = getAuthSync();
   const isParent = auth?.role === "parent";
   const isAdmin = auth?.role === "admin";
-  const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
+  const notificationStore = useStore<Notification>(KEYS.NOTIFICATIONS, []);
+
+  const allStudents = studentStore.items;
   const students = isParent ? allStudents.filter((s) => auth?.studentIds?.includes(s.id)) : allStudents;
-  const [allPayments, setPayments] = useState<Payment[]>(() => getItems<Payment>(KEYS.PAYMENTS, defaultPayments));
+  const allPayments = paymentStore.items;
   const payments = useMemo(() => isParent ? allPayments.filter((p) => auth?.studentIds?.includes(p.studentId)) : allPayments, [allPayments, isParent, auth]);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
@@ -192,33 +196,34 @@ function FeesPage() {
     const student = allStudents.find((s) => s.id === form.studentId);
     if (!student) return;
     if (editing) {
-      const updated = allPayments.map((p) => p.id === editing.id ? { ...p, ...form, studentName: student.name, class: student.class } : p);
-      setItems(KEYS.PAYMENTS, updated); setPayments(updated);
+      paymentStore.update({ ...editing, ...form, studentName: student.name, class: student.class });
       logActivity(`Updated payment for ${student.name}`);
       toast.success("Payment updated");
     } else {
       const newPayment: Payment = { id: generateId(), studentId: form.studentId, studentName: student.name, class: student.class, totalFee: form.totalFee, amountPaid: form.amountPaid, date: form.date, description: form.description };
-      const updated = [...allPayments, newPayment]; setItems(KEYS.PAYMENTS, updated); setPayments(updated);
+      paymentStore.add(newPayment);
       logActivity(`Recorded payment of ₵${form.amountPaid} for ${student.name}`);
+      
       // Auto-create notification
       const balance = form.totalFee - form.amountPaid;
-      const notifs = getItems<Notification>(KEYS.NOTIFICATIONS, []);
-      notifs.unshift({
-        id: generateId(),
+      notificationStore.add({
         title: balance > 0 ? "Partial Payment Recorded" : "Payment Received",
         message: `₵${form.amountPaid.toLocaleString()} received from ${student.name} (${student.class})${balance > 0 ? `. Balance: ₵${balance.toLocaleString()}` : "."}`,
         audience: "All",
         date: new Date().toISOString().split("T")[0],
         read: false,
       });
-      setItems(KEYS.NOTIFICATIONS, notifs.slice(0, 100));
       toast.success("Payment recorded");
     }
     setOpen(false);
   }
 
   function handleDelete() {
-    if (deleteId) { const updated = allPayments.filter((p) => p.id !== deleteId); setItems(KEYS.PAYMENTS, updated); setPayments(updated); setDeleteId(null); toast.success("Payment deleted"); }
+    if (deleteId) { 
+      paymentStore.remove(deleteId);
+      setDeleteId(null); 
+      toast.success("Payment deleted"); 
+    }
   }
 
   function handleExport() {

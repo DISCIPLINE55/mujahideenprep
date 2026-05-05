@@ -31,7 +31,8 @@ const CATEGORIES = ["Salary", "Utilities", "Maintenance", "Supplies", "Food", "B
 function ExpensesPage() {
   const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
-  const [allExpenses, setExpenses] = useState<Expense[]>(() => getItems<Expense>(KEYS.EXPENSES, []));
+  const expenseStore = useStore<Expense>(KEYS.EXPENSES, []);
+  const allExpenses = expenseStore.items;
   
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
@@ -49,14 +50,12 @@ function ExpensesPage() {
 
   function handleSave() {
     if (editing) {
-      const updated = allExpenses.map((e) => e.id === editing.id ? { ...e, ...form } : e);
-      setItems(KEYS.EXPENSES, updated); setExpenses(updated);
+      expenseStore.update({ ...editing, ...form });
       logActivity(`Updated expense: ${form.description}`);
       toast.success("Expense updated");
     } else {
       const newExpense: Expense = { id: generateId(), ...form };
-      const updated = [newExpense, ...allExpenses];
-      setItems(KEYS.EXPENSES, updated); setExpenses(updated);
+      expenseStore.add(newExpense);
       logActivity(`Recorded expense: ₵${form.amount} for ${form.description}`);
       toast.success("Expense recorded");
     }
@@ -65,8 +64,8 @@ function ExpensesPage() {
 
   function handleDelete() {
     if (deleteId) {
-      const updated = allExpenses.filter((e) => e.id !== deleteId);
-      setItems(KEYS.EXPENSES, updated); setExpenses(updated); setDeleteId(null);
+      expenseStore.remove(deleteId);
+      setDeleteId(null);
       toast.success("Expense deleted");
     }
   }
