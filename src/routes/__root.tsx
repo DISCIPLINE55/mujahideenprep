@@ -65,7 +65,7 @@ export const Route = createRootRoute({
             addressCountry: "GH",
           },
           telephone: "+233 24 555 0100",
-          email: "info@mujahideenprep.edu.gh",
+          email: "mujahideen216@gmail.com",
           foundingDate: "1997",
         }),
       },

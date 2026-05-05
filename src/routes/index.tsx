@@ -170,7 +170,7 @@ function LoginPage() {
             <p className="text-sm text-muted-foreground">Enter your email address and we'll send you a password reset link.</p>
             <div className="space-y-2">
               <Label>Email Address</Label>
-              <Input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="admin@mpsms.edu.gh" />
+              <Input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="mujahideen216@gmail.com" />
             </div>
           </div>
           <DialogFooter>
