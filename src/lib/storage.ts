@@ -252,6 +252,7 @@ export interface GradingScale {
 }
 
 export interface SchoolSettings {
+  id: string;
   name: string;
   motto: string;
   location: string;
@@ -351,6 +352,7 @@ export const defaultSubjects: Subject[] = [];
 export const defaultPayments: Payment[] = [];
 
 export const defaultSettings: SchoolSettings = {
+  id: "school_settings_1",
   name: "Mujahideen Preparatory School",
   motto: "God Fearing and Better Future Starts Here",
   location: "Mankessim, Central Region, Ghana",
