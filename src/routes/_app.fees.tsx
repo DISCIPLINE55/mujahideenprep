@@ -299,7 +299,7 @@ function FeesPage() {
       </div>
 
       <Dialog open={!!showHistory} onOpenChange={() => setShowHistory(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95%] sm:w-full max-w-2xl">
           <DialogHeader>
             <DialogTitle>Transaction History</DialogTitle>
             <DialogDescription>
@@ -307,7 +307,7 @@ function FeesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-             <div className="rounded-xl border overflow-hidden">
+             <div className="rounded-xl border overflow-x-auto">
                 <table className="w-full text-sm">
                    <thead className="bg-muted/50 border-b">
                       <tr>
@@ -344,7 +344,7 @@ function FeesPage() {
       </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95%] sm:w-full max-w-md">
           <DialogHeader><DialogTitle>{editing ? "Edit Payment" : "Record Payment"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -371,7 +371,7 @@ function FeesPage() {
       </Dialog>
 
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[95%] sm:w-full max-w-sm">
           <DialogHeader><DialogTitle>Delete Payment?</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
           <DialogFooter>
@@ -382,7 +382,7 @@ function FeesPage() {
       </Dialog>
 
       <Dialog open={!!reminderFor} onOpenChange={() => setReminderFor(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95%] sm:w-full max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI Fee Reminder</DialogTitle></DialogHeader>
           <div className="py-2 space-y-3">
             {reminderFor && (

@@ -105,7 +105,7 @@ export function CSVImportDialog({ open, onOpenChange, onImport }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[95%] sm:w-full max-w-2xl">
         <DialogHeader>
           <DialogTitle>Bulk Import Students from CSV</DialogTitle>
           <DialogDescription>
@@ -141,7 +141,7 @@ export function CSVImportDialog({ open, onOpenChange, onImport }: Props) {
               <div className="flex items-center gap-2 text-sm font-medium text-success mb-2">
                 <CheckCircle2 className="h-4 w-4" /> {rows.length} valid student(s) ready to import
               </div>
-              <div className="max-h-48 overflow-y-auto text-xs">
+              <div className="max-h-48 overflow-y-auto overflow-x-auto text-xs">
                 <table className="w-full">
                   <thead className="text-muted-foreground">
                     <tr><th className="text-left py-1">Name</th><th className="text-left">Class</th><th className="text-left">Guardian</th></tr>

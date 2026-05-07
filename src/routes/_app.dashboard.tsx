@@ -295,7 +295,7 @@ function DashboardPage() {
       </motion.div>
 
       <Dialog open={eventOpen} onOpenChange={setEventOpen}>
-        <DialogContent className="max-w-sm shadow-2xl">
+        <DialogContent className="w-[95%] sm:w-full max-w-sm shadow-2xl rounded-xl">
           <DialogHeader><DialogTitle className="text-xl font-bold">Add New Event</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label>Title *</Label><Input value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} placeholder="Event title" /></div>

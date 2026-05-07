@@ -227,7 +227,7 @@ function SettingsPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="rounded-xl border bg-background/50 overflow-hidden">
+                <div className="rounded-xl border bg-background/50 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 border-b">
                       <tr>
