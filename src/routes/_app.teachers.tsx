@@ -10,7 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Search, Download, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2, Eye, Key, Mail } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import { useStore } from "@/hooks/use-store";
 import { defaultTeachers, KEYS, type Teacher, defaultSubjects, CLASS_LIST, type Subject } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
@@ -46,6 +47,12 @@ function TeachersPage() {
   const [viewId, setViewId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [inviteTeacherId, setInviteTeacherId] = useState("");
 
   const filtered = useMemo(() =>
     store.items.filter((t) =>
@@ -88,6 +95,42 @@ function TeachersPage() {
     if (editing) { store.update({ ...editing, ...form }); logActivity(`Updated teacher: ${form.name}`); toast.success("Teacher updated"); }
     else { store.add(form); logActivity(`Added teacher: ${form.name}`); toast.success("Teacher added"); }
     setOpen(false);
+  }
+
+  async function handleInviteTeacher() {
+    if (!inviteEmail.trim() || !invitePassword.trim() || !inviteTeacherId) {
+      toast.error("Email, temporary password, and teacher select are required");
+      return;
+    }
+    const loader = toast.loading("Creating teacher account...");
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: inviteEmail.trim(),
+        password: invitePassword,
+        options: { data: { full_name: inviteName, role: "teacher" } },
+      });
+      if (error) throw error;
+
+      if (data.user) {
+        // Assign teacher role in user_roles
+        const { error: roleErr } = await supabase
+          .from("user_roles")
+          .insert({ user_id: data.user.id, role: "teacher" });
+        if (roleErr) console.warn("Role insert error:", roleErr);
+
+        // Update teacher profile to link user_id
+        const staff = store.items.find(t => t.id === inviteTeacherId);
+        if (staff) {
+          await store.update({ ...staff, user_id: data.user.id });
+        }
+      }
+      toast.success("Teacher account created. Share temporary password securely.", { id: loader });
+      logActivity(`Created teacher account: ${inviteEmail}`);
+      setInviteOpen(false);
+      setInviteEmail(""); setInviteName(""); setInvitePassword(""); setInviteTeacherId("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create account", { id: loader });
+    }
   }
   function handleDelete() {
     if (deleteId) {
@@ -178,6 +221,7 @@ function TeachersPage() {
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setInviteOpen(true); setInviteEmail(""); setInvitePassword(""); setInviteName(""); setInviteTeacherId(""); }}><Key className="mr-1 h-4 w-4" /> Create Login</Button>
             <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Teacher</Button>
           </div>
         </div>
@@ -335,6 +379,52 @@ function TeachersPage() {
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Key className="h-5 w-5 text-secondary" /> Create Teacher Login</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-3">
+            <div className="space-y-2">
+              <Label>Select Teacher Staff Profile</Label>
+              <Select value={inviteTeacherId} onValueChange={(id) => {
+                setInviteTeacherId(id);
+                const t = store.items.find(x => x.id === id);
+                if (t) {
+                  setInviteName(t.name);
+                  setInviteEmail(t.email || "");
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select teacher..." /></SelectTrigger>
+                <SelectContent>
+                  {store.items
+                    .filter((t) => !t.user_id) // Show only teachers who don't have accounts yet
+                    .map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.subject})</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">Only staff without an active login account are listed.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="Teacher's full name" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email Address</Label>
+              <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="teacher@mpsms.edu.gh" />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <Input type="text" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} placeholder="Minimum 8 characters" />
+            </div>
+            <p className="text-xs text-muted-foreground">Share this temporary password securely with the teacher. They should change it upon their first login.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+            <Button onClick={handleInviteTeacher}><Mail className="h-4 w-4 mr-1" /> Create Login</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Link2, Trash2, Mail, Users } from "lucide-react";
+import { Plus, Link2, Trash2, Mail, Users, Pencil } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auth";
@@ -39,6 +39,12 @@ function ParentsPage() {
 
   const [linkOpen, setLinkOpen] = useState<string | null>(null);
   const [linkStudentId, setLinkStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+
+  const [editParent, setEditParent] = useState<ParentRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
 
   async function load() {
     setLoading(true);
@@ -118,6 +124,29 @@ function ParentsPage() {
     }
   }
 
+  async function handleEditParent() {
+    if (!editParent) return;
+    if (!editName.trim() || !editEmail.trim()) {
+      toast.error("Name and email are required");
+      return;
+    }
+    const loader = toast.loading("Updating parent account...");
+    try {
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({ full_name: editName.trim(), email: editEmail.trim() })
+        .eq("id", editParent.user_id);
+      if (profileErr) throw profileErr;
+
+      toast.success("Parent account updated successfully!", { id: loader });
+      logActivity(`Updated parent account: ${editEmail}`);
+      setEditParent(null);
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update parent profile", { id: loader });
+    }
+  }
+
   async function handleLink(parentUserId: string) {
     if (!linkStudentId) return toast.error("Select a student");
     const { error } = await supabase
@@ -180,28 +209,69 @@ function ParentsPage() {
                         <p className="font-medium">{p.full_name || "(no name)"}</p>
                         <p className="text-xs text-muted-foreground">{p.email}</p>
                       </div>
-                      <Dialog open={linkOpen === p.user_id} onOpenChange={(o) => setLinkOpen(o ? p.user_id : null)}>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="outline"><Link2 className="h-4 w-4 mr-1" /> Link Child</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader><DialogTitle>Link a Student</DialogTitle></DialogHeader>
-                          <div className="py-2">
-                            <Select value={linkStudentId} onValueChange={setLinkStudentId}>
-                              <SelectTrigger><SelectValue placeholder="Choose student" /></SelectTrigger>
-                              <SelectContent>
+                      <div className="flex items-center gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditParent(p);
+                          setEditName(p.full_name || "");
+                          setEditEmail(p.email || "");
+                          setEditPassword("");
+                        }}><Pencil className="h-4 w-4 mr-1" /> Edit</Button>
+                        <Dialog open={linkOpen === p.user_id} onOpenChange={(o) => {
+                          setLinkOpen(o ? p.user_id : null);
+                          if (o) {
+                            setStudentSearch("");
+                            setLinkStudentId("");
+                          }
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline"><Link2 className="h-4 w-4 mr-1" /> Link Child</Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader><DialogTitle>Link a Student</DialogTitle></DialogHeader>
+                            <div className="space-y-3 py-2">
+                              <div className="space-y-1.5">
+                                <Label>Search Students</Label>
+                                <Input
+                                  placeholder="Type student name to search..."
+                                  value={studentSearch}
+                                  onChange={(e) => setStudentSearch(e.target.value)}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div className="border rounded-md p-1 max-h-48 overflow-y-auto space-y-1">
                                 {students
                                   .filter((s) => !p.children.some((c) => c.student_id === s.id))
-                                  .map((s) => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setLinkOpen(null)}>Cancel</Button>
-                            <Button onClick={() => handleLink(p.user_id)}>Link</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                                  .filter((s) => s.full_name.toLowerCase().includes(studentSearch.toLowerCase())).length === 0 ? (
+                                  <p className="text-xs text-muted-foreground text-center py-4">No students found matching "{studentSearch}"</p>
+                                ) : (
+                                  students
+                                    .filter((s) => !p.children.some((c) => c.student_id === s.id))
+                                    .filter((s) => s.full_name.toLowerCase().includes(studentSearch.toLowerCase()))
+                                    .map((s) => (
+                                      <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => setLinkStudentId(s.id)}
+                                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
+                                          linkStudentId === s.id
+                                            ? "bg-primary text-primary-foreground font-semibold"
+                                            : "hover:bg-secondary/40 text-foreground"
+                                        }`}
+                                      >
+                                        <span>{s.full_name}</span>
+                                        {linkStudentId === s.id && <span className="text-xs font-semibold">Selected</span>}
+                                      </button>
+                                    ))
+                                )}
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setLinkOpen(null)}>Cancel</Button>
+                              <Button onClick={() => handleLink(p.user_id)}>Link</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {p.children.length === 0 ? (
@@ -224,6 +294,27 @@ function ParentsPage() {
           </CardContent>
         </Card>
       </div>
+      <Dialog open={!!editParent} onOpenChange={(o) => { if (!o) setEditParent(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Update Parent Account</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Full Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Full Name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email Address</Label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@address.com" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditParent(null)}>Cancel</Button>
+            <Button onClick={handleEditParent}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

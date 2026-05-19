@@ -173,6 +173,7 @@ export interface Teacher {
   accountNumber?: string;
   bankName?: string;
   bloodGroup?: string;
+  user_id?: string;
 }
 
 export interface SchoolClass {
