@@ -11,7 +11,12 @@ serve(async (req) => {
   try {
     const { messages, type = "chat" } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+
+    if (!LOVABLE_API_KEY && !OPENAI_API_KEY && !GEMINI_API_KEY) {
+      throw new Error("No AI completion keys configured. Please set LOVABLE_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in your Supabase secrets.");
+    }
 
     const systemPrompts: Record<string, string> = {
       chat: `You are an AI assistant for Mujahideen Preparatory School Management System (MPSMS), located in Mankessim, Central Region, Ghana. Established 1997. Levels: Creche, Nursery, KG, Primary 1-6, JHS 1-3.
@@ -38,14 +43,28 @@ Be professional, helpful, and culturally aware of the Ghanaian educational conte
 
     const systemMessage = systemPrompts[type] || systemPrompts.chat;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+    let apiAuthHeader = `Bearer ${LOVABLE_API_KEY}`;
+    let apiModel = "google/gemini-3-flash-preview";
+
+    if (OPENAI_API_KEY) {
+      apiUrl = "https://api.openai.com/v1/chat/completions";
+      apiAuthHeader = `Bearer ${OPENAI_API_KEY}`;
+      apiModel = "gpt-4o-mini";
+    } else if (GEMINI_API_KEY) {
+      apiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      apiAuthHeader = `Bearer ${GEMINI_API_KEY}`;
+      apiModel = "gemini-2.5-flash";
+    }
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: apiAuthHeader,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: apiModel,
         messages: [
           { role: "system", content: systemMessage },
           ...messages,
