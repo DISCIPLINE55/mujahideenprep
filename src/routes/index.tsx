@@ -55,7 +55,6 @@ function LoginPage() {
           options: {
             data: {
               full_name: fullName,
-              role: "admin", // Initial sign up as admin for bootstrap
             },
           },
         });

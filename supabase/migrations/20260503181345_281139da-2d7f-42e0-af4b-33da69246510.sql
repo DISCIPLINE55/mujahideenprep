@@ -48,9 +48,12 @@ begin
   values (new.id, coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email,'@',1)), new.email)
   on conflict (id) do nothing;
 
-  -- Bootstrap the school admin
-  if new.email = 'mujahideen216@gmail.com' then
+  -- Dynamic Bootstrap: If no admin account exists yet, assign 'admin' role. Otherwise, assign 'parent'.
+  if not exists (select 1 from public.user_roles where role = 'admin') then
     insert into public.user_roles(user_id, role) values (new.id, 'admin')
+    on conflict do nothing;
+  else
+    insert into public.user_roles(user_id, role) values (new.id, 'parent')
     on conflict do nothing;
   end if;
   return new;

@@ -18,6 +18,9 @@ const KEY_TO_TABLE: Record<string, string> = {
   [KEYS.TIMETABLE]: "timetable",
   [KEYS.NOTIFICATIONS]: "notifications",
   [KEYS.COMMUNICATIONS]: "communications",
+  [KEYS.DISCIPLINE]: "discipline",
+  [KEYS.BOOKS]: "library_books",
+  [KEYS.ISSUES]: "library_issues",
 };
 
 export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
