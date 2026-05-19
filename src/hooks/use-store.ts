@@ -36,11 +36,19 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
       if (data && data.length > 0) {
         setItems(key, data as T[]);
         setItemsState(data as T[]);
+      } else if (defaults && defaults.length > 0) {
+        const { error: seedErr } = await supabase.from(tableName).insert(defaults);
+        if (seedErr) {
+          console.warn(`Seeding failed for ${tableName}:`, seedErr);
+        } else {
+          setItems(key, defaults);
+          setItemsState(defaults);
+        }
       }
     } catch (err) {
       console.error(`Fetch error for ${tableName}:`, err);
     }
-  }, [key, tableName]);
+  }, [key, tableName, defaults]);
 
   useEffect(() => {
     fetchCloud();

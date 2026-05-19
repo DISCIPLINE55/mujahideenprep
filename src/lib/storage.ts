@@ -346,7 +346,22 @@ export const defaultStudents: Student[] = [];
 
 export const defaultTeachers: Teacher[] = [];
 
-export const defaultClasses: SchoolClass[] = [];
+export const defaultClasses: SchoolClass[] = [
+  { id: "class_creche", name: "Creche", teacher: "Unassigned", capacity: 40 },
+  { id: "class_nursery1", name: "Nursery 1", teacher: "Unassigned", capacity: 40 },
+  { id: "class_nursery2", name: "Nursery 2", teacher: "Unassigned", capacity: 40 },
+  { id: "class_kg1", name: "KG 1", teacher: "Unassigned", capacity: 40 },
+  { id: "class_kg2", name: "KG 2", teacher: "Unassigned", capacity: 40 },
+  { id: "class_primary1", name: "Primary 1", teacher: "Unassigned", capacity: 40 },
+  { id: "class_primary2", name: "Primary 2", teacher: "Unassigned", capacity: 40 },
+  { id: "class_primary3", name: "Primary 3", teacher: "Unassigned", capacity: 40 },
+  { id: "class_primary4", name: "Primary 4", teacher: "Unassigned", capacity: 40 },
+  { id: "class_primary5", name: "Primary 5", teacher: "Unassigned", capacity: 40 },
+  { id: "class_primary6", name: "Primary 6", teacher: "Unassigned", capacity: 40 },
+  { id: "class_jhs1", name: "JHS 1", teacher: "Unassigned", capacity: 40 },
+  { id: "class_jhs2", name: "JHS 2", teacher: "Unassigned", capacity: 40 },
+  { id: "class_jhs3", name: "JHS 3", teacher: "Unassigned", capacity: 40 },
+];
 
 export const defaultSubjects: Subject[] = [];
 
