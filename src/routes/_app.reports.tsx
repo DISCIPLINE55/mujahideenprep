@@ -11,6 +11,7 @@ import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultPaym
 import { generateAttendanceSummary, generateClassList, generateFeeStatement, generateReportCard } from "@/lib/pdf";
 import { toast } from "sonner";
 import { stripMarkdown } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
 
 export const Route = createFileRoute("/_app/reports")({
   head: () => ({
@@ -140,9 +141,12 @@ function ReportsPage() {
         ? `Attendance: ${attendance.length} records. Data: ${JSON.stringify(attendanceData)}`
         : `Teachers: ${teachers.length} staff. ${teachers.filter(t => t.status === "Active").length} active.`;
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/school-ai`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           messages: [{ 
             role: "user", 

@@ -19,6 +19,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useStore } from "@/hooks/use-store";
 import { KEYS, getItems, defaultStudents, defaultClasses, CLASS_LIST, type Student, type SchoolClass } from "@/lib/storage";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient";
 
 export const Route = createFileRoute("/_app/communications")({
   head: () => ({
@@ -68,11 +69,14 @@ function CommunicationsPage() {
   async function handleAIGenerate() {
     setAiLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/school-ai`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: `Write a professional school communication message for: ${form.audience}. Subject: ${form.subject || "General update"}. Keep it concise and professional. Include greeting and sign-off from Mujahideen Preparatory School.` }],

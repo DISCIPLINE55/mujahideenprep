@@ -1,13 +1,18 @@
+import { supabase } from "@/lib/supabaseClient";
+
 // Shared helper to call the school-ai edge function and stream a response into a single string.
 export async function callSchoolAI(opts: {
   type: "chat" | "report_comment" | "attendance_insight" | "fee_reminder" | "timetable_suggest";
   prompt: string;
 }): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
   const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/school-ai`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       type: opts.type,
