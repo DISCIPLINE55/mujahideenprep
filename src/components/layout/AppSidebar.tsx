@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -20,11 +21,14 @@ import {
   BarChart3,
   LogOut,
   TrendingDown,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_NAV, signOut, type UserRole } from "@/lib/auth";
 import logoImg from "@/assets/logo.png";
 import { useTranslation } from "react-i18next";
+import { usePWA } from "@/hooks/use-pwa";
+import { InstallPwaDialog } from "@/components/InstallPwaDialog";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Dashboard: LayoutDashboard,
@@ -59,6 +63,8 @@ export function AppSidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isInstallable, isInstalled, install } = usePWA();
+  const [installOpen, setInstallOpen] = useState(false);
 
   const visibleItems = ROLE_NAV.filter((item) => item.roles.includes(role));
 
@@ -115,6 +121,15 @@ export function AppSidebar({
 
       {/* Bottom */}
       <div className="border-t border-sidebar-border p-2 space-y-1">
+        {!isInstalled && (
+          <button
+            onClick={() => setInstallOpen(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-primary hover:bg-primary/10 hover:text-primary transition-colors"
+          >
+            <Download className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>{t("Install App")}</span>}
+          </button>
+        )}
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-destructive/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
@@ -136,6 +151,13 @@ export function AppSidebar({
           )}
         </button>
       </div>
+
+      <InstallPwaDialog
+        open={installOpen}
+        onOpenChange={setInstallOpen}
+        isInstallable={isInstallable}
+        onInstall={install}
+      />
     </aside>
   );
 }
