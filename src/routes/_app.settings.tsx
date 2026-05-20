@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
   CheckCircle, Trash2, GraduationCap, MessageSquare, Sparkles, Activity, 
   Shield, Key, Settings, UserPlus, ArrowUpCircle, Smartphone, Wallet 
 } from "lucide-react";
-import { KEYS, defaultSettings, CLASS_LIST, setItems, getItems, defaultStudents, generateId, type SchoolSettings, type Student, type FeeStructure } from "@/lib/storage";
+import { KEYS, defaultSettings, CLASS_LIST, setItems, getItems, defaultStudents, generateId, type SchoolSettings, type Student, type FeeStructure, exportAllData, importAllData } from "@/lib/storage";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -39,6 +39,15 @@ function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const auth = getAuthSync();
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+  const [logSearch, setLogSearch] = useState("");
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => 
+      (log.action || "").toLowerCase().includes(logSearch.toLowerCase()) ||
+      (log.user_name || "").toLowerCase().includes(logSearch.toLowerCase()) ||
+      (log.user_role || "").toLowerCase().includes(logSearch.toLowerCase())
+    );
+  }, [logs, logSearch]);
 
   useEffect(() => {
     async function init() {
@@ -53,7 +62,7 @@ function SettingsPage() {
         if (structs) setFeeStructures(structs);
 
         // Fetch activity logs
-        const { data: logData } = await supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(20);
+        const { data: logData } = await supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(100);
         if (logData) setLogs(logData);
       } catch (err) {
         console.error("Init error:", err);
@@ -84,6 +93,77 @@ function SettingsPage() {
     const { error } = await supabase.auth.updateUser({ password: pwd.next });
     if (error) toast.error(error.message);
     else { toast.success("Password updated!"); setPwd({ current: "", next: "", confirm: "" }); }
+  }
+
+  function handleBackupDownload() {
+    try {
+      const dataStr = exportAllData();
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.download = `MPSMS_Backup_${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Backup file downloaded successfully!");
+    } catch (err: any) {
+      toast.error(`Backup failed: ${err.message}`);
+    }
+  }
+
+  function handleBackupUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        const success = importAllData(text);
+        if (success) {
+          toast.success("Backup loaded into cache successfully! Syncing to cloud...");
+          
+          const keysToTables: Record<string, string> = {
+            [KEYS.STUDENTS]: "students",
+            [KEYS.TEACHERS]: "teachers",
+            [KEYS.CLASSES]: "classes",
+            [KEYS.SUBJECTS]: "subjects",
+            [KEYS.RESULTS]: "results",
+            [KEYS.PAYMENTS]: "payments",
+            [KEYS.EXPENSES]: "expenses",
+            [KEYS.ATTENDANCE]: "attendance",
+            [KEYS.EVENTS]: "events",
+            [KEYS.SETTINGS]: "settings",
+            [KEYS.TIMETABLE]: "timetable",
+            [KEYS.NOTIFICATIONS]: "notifications",
+            [KEYS.BOOKS]: "library_books",
+            [KEYS.ISSUES]: "library_issues",
+            [KEYS.FEE_STRUCTURE]: "fee_structure",
+            [KEYS.COMMUNICATIONS]: "communications",
+          };
+          
+          const loader = toast.loading("Syncing restored backup to Supabase...");
+          const { syncLocalToCloud } = await import("@/lib/db");
+          const { synced, failed } = await syncLocalToCloud(keysToTables);
+          if (failed.length > 0) {
+            toast.warning(`Restored cached data. Failed to sync tables: ${failed.join(", ")}`, { id: loader });
+          } else {
+            toast.success("Backup successfully restored and synced to database!", { id: loader });
+            setTimeout(() => window.location.reload(), 1500);
+          }
+        } else {
+          toast.error("Invalid backup file format.");
+        }
+      } catch (err: any) {
+        toast.error(`Restore failed: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   }
 
   const updateGrade = (index: number, field: string, value: any) => {
@@ -407,19 +487,68 @@ function SettingsPage() {
             </Card>
 
             <Card className="border-none shadow-md bg-card/50">
-              <CardHeader><div className="flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /><CardTitle>System Activity Audit</CardTitle></div></CardHeader>
+              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle>System Activity Audit</CardTitle>
+                    <CardDescription>Real-time audit log of system modifications and administrative events.</CardDescription>
+                  </div>
+                </div>
+                <div className="w-full sm:w-64">
+                  <Input 
+                    placeholder="Search logs..." 
+                    value={logSearch} 
+                    onChange={e => setLogSearch(e.target.value)} 
+                    className="h-9 bg-background/50"
+                  />
+                </div>
+              </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {logs.map((log, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 text-sm">
-                      <div className="flex items-center gap-3">
-                        <Badge variant={log.user_role === 'admin' ? 'default' : 'secondary'}>{log.user_role}</Badge>
-                        <span className="font-medium">{log.action}</span>
-                      </div>
-                      <span className="text-muted-foreground text-xs">{new Date(log.timestamp).toLocaleString()}</span>
-                    </div>
-                  ))}
-                  {logs.length === 0 && <p className="text-center text-muted-foreground py-4">No recent logs found.</p>}
+                <div className="rounded-xl border bg-background/50 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="font-bold">Operator</TableHead>
+                        <TableHead className="font-bold">Role</TableHead>
+                        <TableHead className="font-bold">Action Taken</TableHead>
+                        <TableHead className="font-bold text-right">Timestamp</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLogs.map((log, i) => (
+                        <TableRow key={i} className="hover:bg-muted/25 transition-colors">
+                          <TableCell className="font-medium">{log.user_name || "System"}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={
+                                log.user_role === "admin" 
+                                  ? "default" 
+                                  : log.user_role === "teacher" 
+                                  ? "secondary" 
+                                  : "outline"
+                              }
+                            >
+                              {log.user_role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-foreground max-w-xs sm:max-w-md truncate" title={log.action}>
+                            {log.action}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground text-xs font-mono">
+                            {new Date(log.timestamp).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredLogs.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                            No matching audit logs found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -464,6 +593,29 @@ function SettingsPage() {
                           }
                         } catch (err: any) { toast.error(err.message, { id: loader }); }
                     }}>Run Cloud Sync</Button>
+                  </div>
+
+                  <div className="flex items-center justify-between border-b border-destructive/10 pb-4">
+                    <div>
+                      <p className="font-bold">System Backup (JSON)</p>
+                      <p className="text-xs text-muted-foreground">Download a complete backup file containing all students, results, classes, and settings.</p>
+                    </div>
+                    <Button variant="outline" onClick={handleBackupDownload}>
+                      <Download className="mr-2 h-4 w-4" /> Download Backup
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between border-b border-destructive/10 pb-4">
+                    <div>
+                      <p className="font-bold">System Restore (JSON)</p>
+                      <p className="text-xs text-muted-foreground">Upload a previously saved JSON backup file to overwrite local cache and sync to cloud.</p>
+                    </div>
+                    <Button variant="outline" asChild>
+                      <label className="cursor-pointer">
+                        <Upload className="mr-2 h-4 w-4" /> Upload & Restore
+                        <input type="file" accept=".json" className="hidden" onChange={handleBackupUpload} />
+                      </label>
+                    </Button>
                   </div>
 
                   <div className="flex items-center justify-between">

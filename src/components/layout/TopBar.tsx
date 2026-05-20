@@ -17,6 +17,7 @@ export function TopBar({ title }: { title: string }) {
   const { t, i18n } = useTranslation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(() => (typeof window !== "undefined" && auth ? localStorage.getItem(`avatar_${auth.email}`) : ""));
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
 
   useEffect(() => {
     async function refresh() {
@@ -34,11 +35,19 @@ export function TopBar({ title }: { title: string }) {
       setUnreadCount(visible.filter((n) => !n.read).length);
     }
     refresh();
-    // Refresh on storage change (multi-tab) and on focus
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     const interval = setInterval(refresh, 3000);
+
     return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
       clearInterval(interval);
@@ -67,7 +76,20 @@ export function TopBar({ title }: { title: string }) {
   return (
     <>
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-2 border-b bg-card px-3 sm:px-6 pl-14 lg:pl-6">
-      <h1 className="truncate text-base sm:text-lg font-bold text-foreground">{title}</h1>
+      <div className="flex items-center gap-2 truncate">
+        <h1 className="truncate text-base sm:text-lg font-bold text-foreground">{title}</h1>
+        {isOnline ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Online
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 animate-pulse">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            Offline Mode
+          </span>
+        )}
+      </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
         <CommandMenu />

@@ -239,6 +239,88 @@ function ResultsPage() {
     toast.success(`Bulk scores for ${bulkSubject} saved!`);
   }
 
+  function handleDownloadTemplate() {
+    if (!bulkClass || !bulkSubject) {
+      toast.error("Please select a class and subject first");
+      return;
+    }
+    const classStudents = allStudents.filter(s => s.class === bulkClass);
+    if (classStudents.length === 0) {
+      toast.error("No students found in this class");
+      return;
+    }
+
+    const headers = ["Student ID", "Student Name", "Class Score", "Exam Score"];
+    const rows = classStudents.map(s => [s.id, s.name, "0", "0"]);
+    
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `MPSMS_Grading_${bulkClass.replace(/\s+/g, "_")}_${bulkSubject.replace(/\s+/g, "_")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Grading template downloaded");
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) {
+          toast.error("CSV file is empty");
+          return;
+        }
+
+        const parsedData: Record<string, { class: number, exam: number }> = { ...bulkData };
+        let matchedCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          let parts = line.match(/"[^"]*"|[^,]+/g) || [];
+          parts = parts.map(p => p.replace(/^"|"$/g, "").trim());
+
+          if (parts.length < 4) continue;
+
+          const studentId = parts[0];
+          const classScore = parseFloat(parts[2]) || 0;
+          const examScore = parseFloat(parts[3]) || 0;
+
+          const belongs = allStudents.some(s => s.id === studentId && s.class === bulkClass);
+          if (belongs) {
+            parsedData[studentId] = { class: classScore, exam: examScore };
+            matchedCount++;
+          }
+        }
+
+        if (matchedCount === 0) {
+          toast.error("No matching student IDs found for the selected class.");
+        } else {
+          setBulkData(parsedData);
+          toast.success(`Loaded grades for ${matchedCount} students from CSV!`);
+        }
+      } catch (err) {
+        toast.error("Failed to parse CSV file. Check format.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
   function handleDelete() {
     if (deleteId) {
       resultStore.remove(deleteId);
@@ -426,21 +508,39 @@ function ResultsPage() {
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader><DialogTitle>Gradebook — Bulk Entry</DialogTitle></DialogHeader>
-          <div className="flex gap-4 py-4">
-            <div className="w-1/2 space-y-2">
-              <Label>Class</Label>
-              <Select value={bulkClass} onValueChange={setBulkClass}>
-                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
-                <SelectContent>{(allowedClassNames || defaultClasses.map(c => c.name)).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 py-4 border-b">
+            <div className="flex gap-4 flex-1">
+              <div className="w-1/2 space-y-2">
+                <Label>Class</Label>
+                <Select value={bulkClass} onValueChange={setBulkClass}>
+                  <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                  <SelectContent>{(allowedClassNames || defaultClasses.map(c => c.name)).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="w-1/2 space-y-2">
+                <Label>Subject</Label>
+                <Select value={bulkSubject} onValueChange={setBulkSubject}>
+                  <SelectTrigger><SelectValue placeholder="Select Subject" /></SelectTrigger>
+                  <SelectContent>{subjects.filter(s => s.status === "Active").map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="w-1/2 space-y-2">
-              <Label>Subject</Label>
-              <Select value={bulkSubject} onValueChange={setBulkSubject}>
-                <SelectTrigger><SelectValue placeholder="Select Subject" /></SelectTrigger>
-                <SelectContent>{subjects.filter(s => s.status === "Active").map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            
+            {bulkClass && bulkSubject && (
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleDownloadTemplate}>
+                  <Download className="mr-2 h-4 w-4" /> Template
+                </Button>
+                <div className="relative">
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <label className="cursor-pointer">
+                      <Upload className="mr-2 h-4 w-4" /> Upload CSV
+                      <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                    </label>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <ScrollArea className="flex-1 border rounded-md">
