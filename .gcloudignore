@@ -37,7 +37,6 @@ dist-ssr
 .env.test
 .env.sample
 scratch/
-.lovable/
 bun.lockb
 *.md
 !README.md

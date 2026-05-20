@@ -10,12 +10,11 @@ serve(async (req) => {
 
   try {
     const { messages, type = "chat" } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!LOVABLE_API_KEY && !OPENAI_API_KEY && !GEMINI_API_KEY) {
-      throw new Error("No AI completion keys configured. Please set LOVABLE_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in your Supabase secrets.");
+    if (!OPENAI_API_KEY && !GEMINI_API_KEY) {
+      throw new Error("No AI completion keys configured. Please set OPENAI_API_KEY or GEMINI_API_KEY in your Supabase secrets.");
     }
 
     const systemPrompts: Record<string, string> = {
@@ -43,18 +42,14 @@ Be professional, helpful, and culturally aware of the Ghanaian educational conte
 
     const systemMessage = systemPrompts[type] || systemPrompts.chat;
 
-    let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    let apiAuthHeader = `Bearer ${LOVABLE_API_KEY}`;
-    let apiModel = "google/gemini-3-flash-preview";
+    let apiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+    let apiAuthHeader = `Bearer ${GEMINI_API_KEY}`;
+    let apiModel = "gemini-2.5-flash";
 
     if (OPENAI_API_KEY) {
       apiUrl = "https://api.openai.com/v1/chat/completions";
       apiAuthHeader = `Bearer ${OPENAI_API_KEY}`;
       apiModel = "gpt-4o-mini";
-    } else if (GEMINI_API_KEY) {
-      apiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-      apiAuthHeader = `Bearer ${GEMINI_API_KEY}`;
-      apiModel = "gemini-2.5-flash";
     }
 
     const response = await fetch(apiUrl, {

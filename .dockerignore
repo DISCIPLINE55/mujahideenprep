@@ -4,7 +4,6 @@ dist
 .env
 .env.local
 *.md
-.lovable
 scratch
 .tanstack
 bun.lockb
