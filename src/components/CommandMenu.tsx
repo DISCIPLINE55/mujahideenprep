@@ -46,15 +46,25 @@ export function CommandMenu() {
 
   return (
     <>
+      {/* Desktop Search Button */}
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground border rounded-md hover:bg-accent transition-colors w-full max-w-[200px]"
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground border rounded-md hover:bg-accent transition-colors w-full max-w-[200px]"
       >
         <Search className="h-4 w-4" />
         <span>Search...</span>
         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 ml-auto">
           <span className="text-xs">⌘</span>K
         </kbd>
+      </button>
+
+      {/* Mobile Search Button (icon-only) */}
+      <button
+        onClick={() => setOpen(true)}
+        className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent transition-colors"
+        aria-label="Search"
+      >
+        <Search className="h-5 w-5" />
       </button>
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Type a command or search..." />

@@ -149,9 +149,9 @@ function CommunicationsPage() {
     <>
       <TopBar title="Communications" />
       <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <p className="text-sm text-muted-foreground">Manage communications with parents and guardians</p>
-          <Button size="sm" onClick={() => setComposeOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Message</Button>
+          <Button size="sm" className="w-full sm:w-auto" onClick={() => setComposeOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Message</Button>
         </div>
 
         {store.items.length === 0 ? (
@@ -227,11 +227,11 @@ function CommunicationsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setComposeOpen(false)}>Cancel</Button>
-            <div className="flex gap-2">
-              <Button variant="outline" className="text-success border-success/30 hover:bg-success/5" onClick={handleWhatsAppSend} disabled={!form.message.trim()}>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+              <Button variant="outline" className="text-success border-success/30 hover:bg-success/5 flex-1 sm:flex-initial" onClick={handleWhatsAppSend} disabled={!form.message.trim()}>
                 <Users className="h-4 w-4 mr-1" /> Send via WhatsApp
               </Button>
-              <Button onClick={handleSend} disabled={!form.subject.trim() || !form.message.trim()}>
+              <Button className="flex-1 sm:flex-initial" onClick={handleSend} disabled={!form.subject.trim() || !form.message.trim()}>
                 <Send className="h-4 w-4 mr-1" /> Send to Portal
               </Button>
             </div>

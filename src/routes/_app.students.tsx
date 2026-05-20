@@ -253,9 +253,9 @@ function StudentsPage() {
             <h2 className="text-xl font-bold text-foreground">Student Management</h2>
             <p className="text-sm text-muted-foreground">{store.items.length} total students enrolled</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {selected.size > 0 && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="text-primary border-primary/30 hover:bg-primary/5" onClick={() => setPromoteOpen(true)}>
                   <Plus className="mr-1 h-4 w-4" /> Bulk Promote ({selected.size})
                 </Button>

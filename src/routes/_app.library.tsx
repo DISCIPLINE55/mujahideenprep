@@ -145,9 +145,9 @@ function LibraryPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Search books..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setIssueOpen(true)}><BookOpen className="h-4 w-4 mr-1" /> Issue Book</Button>
-            <Button size="sm" onClick={() => { setEditing(null); setBookForm({ title: "", author: "", isbn: "", category: "Textbook", quantity: 1, available: 1 }); setBookOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add Book</Button>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-initial" onClick={() => setIssueOpen(true)}><BookOpen className="h-4 w-4 mr-1" /> Issue Book</Button>
+            <Button size="sm" className="flex-1 sm:flex-initial" onClick={() => { setEditing(null); setBookForm({ title: "", author: "", isbn: "", category: "Textbook", quantity: 1, available: 1 }); setBookOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add Book</Button>
           </div>
         </div>
 

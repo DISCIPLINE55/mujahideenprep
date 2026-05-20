@@ -187,7 +187,7 @@ function TimetablePage() {
             <h2 className="text-xl font-bold text-foreground">Class Timetable</h2>
             <p className="text-sm text-muted-foreground">Weekly schedule for each class</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={handleAISuggest} disabled={aiLoading}>
                 {aiLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}

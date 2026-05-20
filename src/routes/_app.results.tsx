@@ -315,7 +315,7 @@ function ResultsPage() {
             <h2 className="text-xl font-bold text-foreground">Exam Results</h2>
             <p className="text-sm text-muted-foreground">Term 2, 2025/2026 Academic Year • {results.length} results recorded</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             <Button variant="outline" size="sm" className="text-primary border-primary/30 hover:bg-primary/5" onClick={() => setBulkPrintOpen(true)}>
               <Printer className="mr-1 h-4 w-4" /> Bulk Print

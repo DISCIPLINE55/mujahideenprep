@@ -214,7 +214,7 @@ function TeachersPage() {
             <h2 className="text-xl font-bold text-foreground">Teacher Management</h2>
             <p className="text-sm text-muted-foreground">{store.items.length} teachers on staff</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {selected.size > 0 && (
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="mr-1 h-4 w-4" /> Delete ({selected.size})

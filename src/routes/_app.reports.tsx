@@ -185,12 +185,12 @@ function ReportsPage() {
               <SelectItem value="workload">Teacher Workload</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleAISummary} disabled={aiLoading}>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-initial" onClick={handleAISummary} disabled={aiLoading}>
               {aiLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
               AI Summary
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-initial" onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-1" /> Print
             </Button>
           </div>

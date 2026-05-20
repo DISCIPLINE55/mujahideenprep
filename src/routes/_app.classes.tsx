@@ -70,7 +70,7 @@ function ClassesPage() {
             <h2 className="text-xl font-bold text-foreground">Class Management</h2>
             <p className="text-sm text-muted-foreground">{store.items.length} classes • Creche to JHS 3</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setPromoteOpen(true)}><ArrowUpCircle className="mr-1 h-4 w-4" /> Promote Students</Button>
             <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Class</Button>
           </div>

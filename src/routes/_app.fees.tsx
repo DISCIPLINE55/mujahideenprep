@@ -272,7 +272,7 @@ function FeesPage() {
             <h2 className="text-xl font-bold text-foreground">Fee Management</h2>
             <p className="text-sm text-muted-foreground">Term 2, 2025/2026 Academic Year</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
             {isAdmin && (
               <Button variant="outline" size="sm" className="text-success border-success/30 hover:bg-success/5" onClick={handleBulkReminders} disabled={bulkLoading}>

@@ -136,7 +136,7 @@ function AttendancePage() {
             <h2 className="text-xl font-bold text-foreground">Attendance Overview</h2>
             <p className="text-sm text-muted-foreground">Today — {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowSummary(!showSummary)}>
               <BarChart3 className="mr-1 h-4 w-4" /> {showSummary ? "Hide Summary" : "Summary"}
             </Button>

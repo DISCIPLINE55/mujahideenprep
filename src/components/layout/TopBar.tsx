@@ -70,12 +70,7 @@ export function TopBar({ title }: { title: string }) {
       <h1 className="truncate text-base sm:text-lg font-bold text-foreground">{title}</h1>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
-        <div className="flex-1 max-w-[240px] hidden md:block">
-          <CommandMenu />
-        </div>
-        <div className="md:hidden">
-           <CommandMenu />
-        </div>
+        <CommandMenu />
 
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleDarkMode}>
           <Sun className="h-5 w-5 dark:hidden" />
