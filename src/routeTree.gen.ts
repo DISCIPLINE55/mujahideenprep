@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppTutorialRouteImport } from './routes/_app.tutorial'
 import { Route as AppTimetableRouteImport } from './routes/_app.timetable'
 import { Route as AppTeachersRouteImport } from './routes/_app.teachers'
 import { Route as AppTeacherDashboardRouteImport } from './routes/_app.teacher-dashboard'
@@ -48,6 +49,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppTutorialRoute = AppTutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppTimetableRoute = AppTimetableRouteImport.update({
   id: '/timetable',
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/teachers': typeof AppTeachersRouteWithChildren
   '/timetable': typeof AppTimetableRoute
+  '/tutorial': typeof AppTutorialRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teachers/$teacherId': typeof AppTeachersTeacherIdRoute
 }
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/teachers': typeof AppTeachersRouteWithChildren
   '/timetable': typeof AppTimetableRoute
+  '/tutorial': typeof AppTutorialRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teachers/$teacherId': typeof AppTeachersTeacherIdRoute
 }
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/_app/teacher-dashboard': typeof AppTeacherDashboardRoute
   '/_app/teachers': typeof AppTeachersRouteWithChildren
   '/_app/timetable': typeof AppTimetableRoute
+  '/_app/tutorial': typeof AppTutorialRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/teachers/$teacherId': typeof AppTeachersTeacherIdRoute
 }
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/teacher-dashboard'
     | '/teachers'
     | '/timetable'
+    | '/tutorial'
     | '/students/$studentId'
     | '/teachers/$teacherId'
   fileRoutesByTo: FileRoutesByTo
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/teacher-dashboard'
     | '/teachers'
     | '/timetable'
+    | '/tutorial'
     | '/students/$studentId'
     | '/teachers/$teacherId'
   id:
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/_app/teacher-dashboard'
     | '/_app/teachers'
     | '/_app/timetable'
+    | '/_app/tutorial'
     | '/_app/students/$studentId'
     | '/_app/teachers/$teacherId'
   fileRoutesById: FileRoutesById
@@ -350,6 +362,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/tutorial': {
+      id: '/_app/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof AppTutorialRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/timetable': {
       id: '/_app/timetable'
@@ -553,6 +572,7 @@ interface AppRouteChildren {
   AppTeacherDashboardRoute: typeof AppTeacherDashboardRoute
   AppTeachersRoute: typeof AppTeachersRouteWithChildren
   AppTimetableRoute: typeof AppTimetableRoute
+  AppTutorialRoute: typeof AppTutorialRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -576,6 +596,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeacherDashboardRoute: AppTeacherDashboardRoute,
   AppTeachersRoute: AppTeachersRouteWithChildren,
   AppTimetableRoute: AppTimetableRoute,
+  AppTutorialRoute: AppTutorialRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

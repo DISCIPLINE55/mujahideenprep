@@ -113,6 +113,7 @@ export const ROLE_NAV: { to: string; label: string; roles: UserRole[] }[] = [
   { to: "/reports", label: "Reports", roles: ["admin"] },
   { to: "/ai-assistant", label: "AI Assistant", roles: ["admin", "teacher"] },
   { to: "/settings", label: "Settings", roles: ["admin", "teacher", "parent"] },
+  { to: "/tutorial", label: "Tutorial", roles: ["admin", "teacher"] },
 ];
 
 // Activity log

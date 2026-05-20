@@ -22,6 +22,7 @@ import {
   LogOut,
   TrendingDown,
   Download,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_NAV, signOut, type UserRole } from "@/lib/auth";
@@ -49,6 +50,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Reports: BarChart3,
   "AI Assistant": Sparkles,
   Settings: Settings,
+  Tutorial: HelpCircle,
 };
 
 export function AppSidebar({
