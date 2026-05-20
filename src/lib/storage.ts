@@ -88,21 +88,35 @@ export async function deleteItemAsync<T extends { id: string }>(
 }
 
 export async function syncCloudToLocal(): Promise<void> {
+  const lastSync = localStorage.getItem("mpsms_last_sync_time");
+  if (lastSync && Date.now() - parseInt(lastSync) < 120000) {
+    return;
+  }
+
+  // Save sync time immediately to block concurrent triggers
+  localStorage.setItem("mpsms_last_sync_time", Date.now().toString());
+
   try {
-    for (const [key, table] of Object.entries(TABLE_MAP)) {
-      const { data, error } = await supabase.from(table).select("*");
-      if (error) {
-        console.warn(`Could not sync ${table}:`, error);
-        continue;
-      }
-      if (data) {
-        if (table === "settings") {
-          localStorage.setItem(key, JSON.stringify(data[0] || defaultSettings));
-        } else {
-          localStorage.setItem(key, JSON.stringify(data));
+    const syncPromises = Object.entries(TABLE_MAP).map(async ([key, table]) => {
+      try {
+        const { data, error } = await supabase.from(table).select("*");
+        if (error) {
+          console.warn(`Could not sync ${table}:`, error);
+          return;
         }
+        if (data) {
+          if (table === "settings") {
+            localStorage.setItem(key, JSON.stringify(data[0] || defaultSettings));
+          } else {
+            localStorage.setItem(key, JSON.stringify(data));
+          }
+        }
+      } catch (err) {
+        console.error(`Error syncing ${table}:`, err);
       }
-    }
+    });
+
+    await Promise.all(syncPromises);
   } catch (err) {
     console.error("Master sync error:", err);
   }

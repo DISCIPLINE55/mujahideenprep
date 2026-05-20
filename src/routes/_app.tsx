@@ -39,7 +39,7 @@ function AuthGuardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [auth, setAuthState] = useState<AuthState | null>(() => getAuthSync());
-  const [checked, setChecked] = useState(false);
+  const [checked, setChecked] = useState(!!getAuthSync());
 
   useEffect(() => {
     async function verify() {

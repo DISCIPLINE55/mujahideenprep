@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Lock, Mail, ShieldCheck, GraduationCap, Users } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type UserRole, type AuthState } from "@/lib/auth";
+import { type UserRole, type AuthState, getAuthSync } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import logoImg from "@/assets/logo.png";
 
@@ -38,6 +38,15 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+
+  // Redirect instantly if user session already exists locally
+  useEffect(() => {
+    const auth = getAuthSync();
+    if (auth && auth.loggedIn) {
+      const dest = auth.role === "teacher" ? "/teacher-dashboard" : auth.role === "parent" ? "/parent-dashboard" : "/dashboard";
+      window.location.href = dest;
+    }
+  }, []);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
