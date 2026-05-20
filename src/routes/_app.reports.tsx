@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { stripMarkdown } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 
+import { streamSchoolAI } from "@/lib/ai";
+
 export const Route = createFileRoute("/_app/reports")({
   head: () => ({
     meta: [
@@ -132,71 +134,41 @@ function ReportsPage() {
 
   async function handleAISummary() {
     setAiLoading(true);
-    try {
-      const context = reportType === "enrollment"
-        ? `Enrollment: ${students.length} students across ${classes.length} classes. ${students.filter(s => s.status === "Active").length} active.`
-        : reportType === "fees"
-        ? `Fees: Total ₵${totalFees}, Collected ₵${totalCollected}, Outstanding ₵${totalFees - totalCollected}. ${payments.length} payment records.`
-        : reportType === "attendance"
-        ? `Attendance: ${attendance.length} records. Data: ${JSON.stringify(attendanceData)}`
-        : `Teachers: ${teachers.length} staff. ${teachers.filter(t => t.status === "Active").length} active.`;
+    const context = reportType === "enrollment"
+      ? `Enrollment: ${students.length} students across ${classes.length} classes. ${students.filter(s => s.status === "Active").length} active.`
+      : reportType === "fees"
+      ? `Fees: Total ₵${totalFees}, Collected ₵${totalCollected}, Outstanding ₵${totalFees - totalCollected}. ${payments.length} payment records.`
+      : reportType === "attendance"
+      ? `Attendance: ${attendance.length} records. Data: ${JSON.stringify(attendanceData)}`
+      : `Teachers: ${teachers.length} staff. ${teachers.filter(t => t.status === "Active").length} active.`;
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/school-ai`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          messages: [{ 
-            role: "user", 
-            content: `As an educational consultant for Mujahideen Preparatory School, analyze the following ${reportType} data and provide a professional executive summary. 
-            Include:
-            1. Key Performance Indicators (KPIs) and their current status.
-            2. Identified trends or potential issues.
-            3. Actionable recommendations for the school administration to improve outcomes.
-            
-            Keep the tone formal, encouraging, and highly professional.
-            Data: ${context}` 
-          }],
-          type: "chat",
-        }),
-      });
-
-      if (!resp.ok || !resp.body) throw new Error("Failed");
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let result = "", buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buffer.indexOf("\n")) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (json === "[DONE]") break;
-          try { 
-            const p = JSON.parse(json); 
-            const c = p.choices?.[0]?.delta?.content; 
-            if (c) {
-              result += c;
-              setAiSummary(stripMarkdown(result)); // Update real-time for streaming effect
-            }
-          } catch {}
-        }
+    let result = "";
+    await streamSchoolAI({
+      messages: [{ 
+        role: "user", 
+        content: `As an educational consultant for Mujahideen Preparatory School, analyze the following ${reportType} data and provide a professional executive summary. 
+        Include:
+        1. Key Performance Indicators (KPIs) and their current status.
+        2. Identified trends or potential issues.
+        3. Actionable recommendations for the school administration to improve outcomes.
+        
+        Keep the tone formal, encouraging, and highly professional.
+        Data: ${context}` 
+      }],
+      type: "chat",
+      onDelta: (chunk) => {
+        result += chunk;
+        setAiSummary(stripMarkdown(result));
+      },
+      onDone: () => {
+        setAiLoading(false);
+      },
+      onError: (err) => {
+        console.error("AI Summary Error:", err);
+        toast.error("Failed to generate AI summary");
+        setAiLoading(false);
       }
-    } catch {
-      toast.error("Failed to generate AI summary");
-    }
-    setAiLoading(false);
+    });
   }
 
   return (

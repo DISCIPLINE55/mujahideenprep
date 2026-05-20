@@ -21,6 +21,8 @@ import { KEYS, getItems, defaultStudents, defaultClasses, CLASS_LIST, type Stude
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 
+import { streamSchoolAI } from "@/lib/ai";
+
 export const Route = createFileRoute("/_app/communications")({
   head: () => ({
     meta: [
@@ -68,58 +70,29 @@ function CommunicationsPage() {
 
   async function handleAIGenerate() {
     setAiLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/school-ai`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: `Write a professional school communication message for: ${form.audience}. Subject: ${form.subject || "General update"}. Keep it concise and professional. Include greeting and sign-off from Mujahideen Preparatory School.` }],
-          type: "chat",
-        }),
-      });
-
-      if (!resp.ok || !resp.body) throw new Error("Failed");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let result = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buffer.indexOf("\n")) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (json === "[DONE]") break;
-          try {
-            const p = JSON.parse(json);
-            const c = p.choices?.[0]?.delta?.content;
-            if (c) result += c;
-          } catch { /* skip */ }
-        }
+    let result = "";
+    await streamSchoolAI({
+      messages: [{ 
+        role: "user", 
+        content: `Write a professional school communication message for: ${form.audience}. Subject: ${form.subject || "General update"}. Keep it concise and professional. Include greeting and sign-off from Mujahideen Preparatory School.` 
+      }],
+      type: "chat",
+      onDelta: (chunk) => {
+        result += chunk;
+      },
+      onDone: () => {
+        const formattedResult = `<p>${result.replace(/\n/g, '<br>')}</p>`;
+        setForm((f) => ({ ...f, message: formattedResult }));
+        editor?.commands.setContent(formattedResult);
+        toast.success("AI message generated!");
+        setAiLoading(false);
+      },
+      onError: (err) => {
+        console.error("AI Generate Error:", err);
+        toast.error("Failed to generate AI message");
+        setAiLoading(false);
       }
-
-      const formattedResult = `<p>${result.replace(/\n/g, '<br>')}</p>`;
-      setForm((f) => ({ ...f, message: formattedResult }));
-      editor?.commands.setContent(formattedResult);
-      toast.success("AI message generated!");
-    } catch {
-      toast.error("Failed to generate AI message");
-    }
-    setAiLoading(false);
+    });
   }
 
   function handleSend() {
