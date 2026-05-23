@@ -22,10 +22,10 @@ type ParentRow = {
   user_id: string;
   full_name: string | null;
   email: string | null;
-  children: { student_id: string; full_name: string }[];
+  children: { student_id: string; name: string }[];
 };
 
-type StudentLite = { id: string; full_name: string };
+type StudentLite = { id: string; name: string };
 
 function ParentsPage() {
   const [parents, setParents] = useState<ParentRow[]>([]);
@@ -58,7 +58,7 @@ function ParentsPage() {
       const userIds = (roles ?? []).map((r: any) => r.user_id);
       if (userIds.length === 0) {
         setParents([]);
-        const { data: s } = await supabase.from("students").select("id, full_name").order("full_name");
+        const { data: s } = await supabase.from("students").select("id, name").order("name");
         setStudents((s as any) ?? []);
         setLoading(false);
         return;
@@ -71,7 +71,7 @@ function ParentsPage() {
 
       const { data: links } = await supabase
         .from("parent_students")
-        .select("parent_user_id, student_id, students(full_name)")
+        .select("parent_user_id, student_id, students(name)")
         .in("parent_user_id", userIds);
 
       const rows: ParentRow[] = (profiles ?? []).map((p: any) => ({
@@ -80,11 +80,11 @@ function ParentsPage() {
         email: p.email,
         children: (links ?? [])
           .filter((l: any) => l.parent_user_id === p.id)
-          .map((l: any) => ({ student_id: l.student_id, full_name: l.students?.full_name ?? "Unknown" })),
+          .map((l: any) => ({ student_id: l.student_id, name: l.students?.name ?? "Unknown" })),
       }));
       setParents(rows);
 
-      const { data: s } = await supabase.from("students").select("id, full_name").order("full_name");
+      const { data: s } = await supabase.from("students").select("id, name").order("name");
       setStudents((s as any) ?? []);
     } catch (err: any) {
       toast.error(err.message || "Failed to load parents");
@@ -241,12 +241,12 @@ function ParentsPage() {
                               <div className="border rounded-md p-1 max-h-48 overflow-y-auto space-y-1">
                                 {students
                                   .filter((s) => !p.children.some((c) => c.student_id === s.id))
-                                  .filter((s) => s.full_name.toLowerCase().includes(studentSearch.toLowerCase())).length === 0 ? (
+                                  .filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase())).length === 0 ? (
                                   <p className="text-xs text-muted-foreground text-center py-4">No students found matching "{studentSearch}"</p>
                                 ) : (
                                   students
                                     .filter((s) => !p.children.some((c) => c.student_id === s.id))
-                                    .filter((s) => s.full_name.toLowerCase().includes(studentSearch.toLowerCase()))
+                                    .filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()))
                                     .map((s) => (
                                       <button
                                         key={s.id}
@@ -258,7 +258,7 @@ function ParentsPage() {
                                             : "hover:bg-secondary/40 text-foreground"
                                         }`}
                                       >
-                                        <span>{s.full_name}</span>
+                                        <span>{s.name}</span>
                                         {linkStudentId === s.id && <span className="text-xs font-semibold">Selected</span>}
                                       </button>
                                     ))
@@ -279,7 +279,7 @@ function ParentsPage() {
                       ) : (
                         p.children.map((c) => (
                           <Badge key={c.student_id} variant="secondary" className="gap-1">
-                            {c.full_name}
+                            {c.name}
                             <button onClick={() => handleUnlink(p.user_id, c.student_id)} className="hover:text-destructive">
                               <Trash2 className="h-3 w-3" />
                             </button>
