@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Users, Wallet, ClipboardCheck, FileText, CalendarDays, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
-import { getItems, setItems, generateId, defaultStudents, defaultPayments, defaultEvents, defaultSettings, KEYS, type Student, type Payment, type AttendanceRecord, type ExamResult, type SchoolEvent, type SchoolSettings } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultPayments, defaultEvents, defaultSettings, KEYS, updateStudentFeeStatus, type Student, type Payment, type AttendanceRecord, type ExamResult, type SchoolEvent, type SchoolSettings } from "@/lib/storage";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -94,7 +94,15 @@ function ParentDashboard() {
       setPaying(false);
       setPayStep("form");
     } else {
+      // Recalculate and update the child's fee status dynamically
+      const newStatus = await updateStudentFeeStatus(payModal.student.id);
+      
+      // Update local state so that dashboard instantly reflects the updated fee status
       setPayments([...payments, newPayment]);
+      setStudents((prev) =>
+        prev.map((s) => (s.id === payModal.student!.id ? { ...s, fees: newStatus } : s))
+      );
+      
       setPayStep("success");
       setPaying(false);
       toast.success("Payment Verified!");

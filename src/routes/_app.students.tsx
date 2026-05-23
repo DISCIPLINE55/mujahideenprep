@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Download, Pencil, Trash2, Eye, Upload, FileText } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { defaultStudents, KEYS, CLASS_LIST, type Student, type Payment, generateId, getItems, setItems } from "@/lib/storage";
+import { defaultStudents, defaultPayments, KEYS, CLASS_LIST, updateStudentFeeStatus, type Student, type Payment, generateId, getItems, setItems } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { CSVImportDialog } from "@/components/CSVImportDialog";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -44,6 +44,7 @@ const emptyStudent: Omit<Student, "id"> = {
 
 function StudentsPage() {
   const store = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const [filterClass, setFilterClass] = useState("All");
@@ -101,18 +102,19 @@ function StudentsPage() {
     return Object.keys(e).length === 0;
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!validate()) return;
     if (editing) { 
-      store.update({ ...editing, ...form }); 
+      await store.update({ ...editing, ...form }); 
       logActivity(`Updated student: ${form.name}`); 
       toast.success("Student updated successfully"); 
     } else {
-      const newStudentPromise = store.add(form);
-      Promise.resolve(newStudentPromise).then((newStudent) => {
+      const newStudent = await store.add(form);
+      logActivity(`Added student: ${form.name}`); 
+      toast.success("Student added successfully"); 
+
       if (form.amountPaid && form.amountPaid > 0) {
-        const payments = getItems<Payment>(KEYS.PAYMENTS, []);
-        payments.push({
+        const newPayment: Payment = {
           id: generateId(),
           studentId: newStudent.id,
           studentName: newStudent.name,
@@ -121,12 +123,16 @@ function StudentsPage() {
           amountPaid: Number(form.amountPaid),
           date: new Date().toISOString().split("T")[0],
           description: "Initial Enrollment Fee"
-        });
-        setItems(KEYS.PAYMENTS, payments);
+        };
+        await paymentStore.add(newPayment);
+        
+        // Dynamically update student's fee status
+        const newStatus = await updateStudentFeeStatus(newStudent.id);
+        const updatedStudents = store.items.map((s) => 
+          s.id === newStudent.id ? { ...s, fees: newStatus } : s
+        );
+        store.setAll(updatedStudents);
       }
-      });
-      logActivity(`Added student: ${form.name}`); 
-      toast.success("Student added successfully"); 
     }
     setOpen(false);
   }

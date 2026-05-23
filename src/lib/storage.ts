@@ -51,24 +51,24 @@ export async function getItemsAsync<T>(key: string, defaults: T[]): Promise<T[]>
   }
   return getItems<T>(key, defaults);
 }
-
-export function setItems<T>(key: string, items: T[] | T): void {
+export function setItems<T>(key: string, items: T[] | T, sync = true): void {
   try {
     localStorage.setItem(key, JSON.stringify(items));
 
-    // Background sync to Supabase
-    const table = TABLE_MAP[key];
-    if (table) {
-      const data = Array.isArray(items) ? items : [items];
-      supabase.from(table).upsert(data).then(({ error }) => {
-        if (error) console.error(`Sync error for ${table}:`, error);
-      });
+    // Background sync to Supabase if sync flag is enabled
+    if (sync) {
+      const table = TABLE_MAP[key];
+      if (table) {
+        const data = Array.isArray(items) ? items : [items];
+        supabase.from(table).upsert(data).then(({ error }) => {
+          if (error) console.error(`Sync error for ${table}:`, error);
+        });
+      }
     }
   } catch (err) {
     console.error("Storage error:", err);
   }
 }
-
 /** Async version: writes to Supabase first, then caches in localStorage */
 export async function setItemsAsync<T>(key: string, items: T[] | T): Promise<void> {
   const table = TABLE_MAP[key];
@@ -525,3 +525,49 @@ export function importAllData(json: string): boolean {
 export function getTableName(key: string): string | undefined {
   return TABLE_MAP[key];
 }
+
+/** Update a student's fee status dynamically based on their transaction history */
+export async function updateStudentFeeStatus(studentId: string): Promise<string> {
+  try {
+    // Fetch all payments for this student
+    const { data: payments, error } = await supabase
+      .from("payments")
+      .select("totalFee, amountPaid")
+      .eq("studentId", studentId);
+      
+    if (error) throw error;
+    
+    let totalFee = 0;
+    let amountPaid = 0;
+    if (payments) {
+      payments.forEach((p) => {
+        totalFee += Number(p.totalFee || 0);
+        amountPaid += Number(p.amountPaid || 0);
+      });
+    }
+    
+    let status = "Unpaid";
+    if (amountPaid >= totalFee && totalFee > 0) {
+      status = "Paid";
+    } else if (amountPaid > 0) {
+      status = "Partial";
+    }
+    
+    // Update student in database
+    await supabase
+      .from("students")
+      .update({ fees: status })
+      .eq("id", studentId);
+      
+    // Update student in local storage cache
+    const students = getItems<Student>(KEYS.STUDENTS, []);
+    const updated = students.map((s) => (s.id === studentId ? { ...s, fees: status } : s));
+    localStorage.setItem(KEYS.STUDENTS, JSON.stringify(updated));
+    
+    return status;
+  } catch (err) {
+    console.error("Error updating student fee status:", err);
+    return "Unpaid";
+  }
+}
+

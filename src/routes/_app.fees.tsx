@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer, Sparkles, Loader2, Copy, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, type Student, type Payment, type Notification } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, updateStudentFeeStatus, type Student, type Payment, type Notification } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printFeeReceipt } from "@/components/FeeReceipt";
@@ -192,22 +192,23 @@ function FeesPage() {
   function openAdd() { setEditing(null); setForm({ studentId: "", totalFee: 0, amountPaid: 0, date: new Date().toISOString().split("T")[0], description: "" }); setOpen(true); }
   function openEdit(p: Payment) { setEditing(p); setForm({ studentId: p.studentId, totalFee: p.totalFee, amountPaid: p.amountPaid, date: p.date, description: p.description }); setOpen(true); }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.studentId) return;
     const student = allStudents.find((s) => s.id === form.studentId);
     if (!student) return;
+    const oldStudentId = editing?.studentId;
     if (editing) {
-      paymentStore.update({ ...editing, ...form, studentName: student.name, class: student.class });
+      await paymentStore.update({ ...editing, ...form, studentName: student.name, class: student.class });
       logActivity(`Updated payment for ${student.name}`);
       toast.success("Payment updated");
     } else {
       const newPayment: Payment = { id: generateId(), studentId: form.studentId, studentName: student.name, class: student.class, totalFee: form.totalFee, amountPaid: form.amountPaid, date: form.date, description: form.description };
-      paymentStore.add(newPayment);
+      await paymentStore.add(newPayment);
       logActivity(`Recorded payment of ₵${form.amountPaid} for ${student.name}`);
       
       // Auto-create notification
       const balance = form.totalFee - form.amountPaid;
-      notificationStore.add({
+      await notificationStore.add({
         title: balance > 0 ? "Partial Payment Recorded" : "Payment Received",
         message: `₵${form.amountPaid.toLocaleString()} received from ${student.name} (${student.class})${balance > 0 ? `. Balance: ₵${balance.toLocaleString()}` : "."}`,
         audience: "All",
@@ -216,14 +217,38 @@ function FeesPage() {
       });
       toast.success("Payment recorded");
     }
+
+    // Dynamically update student's fee status
+    const newStatus = await updateStudentFeeStatus(form.studentId);
+    let updatedStudents = allStudents.map((s) => 
+      s.id === form.studentId ? { ...s, fees: newStatus } : s
+    );
+
+    if (oldStudentId && oldStudentId !== form.studentId) {
+      const oldStatus = await updateStudentFeeStatus(oldStudentId);
+      updatedStudents = updatedStudents.map((s) => 
+        s.id === oldStudentId ? { ...s, fees: oldStatus } : s
+      );
+    }
+
+    studentStore.setAll(updatedStudents);
     setOpen(false);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (deleteId) { 
-      paymentStore.remove(deleteId);
+      const paymentToDelete = payments.find((p) => p.id === deleteId);
+      await paymentStore.remove(deleteId);
       setDeleteId(null); 
       toast.success("Payment deleted"); 
+
+      if (paymentToDelete) {
+        const newStatus = await updateStudentFeeStatus(paymentToDelete.studentId);
+        const updatedStudents = allStudents.map((s) => 
+          s.id === paymentToDelete.studentId ? { ...s, fees: newStatus } : s
+        );
+        studentStore.setAll(updatedStudents);
+      }
     }
   }
 
