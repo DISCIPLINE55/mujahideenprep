@@ -328,7 +328,10 @@ function FeesPage() {
                            <td className="p-3 text-right">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => printFeeReceipt(p)}><Printer className="h-3 w-3" /></Button>
                               {isAdmin && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { setDeleteId(p.id); setShowHistory(null); }}><Trash2 className="h-3 w-3" /></Button>
+                                <>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => { openEdit(p); setShowHistory(null); }}><Pencil className="h-3 w-3" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { setDeleteId(p.id); setShowHistory(null); }}><Trash2 className="h-3 w-3" /></Button>
+                                </>
                               )}
                            </td>
                         </tr>
