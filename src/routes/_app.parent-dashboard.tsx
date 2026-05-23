@@ -1,10 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatsCard } from "@/components/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Users, Wallet, ClipboardCheck, FileText, CalendarDays, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
 import { getItems, setItems, generateId, defaultStudents, defaultPayments, defaultEvents, defaultSettings, KEYS, updateStudentFeeStatus, type Student, type Payment, type AttendanceRecord, type ExamResult, type SchoolEvent, type SchoolSettings } from "@/lib/storage";
 import { getAuthSync } from "@/lib/auth";
+import { useStore } from "@/hooks/use-store";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -21,39 +21,25 @@ export const Route = createFileRoute("/_app/parent-dashboard")({
 
 function ParentDashboard() {
   const auth = getAuthSync();
-  const [settings, setSettings] = useState<SchoolSettings>(defaultSettings);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [results, setResults] = useState<ExamResult[]>([]);
-  const [events, setEvents] = useState<SchoolEvent[]>([]);
+  
+  // Use reactive stores loaded from Supabase to sync cache and state
+  const settingsStore = useStore<SchoolSettings>(KEYS.SETTINGS, [defaultSettings]);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
+  const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
+  const resultStore = useStore<ExamResult>(KEYS.RESULTS, []);
+  const eventStore = useStore<SchoolEvent>(KEYS.EVENTS, defaultEvents);
+
+  const settings = settingsStore.items[0] || defaultSettings;
+  const students = studentStore.items;
+  const payments = paymentStore.items;
+  const attendance = attendanceStore.items;
+  const results = resultStore.items;
+  const events = eventStore.items;
   
   const [payModal, setPayModal] = useState<{ open: boolean; student: Student | null; amount: number }>({ open: false, student: null, amount: 0 });
   const [paying, setPaying] = useState(false);
   const [payStep, setPayStep] = useState<"form" | "prompt" | "success">("form");
-
-  useEffect(() => {
-    async function init() {
-      const { data: sData } = await supabase.from("settings").select("*").single();
-      if (sData) setSettings(sData as SchoolSettings);
-      
-      const { data: stdData } = await supabase.from("students").select("*");
-      if (stdData) setStudents(stdData);
-      
-      const { data: pData } = await supabase.from("payments").select("*");
-      if (pData) setPayments(pData);
-      
-      const { data: aData } = await supabase.from("attendance").select("*");
-      if (aData) setAttendance(aData);
-      
-      const { data: rData } = await supabase.from("results").select("*");
-      if (rData) setResults(rData);
-      
-      const { data: eData } = await supabase.from("events").select("*");
-      if (eData) setEvents(eData);
-    }
-    init();
-  }, []);
 
   const myStudents = useMemo(() =>
     students.filter((s) => auth?.studentIds?.includes(s.id)),
@@ -88,24 +74,25 @@ function ParentDashboard() {
       description: `MoMo Payment via ${settings.momoProvider || "Mobile Money"}`
     };
 
-    const { error } = await supabase.from("payments").insert(newPayment);
-    if (error) {
-      toast.error("Payment sync failed");
-      setPaying(false);
-      setPayStep("form");
-    } else {
+    try {
+      await paymentStore.add(newPayment);
+      
       // Recalculate and update the child's fee status dynamically
       const newStatus = await updateStudentFeeStatus(payModal.student.id);
       
-      // Update local state so that dashboard instantly reflects the updated fee status
-      setPayments([...payments, newPayment]);
-      setStudents((prev) =>
-        prev.map((s) => (s.id === payModal.student!.id ? { ...s, fees: newStatus } : s))
+      // Update student store state so that the dashboard instantly reflects the updated fee status
+      const updatedStudents = studentStore.items.map((s) => 
+        s.id === payModal.student!.id ? { ...s, fees: newStatus } : s
       );
+      studentStore.setAll(updatedStudents);
       
       setPayStep("success");
       setPaying(false);
       toast.success("Payment Verified!");
+    } catch (err) {
+      toast.error("Payment sync failed");
+      setPaying(false);
+      setPayStep("form");
     }
   }
 
@@ -227,7 +214,7 @@ function ParentDashboard() {
                     <p className="text-xs text-muted-foreground">You will receive a prompt on your phone to enter your PIN.</p>
                   </div>
                </div>
-               <Button className="w-full h-12 text-lg rounded-xl" onClick={handleMomoPayment}>Authorize Payment</Button>
+                <Button className="w-full h-12 text-lg rounded-xl" disabled onClick={handleMomoPayment}>Authorize Payment (Gateway Offline)</Button>
             </div>
           )}
 

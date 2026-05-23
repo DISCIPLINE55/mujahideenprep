@@ -45,7 +45,20 @@ function AttendancePage() {
   const teacherClassNames = useMemo(() => {
     if (!isTeacher) return null;
     const me = teachers.find((t) => t.id === auth?.teacherId);
-    return me ? allClasses.filter((c) => c.teacher === me.name).map((c) => c.name) : [];
+    if (!me) return [];
+
+    // 1. Get class names from teacher profile classes (comma-separated string, e.g. "Creche")
+    const profileClasses = me.classes 
+      ? me.classes.split(",").map(s => s.trim()).filter(Boolean) 
+      : [];
+
+    // 2. Get class names from the classes table where me is class teacher
+    const tableClasses = allClasses
+      .filter((c) => c.teacher === me.name)
+      .map((c) => c.name);
+
+    // Combine and deduplicate
+    return Array.from(new Set([...profileClasses, ...tableClasses]));
   }, [isTeacher, teachers, allClasses, auth]);
 
   const students = useMemo(() => teacherClassNames ? allStudents.filter((s) => teacherClassNames.includes(s.class)) : allStudents, [allStudents, teacherClassNames]);

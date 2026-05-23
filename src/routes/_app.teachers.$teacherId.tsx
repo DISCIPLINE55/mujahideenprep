@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mail, Phone, GraduationCap, BookOpen, Users } from "lucide-react";
-import { getItems, defaultTeachers, defaultClasses, defaultSubjects, KEYS, type Teacher, type SchoolClass, type Subject, type TimetableSlot } from "@/lib/storage";
+import { useMemo } from "react";
+import { defaultTeachers, defaultClasses, defaultSubjects, KEYS, type Teacher, type SchoolClass, type Subject, type TimetableSlot } from "@/lib/storage";
+import { useStore } from "@/hooks/use-store";
 
 export const Route = createFileRoute("/_app/teachers/$teacherId")({
   head: () => ({
@@ -19,10 +21,15 @@ export const Route = createFileRoute("/_app/teachers/$teacherId")({
 
 function TeacherProfilePage() {
   const { teacherId } = Route.useParams();
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
-  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const subjects = getItems<Subject>(KEYS.SUBJECTS, defaultSubjects);
-  const timetable = getItems<TimetableSlot>(KEYS.TIMETABLE, []);
+  
+  // Use reactive stores loaded from Supabase to sync cache and state
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const timetableStore = useStore<TimetableSlot>(KEYS.TIMETABLE, []);
+
+  const teachers = teacherStore.items;
+  const classes = classStore.items;
+  const timetable = timetableStore.items;
 
   const teacher = teachers.find((t) => t.id === teacherId);
 
@@ -38,7 +45,25 @@ function TeacherProfilePage() {
     );
   }
 
-  const assignedClasses = classes.filter((c) => c.teacher === teacher.name);
+  // Get assigned classes by combining profile classes string and classes table
+  const assignedClasses = useMemo(() => {
+    // 1. Get class names from teacher profile classes (comma-separated string, e.g. "Creche")
+    const profileClasses = teacher.classes 
+      ? teacher.classes.split(",").map(s => s.trim()).filter(Boolean) 
+      : [];
+
+    // 2. Get class names from classes table where teacher name matches
+    const tableClasses = classes
+      .filter((c) => c.teacher === teacher.name)
+      .map((c) => c.name);
+
+    // Combine and deduplicate
+    const uniqueNames = Array.from(new Set([...profileClasses, ...tableClasses]));
+    
+    // Return SchoolClass objects matching these names
+    return classes.filter(c => uniqueNames.includes(c.name));
+  }, [teacher, classes]);
+
   const teacherSlots = timetable.filter((s) => s.teacher === teacher.name);
 
   return (

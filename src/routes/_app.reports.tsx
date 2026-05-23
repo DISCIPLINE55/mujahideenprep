@@ -315,7 +315,12 @@ function ReportsPage() {
             <CardContent>
               <div className="space-y-3">
                 {teachers.map((t) => {
-                  const assignedClasses = classes.filter((c) => c.teacher === t.name);
+                  const assignedClasses = classes.filter((c) => {
+                    const profileClasses = t.classes 
+                      ? t.classes.split(",").map(s => s.trim()).filter(Boolean) 
+                      : [];
+                    return c.teacher === t.name || profileClasses.includes(c.name);
+                  });
                   return (
                     <div key={t.id} className="flex items-center justify-between rounded-lg border p-3">
                       <div>

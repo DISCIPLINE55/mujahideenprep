@@ -67,7 +67,20 @@ function ResultsPage() {
   const allowedClassNames = useMemo(() => {
     if (role === "teacher") {
       const me = teachers.find((t) => t.id === auth?.teacherId);
-      return me ? classes.filter((c) => c.teacher === me.name).map((c) => c.name) : [];
+      if (!me) return [];
+      
+      // 1. Get class names from teacher profile classes (comma-separated string, e.g. "Creche")
+      const profileClasses = me.classes 
+        ? me.classes.split(",").map(s => s.trim()).filter(Boolean) 
+        : [];
+
+      // 2. Get class names from classes table
+      const tableClasses = classes
+        .filter((c) => c.teacher === me.name)
+        .map((c) => c.name);
+
+      // Combine and deduplicate
+      return Array.from(new Set([...profileClasses, ...tableClasses]));
     }
     return null; // null = all
   }, [role, teachers, classes, auth]);
