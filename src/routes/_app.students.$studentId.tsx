@@ -28,8 +28,8 @@ export const Route = createFileRoute("/_app/students/$studentId")({
 
 function StudentProfilePage() {
   const { studentId } = Route.useParams();
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const student = students.find((s) => s.id === studentId);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const student = studentStore.items.find((s) => s.id === studentId);
   const disciplineStore = useStore<DisciplineRecord>(KEYS.DISCIPLINE, []);
 
   const [discOpen, setDiscOpen] = useState(false);

@@ -105,7 +105,9 @@ function StudentsPage() {
   async function handleSave() {
     if (!validate()) return;
     if (editing) { 
-      await store.update({ ...editing, ...form }); 
+      // Do not allow editing student form to overwrite the computed fees status!
+      const { fees, ...restOfForm } = form;
+      await store.update({ ...editing, ...restOfForm }); 
       logActivity(`Updated student: ${form.name}`); 
       toast.success("Student updated successfully"); 
     } else {
@@ -422,15 +424,12 @@ function StudentsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Fee Status</Label>
-              <Select value={form.fees} onValueChange={(v) => setForm({ ...form, fees: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Partial">Partial</SelectItem>
-                  <SelectItem value="Unpaid">Unpaid</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Fee Status (Calculated from Payments)</Label>
+              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                <Badge variant={form.fees === "Paid" ? "default" : form.fees === "Partial" ? "secondary" : "destructive"}>
+                  {form.fees}
+                </Badge>
+              </div>
             </div>
           </div>
           <DialogFooter>
