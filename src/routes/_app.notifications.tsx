@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Bell, Trash2, Eye } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { KEYS, type Notification } from "@/lib/storage";
+import { KEYS, defaultTeachers, defaultStudents, defaultClasses, type Notification, type Teacher, type Student, type SchoolClass } from "@/lib/storage";
 import { toast } from "sonner";
 import { getAuthSync } from "@/lib/auth";
+import { filterNotifications } from "@/lib/notificationFilter";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({
@@ -28,17 +29,19 @@ export const Route = createFileRoute("/_app/notifications")({
 
 function NotificationsPage() {
   const store = useStore<Notification>(KEYS.NOTIFICATIONS, []);
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
-  const visible = store.items.filter((n) => {
-    if (isAdmin) return true;
-    const audience = n.audience?.toLowerCase();
-    const role = auth?.role?.toLowerCase();
-    if (audience === "all") return true;
-    if (role === "teacher" && audience === "teachers") return true;
-    if (role === "parent" && audience === "parents") return true;
-    return false;
-  });
+  
+  const visible = filterNotifications(
+    store.items,
+    auth,
+    teacherStore.items,
+    classStore.items,
+    studentStore.items
+  );
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", message: "", audience: "All" as "All" | "Teachers" | "Parents", date: new Date().toISOString().split("T")[0] });
 

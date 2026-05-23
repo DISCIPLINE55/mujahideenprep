@@ -3,7 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { getItems, KEYS, type Notification } from "@/lib/storage";
+import { getItems, KEYS, defaultTeachers, defaultStudents, defaultClasses, type Notification, type Teacher, type Student, type SchoolClass } from "@/lib/storage";
+import { filterNotifications } from "@/lib/notificationFilter";
 import { Link } from "@tanstack/react-router";
 import { getAuth, getAuthSync, signOut } from "@/lib/auth";
 import { useEffect, useState } from "react";
@@ -22,18 +23,15 @@ export function TopBar({ title }: { title: string }) {
   useEffect(() => {
     async function refresh() {
       const notifications = getItems<Notification>(KEYS.NOTIFICATIONS, []);
+      const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
+      const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
+      const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+
       const a = await getAuth();
       setAuth(a);
       if (a && typeof window !== "undefined") setAvatarUrl(localStorage.getItem(`avatar_${a.email}`) || "");
-      const visible = notifications.filter((n) => {
-        if (!a || a.role?.toLowerCase() === "admin") return true;
-        const audience = n.audience?.toLowerCase();
-        const role = a.role?.toLowerCase();
-        if (audience === "all") return true;
-        if (role === "teacher" && audience === "teachers") return true;
-        if (role === "parent" && audience === "parents") return true;
-        return false;
-      });
+      
+      const visible = filterNotifications(notifications, a, teachers, classes, students);
       setUnreadCount(visible.filter((n) => !n.read).length);
     }
     refresh();
