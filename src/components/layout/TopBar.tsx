@@ -26,10 +26,12 @@ export function TopBar({ title }: { title: string }) {
       setAuth(a);
       if (a && typeof window !== "undefined") setAvatarUrl(localStorage.getItem(`avatar_${a.email}`) || "");
       const visible = notifications.filter((n) => {
-        if (!a || a.role === "admin") return true;
-        if (n.audience === "All") return true;
-        if (a.role === "teacher" && n.audience === "Teachers") return true;
-        if (a.role === "parent" && n.audience === "Parents") return true;
+        if (!a || a.role?.toLowerCase() === "admin") return true;
+        const audience = n.audience?.toLowerCase();
+        const role = a.role?.toLowerCase();
+        if (audience === "all") return true;
+        if (role === "teacher" && audience === "teachers") return true;
+        if (role === "parent" && audience === "parents") return true;
         return false;
       });
       setUnreadCount(visible.filter((n) => !n.read).length);

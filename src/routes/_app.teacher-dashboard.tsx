@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, ClipboardCheck, CalendarDays, BookOpen } from "lucide-react";
 import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultEvents, defaultSubjects, KEYS, type Student, type Teacher, type SchoolClass, type AttendanceRecord, type TimetableSlot, type SchoolEvent } from "@/lib/storage";
 import { getAuthSync } from "@/lib/auth";
+import { useStore } from "@/hooks/use-store";
 
 export const Route = createFileRoute("/_app/teacher-dashboard")({
   head: () => ({
@@ -20,21 +21,40 @@ export const Route = createFileRoute("/_app/teacher-dashboard")({
 
 function TeacherDashboard() {
   const auth = getAuthSync();
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const timetable = getItems<TimetableSlot>(KEYS.TIMETABLE, []);
-  const attendance = getItems<AttendanceRecord>(KEYS.ATTENDANCE, []);
-  const events = getItems<SchoolEvent>(KEYS.EVENTS, defaultEvents);
+  // Use reactive stores loaded from Supabase
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const timetableStore = useStore<TimetableSlot>(KEYS.TIMETABLE, []);
+  const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
+  const eventStore = useStore<SchoolEvent>(KEYS.EVENTS, defaultEvents);
+
+  const teachers = teacherStore.items;
+  const students = studentStore.items;
+  const classes = classStore.items;
+  const timetable = timetableStore.items;
+  const attendance = attendanceStore.items;
+  const events = eventStore.items;
 
   const teacher = useMemo(() => teachers.find((t) => t.id === auth?.teacherId), [teachers, auth]);
   const teacherName = teacher?.name ?? auth?.name ?? "Teacher";
 
-  // Parse assigned classes from teacher record
+  // Parse assigned classes from teacher record (combining profile classes string and classes table)
   const assignedClassNames = useMemo(() => {
     if (!teacher) return [];
-    // teacher.classes is like "JHS 1-3" or "Primary 4-6" — match against CLASS_LIST
-    return classes.filter((c) => c.teacher === teacher.name).map((c) => c.name);
+    
+    // 1. Extract from the teacher's profile field (which is a comma-separated string, e.g. "Creche")
+    const profileClasses = teacher.classes 
+      ? teacher.classes.split(",").map(s => s.trim()).filter(Boolean) 
+      : [];
+      
+    // 2. Extract from the classes table where they are explicitly assigned as the class teacher
+    const tableClasses = classes
+      .filter((c) => c.teacher === teacher.name)
+      .map((c) => c.name);
+      
+    // Combine and deduplicate
+    return Array.from(new Set([...profileClasses, ...tableClasses]));
   }, [teacher, classes]);
 
   const myStudents = useMemo(() =>
