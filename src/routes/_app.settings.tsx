@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { 
   Save, Download, Upload, Lock, School, Calendar, Palette, Database, 
   CheckCircle, Trash2, GraduationCap, MessageSquare, Sparkles, Activity, 
-  Shield, Key, Settings, UserPlus, ArrowUpCircle, Smartphone, Wallet, User
+  Shield, Key, Settings, UserPlus, ArrowUpCircle, Smartphone, Wallet, User, Users
 } from "lucide-react";
 import { KEYS, defaultSettings, CLASS_LIST, setItems, getItems, defaultStudents, defaultTeachers, defaultClasses, generateId, type SchoolSettings, type Student, type FeeStructure, type Teacher, type SchoolClass, exportAllData, importAllData } from "@/lib/storage";
 import { getAuthSync } from "@/lib/auth";
@@ -121,6 +121,7 @@ function SettingsPage() {
       if (currentAuth) {
         currentAuth.name = parentName;
         localStorage.setItem("mpsms_auth_meta", JSON.stringify(currentAuth));
+        window.dispatchEvent(new Event("storage"));
       }
 
       toast.success("Profile updated successfully!", { id: loader });

@@ -28,9 +28,23 @@ type ParentRow = {
 type StudentLite = { id: string; name: string };
 
 function ParentsPage() {
-  const [parents, setParents] = useState<ParentRow[]>([]);
-  const [students, setStudents] = useState<StudentLite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [parents, setParents] = useState<ParentRow[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("mpsms_parents_cache") : null;
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [students, setStudents] = useState<StudentLite[]>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("mpsms_students_lite_cache") : null;
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(parents.length === 0);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -46,8 +60,8 @@ function ParentsPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent && parents.length === 0) setLoading(true);
     try {
       // Find users with parent role
       const { data: roles } = await supabase
@@ -58,8 +72,12 @@ function ParentsPage() {
       const userIds = (roles ?? []).map((r: any) => r.user_id);
       if (userIds.length === 0) {
         setParents([]);
+        localStorage.setItem("mpsms_parents_cache", "[]");
         const { data: s } = await supabase.from("students").select("id, name").order("name");
-        setStudents((s as any) ?? []);
+        if (s) {
+          setStudents(s as any);
+          localStorage.setItem("mpsms_students_lite_cache", JSON.stringify(s));
+        }
         setLoading(false);
         return;
       }
@@ -83,9 +101,13 @@ function ParentsPage() {
           .map((l: any) => ({ student_id: l.student_id, name: l.students?.name ?? "Unknown" })),
       }));
       setParents(rows);
+      localStorage.setItem("mpsms_parents_cache", JSON.stringify(rows));
 
       const { data: s } = await supabase.from("students").select("id, name").order("name");
-      setStudents((s as any) ?? []);
+      if (s) {
+        setStudents(s as any);
+        localStorage.setItem("mpsms_students_lite_cache", JSON.stringify(s));
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to load parents");
     } finally {
@@ -93,7 +115,7 @@ function ParentsPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(true); }, []);
 
   async function handleInvite() {
     if (!inviteEmail.trim() || !invitePassword.trim()) {
@@ -144,6 +166,37 @@ function ParentsPage() {
       load();
     } catch (err: any) {
       toast.error(err.message || "Failed to update parent profile", { id: loader });
+    }
+  }
+
+  async function handleDeleteParent(userId: string) {
+    if (!confirm("Are you sure you want to delete this parent account? This will unlink all their children and remove their profile.")) return;
+    const loader = toast.loading("Deleting parent account...");
+    try {
+      const { error: unlinkErr } = await supabase
+        .from("parent_students")
+        .delete()
+        .eq("parent_user_id", userId);
+      if (unlinkErr) throw unlinkErr;
+
+      const { error: roleErr } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "parent");
+      if (roleErr) throw roleErr;
+
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+      if (profileErr) throw profileErr;
+
+      toast.success("Parent account deleted successfully!", { id: loader });
+      logActivity(`Deleted parent account`);
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete parent account", { id: loader });
     }
   }
 
@@ -216,6 +269,9 @@ function ParentsPage() {
                           setEditEmail(p.email || "");
                           setEditPassword("");
                         }}><Pencil className="h-4 w-4 mr-1" /> Edit</Button>
+                        <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteParent(p.user_id)}>
+                          <Trash2 className="h-4 w-4 mr-1" /> Delete
+                        </Button>
                         <Dialog open={linkOpen === p.user_id} onOpenChange={(o) => {
                           setLinkOpen(o ? p.user_id : null);
                           if (o) {
