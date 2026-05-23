@@ -16,12 +16,30 @@ export function getItems<T>(key: string, defaults: T[]): T[] {
   }
 }
 
+// Active query deduplication cache
+const activeQueries: Record<string, Promise<{ data: any[] | null; error: any }>> = {};
+
+export function fetchTableDeduplicated(table: string): Promise<{ data: any[] | null; error: any }> {
+  if (activeQueries[table]) {
+    return activeQueries[table];
+  }
+  const promise = supabase.from(table).select("*").then((res) => {
+    delete activeQueries[table];
+    return res;
+  }).catch((err) => {
+    delete activeQueries[table];
+    throw err;
+  });
+  activeQueries[table] = promise;
+  return promise;
+}
+
 /** Async version: tries Supabase first, falls back to localStorage */
 export async function getItemsAsync<T>(key: string, defaults: T[]): Promise<T[]> {
   const table = TABLE_MAP[key];
   if (table) {
     try {
-      const { data, error } = await supabase.from(table).select("*");
+      const { data, error } = await fetchTableDeduplicated(table);
       if (!error && data && data.length > 0) {
         // Cache in localStorage for offline access
         localStorage.setItem(key, JSON.stringify(data));
@@ -89,7 +107,7 @@ export async function deleteItemAsync<T extends { id: string }>(
 
 export async function syncCloudToLocal(): Promise<void> {
   const lastSync = localStorage.getItem("mpsms_last_sync_time");
-  if (lastSync && Date.now() - parseInt(lastSync) < 120000) {
+  if (lastSync && Date.now() - parseInt(lastSync) < 60000) {
     return;
   }
 
@@ -97,12 +115,36 @@ export async function syncCloudToLocal(): Promise<void> {
   localStorage.setItem("mpsms_last_sync_time", Date.now().toString());
 
   try {
-    const syncPromises = Object.entries(TABLE_MAP).map(async ([key, table]) => {
+    // Read user role directly from local metadata to filter sync scope
+    const authRaw = localStorage.getItem("mpsms_auth_meta");
+    const auth = authRaw ? JSON.parse(authRaw) : null;
+    const role = auth?.role || "parent";
+
+    // Build list of target keys to sync based on role
+    let targetKeys = Object.keys(TABLE_MAP);
+    if (role === "parent") {
+      targetKeys = [KEYS.STUDENTS, KEYS.RESULTS, KEYS.PAYMENTS, KEYS.SETTINGS, KEYS.NOTIFICATIONS, KEYS.EVENTS];
+    } else if (role === "teacher") {
+      targetKeys = [
+        KEYS.STUDENTS, KEYS.TEACHERS, KEYS.CLASSES, KEYS.SUBJECTS, KEYS.ATTENDANCE,
+        KEYS.RESULTS, KEYS.TIMETABLE, KEYS.NOTIFICATIONS, KEYS.EVENTS, KEYS.BOOKS, KEYS.ISSUES, KEYS.SETTINGS
+      ];
+    }
+
+    // Sequentially stagger database queries with 30ms intervals to keep assets pipeline clear
+    for (let i = 0; i < targetKeys.length; i++) {
+      const key = targetKeys[i];
+      const table = TABLE_MAP[key];
+      if (!table) continue;
+
+      // Introduce 30ms stagger delay
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
       try {
-        const { data, error } = await supabase.from(table).select("*");
+        const { data, error } = await fetchTableDeduplicated(table);
         if (error) {
           console.warn(`Could not sync ${table}:`, error);
-          return;
+          continue;
         }
         if (data) {
           if (table === "settings") {
@@ -114,9 +156,7 @@ export async function syncCloudToLocal(): Promise<void> {
       } catch (err) {
         console.error(`Error syncing ${table}:`, err);
       }
-    });
-
-    await Promise.all(syncPromises);
+    }
   } catch (err) {
     console.error("Master sync error:", err);
   }

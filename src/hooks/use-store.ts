@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { getItems, setItems, generateId, KEYS } from "@/lib/storage";
+import { getItems, setItems, generateId, KEYS, fetchTableDeduplicated } from "@/lib/storage";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -31,11 +31,18 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
   const fetchCloud = useCallback(async () => {
     if (!tableName) return;
     try {
-      const { data, error } = await supabase.from(tableName).select("*").order("created_at", { ascending: false });
+      const { data, error } = await fetchTableDeduplicated(tableName);
       if (error) throw error;
       if (data && data.length > 0) {
-        setItems(key, data as T[]);
-        setItemsState(data as T[]);
+        // Sort client-side to ensure newer items display at top
+        const sortedData = [...data].sort((a: any, b: any) => {
+          if (a.created_at && b.created_at) {
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          }
+          return 0;
+        });
+        setItems(key, sortedData as T[]);
+        setItemsState(sortedData as T[]);
       } else if (defaults && defaults.length > 0) {
         const { error: seedErr } = await supabase.from(tableName).insert(defaults);
         if (seedErr) {
