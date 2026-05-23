@@ -41,14 +41,14 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
           }
           return 0;
         });
-        setItems(key, sortedData as T[]);
+        setItems(key, sortedData as T[], false);
         setItemsState(sortedData as T[]);
       } else if (defaults && defaults.length > 0) {
         const { error: seedErr } = await supabase.from(tableName).insert(defaults);
         if (seedErr) {
           console.warn(`Seeding failed for ${tableName}:`, seedErr);
         } else {
-          setItems(key, defaults);
+          setItems(key, defaults, false);
           setItemsState(defaults);
         }
       }
@@ -66,7 +66,7 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     const updated = [newItem, ...items];
     
     // Update Local
-    setItems(key, updated);
+    setItems(key, updated, false);
     setItemsState(updated);
 
     // Update Cloud
@@ -84,7 +84,7 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     const newItems = items.map((i) => (i.id === updated.id ? updated : i));
     
     // Update Local
-    setItems(key, newItems);
+    setItems(key, newItems, false);
     setItemsState(newItems);
 
     // Update Cloud
@@ -98,7 +98,7 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     const newItems = items.filter((i) => i.id !== id);
     
     // Update Local
-    setItems(key, newItems);
+    setItems(key, newItems, false);
     setItemsState(newItems);
 
     // Update Cloud
@@ -110,7 +110,7 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
 
   const syncAll = useCallback(async (newItems: T[]) => {
     // Update Local
-    setItems(key, newItems);
+    setItems(key, newItems, false);
     setItemsState(newItems);
 
     // Update Cloud
@@ -131,6 +131,6 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     loading, 
     refresh: fetchCloud, 
     syncAll,
-    setAll: (v: T[]) => { setItems(key, v); setItemsState(v); } 
+    setAll: (v: T[]) => { setItems(key, v, false); setItemsState(v); } 
   };
 }
