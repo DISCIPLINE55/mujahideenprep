@@ -107,7 +107,13 @@ function TeachersPage() {
       const { data, error } = await supabase.auth.signUp({
         email: inviteEmail.trim(),
         password: invitePassword,
-        options: { data: { full_name: inviteName, role: "teacher" } },
+        options: { 
+          data: { 
+            full_name: inviteName, 
+            role: "teacher",
+            teacherId: inviteTeacherId 
+          } 
+        },
       });
       if (error) throw error;
 
