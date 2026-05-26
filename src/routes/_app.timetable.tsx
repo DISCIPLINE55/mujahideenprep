@@ -94,14 +94,32 @@ function TimetablePage() {
   const store = useStore<TimetableSlot>(KEYS.TIMETABLE, []);
   const subjectStore = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
   const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const subjects = subjectStore.items;
   const teachers = teacherStore.items;
 
   const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
 
-  const [selectedClass, setSelectedClass] = useState(isAdmin ? CLASS_LIST[0] : "My Schedule");
+  const [selectedClass, setSelectedClass] = useState(() => {
+    if (isAdmin) return CLASS_LIST[0];
+    if (auth?.role === "parent") {
+      const rawStudents = studentStore.items;
+      const myKids = rawStudents.filter((s) => auth.studentIds?.includes(s.id));
+      return myKids[0]?.class || CLASS_LIST[0];
+    }
+    return "My Schedule";
+  });
+
+  const parentClasses = useMemo(() => {
+    if (auth?.role !== "parent") return [];
+    const myKids = studentStore.items.filter((s) => auth.studentIds?.includes(s.id));
+    const classesList = myKids.map((k) => k.class).filter(Boolean);
+    return Array.from(new Set(classesList));
+  }, [auth, studentStore.items]);
+
   const [open, setOpen] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [form, setForm] = useState({ day: DAYS[0], period: PERIODS[0], subject: "", teacher: "", className: CLASS_LIST[0] });
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState("");
@@ -128,56 +146,88 @@ function TimetablePage() {
   const classSlots = useMemo(() => {
     let slots = store.items;
 
-    if (!isAdmin) {
-      // Find the logged-in teacher profile using our robust matching logic
-      const me = teachers.find((t) => 
-        t.id === auth?.teacherId ||
-        (auth?.userId && t.user_id === auth.userId) ||
-        (auth?.email && t.email?.toLowerCase() === auth.email.toLowerCase())
-      );
-      if (me) {
-        slots = slots.filter((s) => s.teacher === me.name);
-      } else {
-        slots = [];
-      }
-      
-      if (selectedClass !== "My Schedule") {
-        slots = slots.filter((s) => s.className === selectedClass);
-      }
-      return slots;
+    if (isAdmin) {
+      return slots.filter((s) => s.className === selectedClass);
     }
 
-    return slots.filter((s) => s.className === selectedClass);
+    if (auth?.role === "parent") {
+      return slots.filter((s) => s.className === selectedClass);
+    }
+
+    // Teachers filter by their own name
+    const me = teachers.find((t) => 
+      t.id === auth?.teacherId ||
+      (auth?.userId && t.user_id === auth.userId) ||
+      (auth?.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+    );
+    if (me) {
+      slots = slots.filter((s) => s.teacher === me.name);
+    } else {
+      slots = [];
+    }
+    
+    if (selectedClass !== "My Schedule") {
+      slots = slots.filter((s) => s.className === selectedClass);
+    }
+    return slots;
   }, [store.items, selectedClass, auth, teachers, isAdmin]);
 
   function getSlot(day: string, period: string) {
     return classSlots.find((s) => s.day === day && s.period === period);
   }
 
-  function handleAdd() {
+  const handleAdd = () => {
     if (!form.subject) return;
-    // Remove existing slot for same class/day/period
-    const existing = store.items.find(
-      (s) => s.className === form.className && s.day === form.day && s.period === form.period
-    );
-    if (existing) store.remove(existing.id);
-    store.add({ day: form.day, period: form.period, subject: form.subject, teacher: form.teacher, className: form.className } as Omit<TimetableSlot, "id">);
-    setOpen(false);
-    toast.success("Timetable updated");
-  }
 
-  function handleDelete(id: string) {
+    if (editingSlotId) {
+      const slot = store.items.find((s) => s.id === editingSlotId);
+      if (slot) {
+        store.update({ ...slot, day: form.day, period: form.period, subject: form.subject, teacher: form.teacher, className: form.className });
+        toast.success("Timetable slot updated");
+      }
+    } else {
+      // Remove existing slot for same class/day/period
+      const existing = store.items.find(
+        (s) => s.className === form.className && s.day === form.day && s.period === form.period
+      );
+      if (existing) store.remove(existing.id);
+      store.add({ day: form.day, period: form.period, subject: form.subject, teacher: form.teacher, className: form.className } as Omit<TimetableSlot, "id">);
+      toast.success("Timetable slot added");
+    }
+
+    setOpen(false);
+    setEditingSlotId(null);
+  };
+
+  const handleDelete = (id: string) => {
     store.remove(id);
     toast.success("Slot removed");
-  }
+  };
 
-  function openAddForSlot(day: string, period: string) {
+  const handleDeleteFromDialog = () => {
+    if (editingSlotId) {
+      store.remove(editingSlotId);
+      toast.success("Slot removed");
+      setOpen(false);
+      setEditingSlotId(null);
+    }
+  };
+
+  const openAddForSlot = (day: string, period: string) => {
     if (!isAdmin) return;
+    setEditingSlotId(null);
     setForm({ day, period, subject: "", teacher: "", className: selectedClass });
     setOpen(true);
-  }
+  };
 
-  function handleDragEnd(event: DragEndEvent) {
+  const openEditForSlot = (slot: TimetableSlot) => {
+    if (!isAdmin) return;
+    setEditingSlotId(slot.id);
+    setForm({ day: slot.day, period: slot.period, subject: slot.subject, teacher: slot.teacher || "", className: slot.className });
+    setOpen(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     if (!isAdmin) return;
     const { active, over } = event;
     if (!over) return;
@@ -200,7 +250,7 @@ function TimetablePage() {
 
     store.update({ ...slot, day, period });
     toast.success("Timetable updated");
-  }
+  };
 
   return (
     <>
@@ -253,8 +303,14 @@ function TimetablePage() {
             <Select value={selectedClass} onValueChange={setSelectedClass}>
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {!isAdmin && <SelectItem value="My Schedule">My Schedule</SelectItem>}
-                {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {auth?.role === "parent" ? (
+                  parentClasses.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)
+                ) : (
+                  <>
+                    {!isAdmin && <SelectItem value="My Schedule">My Schedule</SelectItem>}
+                    {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -271,7 +327,10 @@ function TimetablePage() {
                 ))}
                 {PERIODS.map((period) => (
                   <div key={period} className="contents">
-                    <div className="p-2 text-xs font-medium text-muted-foreground flex items-center print:text-[10px] print:p-1 print:justify-center print:border print:border-black/25 print:bg-muted/10 print:font-bold">{period}</div>
+                    <div className="p-2 text-xs font-medium text-muted-foreground flex flex-col justify-center print:text-[10px] print:p-1 print:justify-center print:border print:border-black/25 print:bg-muted/10 print:font-bold">
+                      <div className="font-semibold text-foreground leading-tight">{period}</div>
+                      <div className="text-[9px] opacity-70 leading-normal">{PERIOD_TIMES[period]}</div>
+                    </div>
                     {DAYS.map((day) => {
                       const slot = getSlot(day, period);
                       const cellId = `${day}-${period}`;
@@ -279,7 +338,12 @@ function TimetablePage() {
                         <DroppableCell
                           key={cellId}
                           id={cellId}
-                          onClick={() => isAdmin && !slot && openAddForSlot(day, period)}
+                          onClick={() => {
+                            if (isAdmin) {
+                              if (slot) openEditForSlot(slot);
+                              else openAddForSlot(day, period);
+                            }
+                          }}
                         >
                           {slot ? (
                             <DraggableSlot
@@ -308,7 +372,7 @@ function TimetablePage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Add Timetable Slot</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingSlotId ? "Edit Timetable Slot" : "Add Timetable Slot"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -327,13 +391,6 @@ function TimetablePage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Class Level *</Label>
-              <Select value={form.className} onValueChange={(v) => setForm({ ...form, className: v })}>
-                <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Subject *</Label>
               <Select value={form.subject} onValueChange={(v) => setForm({ ...form, subject: v })}>
                 <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
@@ -348,9 +405,16 @@ function TimetablePage() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={!form.subject}>Add Slot</Button>
+          <DialogFooter className="flex items-center justify-between sm:justify-between w-full gap-2">
+            {editingSlotId ? (
+              <Button variant="destructive" onClick={handleDeleteFromDialog} className="cursor-pointer">Delete Slot</Button>
+            ) : (
+              <div />
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">Cancel</Button>
+              <Button onClick={handleAdd} disabled={!form.subject} className="cursor-pointer">{editingSlotId ? "Save Changes" : "Add Slot"}</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
