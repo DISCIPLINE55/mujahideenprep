@@ -75,6 +75,9 @@ function ExamCreatorPage() {
   const [academicTerm, setAcademicTerm] = useState("Third Term");
   const [academicYear, setAcademicYear] = useState("2025/2026");
 
+  const [sourceType, setSourceType] = useState<"topics" | "questions">("topics");
+  const [draftQuestions, setDraftQuestions] = useState("");
+
   // Generation status
   const [isGenerating, setIsGenerating] = useState(false);
   const [examContent, setExamContent] = useState("");
@@ -178,8 +181,12 @@ function ExamCreatorPage() {
 
   // Call AI Exam Generator
   const handleGenerateExam = async () => {
-    if (!topics.trim()) {
+    if (sourceType === "topics" && !topics.trim()) {
       toast.error("Please enter topics to cover in the exam.");
+      return;
+    }
+    if (sourceType === "questions" && !draftQuestions.trim()) {
+      toast.error("Please paste or type the draft questions to enhance.");
       return;
     }
 
@@ -187,7 +194,9 @@ function ExamCreatorPage() {
     const headerHtml = getHeaderTemplate();
     setExamContent(headerHtml);
 
-    const userPrompt = `
+    let userPrompt = "";
+    if (sourceType === "topics") {
+      userPrompt = `
 Generate a professional terminal examination paper.
 CLASS LEVEL: ${selectedClass}
 SUBJECT: ${subject}
@@ -203,6 +212,28 @@ Format the output text as a neat, numbered academic test:
 - Do NOT output any markdown tags (no **, no ##, no #). Format using capitals and line breaks only.
 - Include a dotted line at the end, followed by a hidden or separate ANSWER MARKING SCHEME/KEY (e.g. ANSWER KEY: 1. A, 2. C...) for the teacher's reference.
 `;
+    } else {
+      userPrompt = `
+You are a highly professional examination enhancement assistant. Take the draft questions provided below and enhance, rephrase, and structure them into a high-standard school exam.
+CLASS LEVEL: ${selectedClass}
+SUBJECT: ${subject}
+EXAM TYPE: ${examType}
+QUESTION FORMATS REQUESTED: ${questionType}
+TIME ALLOWED: ${timeAllowed}
+INSTRUCTIONS TO RENDER: ${instructions}
+
+DRAFT QUESTIONS TO ENHANCE:
+${draftQuestions}
+
+Please perform these enhancements:
+1. Rephrase each question to sound clear, unambiguous, and grammatically impeccable matching the appropriate academic grade: ${selectedClass}.
+2. Ensure proper vertical alignment and letter choices (A, B, C, D) if Multiple Choice format is requested.
+3. Organize the exam into clean sections (e.g. SECTION A, SECTION B) matching the requested question format: ${questionType}.
+4. Conform exactly to West African / GES standards of school examinations.
+5. Do NOT output any markdown tags (no **, no ##, no #). Format using capitals and line breaks only.
+6. Include a dotted line at the end, followed by a separate ANSWER KEY/MARKING SCHEME for the teacher.
+`;
+    }
 
     let accumulatedText = "";
 
@@ -309,10 +340,10 @@ Format the output text as a neat, numbered academic test:
       
       let imgTag = "";
       if (!qNo || qNo.trim() === "") {
-        imgTag = `<br/><img src="${base64Url}" style="max-width: 320px; max-height: 240px; display: block; border: 1px solid #ccc; margin: 12px 0;" alt="diagram" /><br/>`;
+        imgTag = `<br/><img src="${base64Url}" style="max-width: 100%; height: auto; max-height: 240px; display: block; border: 1px solid #ccc; margin: 12px 0;" alt="diagram" /><br/>`;
       } else {
-        imgTag = `<br/><div style="text-align: center; margin: 15px 0; display: inline-block; border: 1px solid #000; padding: 8px; background: white; font-family: 'Courier New', Courier, monospace;">
-          <img src="${base64Url}" style="max-width: 320px; max-height: 240px; display: block; border: none;" alt="diagram-q${qNo}" />
+        imgTag = `<br/><div style="text-align: center; margin: 15px 0; display: inline-block; max-width: 100%; box-sizing: border-box; border: 1px solid #000; padding: 8px; background: white; font-family: 'Courier New', Courier, monospace;">
+          <img src="${base64Url}" style="max-width: 100%; height: auto; max-height: 240px; display: block; border: none;" alt="diagram-q${qNo}" />
           <div style="font-size: 11px; font-weight: bold; margin-top: 6px; text-transform: uppercase;">
             Figure for Question ${qNo}
           </div>
@@ -426,10 +457,10 @@ Format the output text as a neat, numbered academic test:
     const dataUrl = canvas.toDataURL("image/png");
     let imgHtml = "";
     if (attachQuestion === "none") {
-      imgHtml = `<br/><img src="${dataUrl}" style="max-width: 300px; display: block; border: 1px dashed #000; padding: 4px; margin: 12px 0; background: white;" alt="canvas-diagram" /><br/>`;
+      imgHtml = `<br/><img src="${dataUrl}" style="max-width: 100%; height: auto; max-height: 240px; display: block; border: 1px dashed #000; padding: 4px; margin: 12px 0; background: white;" alt="canvas-diagram" /><br/>`;
     } else {
-      imgHtml = `<br/><div style="text-align: center; margin: 15px 0; display: inline-block; border: 1px solid #000; padding: 8px; background: white; font-family: 'Courier New', Courier, monospace;">
-        <img src="${dataUrl}" style="max-width: 300px; display: block; border: none;" alt="diagram-q${attachQuestion}" />
+      imgHtml = `<br/><div style="text-align: center; margin: 15px 0; display: inline-block; max-width: 100%; box-sizing: border-box; border: 1px solid #000; padding: 8px; background: white; font-family: 'Courier New', Courier, monospace;">
+        <img src="${dataUrl}" style="max-width: 100%; height: auto; max-height: 240px; display: block; border: none;" alt="diagram-q${attachQuestion}" />
         <div style="font-size: 11px; font-weight: bold; margin-top: 6px; text-transform: uppercase;">
           Figure for Question ${attachQuestion}
         </div>
@@ -474,6 +505,18 @@ Format the output text as a neat, numbered academic test:
             max-width: 100% !important;
             min-height: 0 !important;
           }
+        }
+        #exam-editor-content img {
+          max-width: 100% !important;
+          height: auto !important;
+          max-height: 240px !important;
+          object-fit: contain !important;
+          display: block;
+          margin: 12px auto !important;
+        }
+        #exam-editor-content div {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
         }
       `}} />
       <TopBar title="Exam Creator" />
@@ -598,16 +641,49 @@ Format the output text as a neat, numbered academic test:
                   </div>
                 </div>
 
-                <div className="space-y-1 pt-1">
-                  <Label htmlFor="topics-textarea" className="text-xs">Enter Syllabus Topics (separated by commas)</Label>
-                  <Textarea
-                    id="topics-textarea"
-                    placeholder="e.g. Photosynthesis, Plant structure, Living and Non-living things"
-                    value={topics}
-                    onChange={(e) => setTopics(e.target.value)}
-                    className="min-h-[80px] text-xs leading-relaxed"
-                  />
+                <div className="space-y-1.5 pt-1">
+                  <Label className="text-xs font-semibold">Questions Source</Label>
+                  <div className="flex border rounded-md overflow-hidden bg-background">
+                    <button 
+                      type="button"
+                      className={`text-[11px] font-medium h-7 flex-1 transition-colors cursor-pointer ${sourceType === "topics" ? "bg-secondary text-secondary-foreground font-semibold" : "hover:bg-muted text-muted-foreground"}`}
+                      onClick={() => setSourceType("topics")}
+                    >
+                      Syllabus Topics
+                    </button>
+                    <button 
+                      type="button"
+                      className={`text-[11px] font-medium h-7 flex-1 transition-colors cursor-pointer ${sourceType === "questions" ? "bg-secondary text-secondary-foreground font-semibold" : "hover:bg-muted text-muted-foreground"}`}
+                      onClick={() => setSourceType("questions")}
+                    >
+                      Enhance Drafts
+                    </button>
+                  </div>
                 </div>
+
+                {sourceType === "topics" ? (
+                  <div className="space-y-1 pt-1">
+                    <Label htmlFor="topics-textarea" className="text-xs">Enter Syllabus Topics (separated by commas)</Label>
+                    <Textarea
+                      id="topics-textarea"
+                      placeholder="e.g. Photosynthesis, Plant structure, Living and Non-living things"
+                      value={topics}
+                      onChange={(e) => setTopics(e.target.value)}
+                      className="min-h-[85px] text-xs leading-relaxed"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1 pt-1">
+                    <Label htmlFor="drafts-textarea" className="text-xs">Paste Your Draft Questions (one per line)</Label>
+                    <Textarea
+                      id="drafts-textarea"
+                      placeholder="e.g. 1. What is gravity?&#10;2. Draft: who invented the telephone? (A) Bell (B) Edison"
+                      value={draftQuestions}
+                      onChange={(e) => setDraftQuestions(e.target.value)}
+                      className="min-h-[85px] text-xs leading-relaxed"
+                    />
+                  </div>
+                )}
 
                 <Button 
                   onClick={handleGenerateExam} 
@@ -617,12 +693,12 @@ Format the output text as a neat, numbered academic test:
                   {isGenerating ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
-                      Generating Questions...
+                      {sourceType === "questions" ? "Enhancing Drafts..." : "Generating Questions..."}
                     </>
                   ) : (
                     <>
                       <Sparkles className="h-3.5 w-3.5 mr-2 text-lemon" />
-                      Generate Exam Paper
+                      {sourceType === "questions" ? "Enhance Draft Questions" : "Generate Exam Paper"}
                     </>
                   )}
                 </Button>
@@ -732,7 +808,7 @@ Format the output text as a neat, numbered academic test:
                 ref={editorRef}
                 contentEditable={true}
                 suppressContentEditableWarning={true}
-                className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-4 sm:p-8 md:p-12 border shadow-sm rounded-md font-mono whitespace-pre-wrap leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
+                className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-4 sm:p-8 md:p-12 border shadow-sm rounded-md font-mono whitespace-pre-wrap break-words leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
                 placeholder="Click here to type or use the controls on the left to generate exam paper questions..."
                 style={{ fontFamily: "'Courier New', Courier, monospace" }}
               />

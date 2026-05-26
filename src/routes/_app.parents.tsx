@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Link2, Trash2, Mail, Users, Pencil } from "lucide-react";
+import { Plus, Link2, Trash2, Mail, Users, Pencil, Search } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auth";
@@ -59,6 +59,19 @@ function ParentsPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
+
+  const [parentSearch, setParentSearch] = useState("");
+
+  const filteredParents = useMemo(() => {
+    if (!parentSearch.trim()) return parents;
+    const query = parentSearch.toLowerCase().trim();
+    return parents.filter((p) => {
+      const nameMatch = (p.full_name || "").toLowerCase().includes(query);
+      const emailMatch = (p.email || "").toLowerCase().includes(query);
+      const childMatch = p.children.some((c) => c.name.toLowerCase().includes(query));
+      return nameMatch || emailMatch || childMatch;
+    });
+  }, [parents, parentSearch]);
 
   async function load(silent = false) {
     if (!silent && parents.length === 0) setLoading(true);
@@ -248,21 +261,35 @@ function ParentsPage() {
               </DialogContent>
             </Dialog>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {parents.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search parents by name, email, or child's name..."
+                  value={parentSearch}
+                  onChange={(e) => setParentSearch(e.target.value)}
+                  className="pl-9 h-10 w-full text-sm"
+                />
+              </div>
+            )}
+
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : parents.length === 0 ? (
               <p className="text-sm text-muted-foreground">No parent accounts yet. Click "Add Parent" to create the first one.</p>
+            ) : filteredParents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No parent accounts found matching "{parentSearch}"</p>
             ) : (
               <div className="space-y-3">
-                {parents.map((p) => (
+                {filteredParents.map((p) => (
                   <div key={p.user_id} className="border rounded-lg p-3">
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <div>
                         <p className="font-medium">{p.full_name || "(no name)"}</p>
                         <p className="text-xs text-muted-foreground">{p.email}</p>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <Button size="sm" variant="outline" onClick={() => {
                           setEditParent(p);
                           setEditName(p.full_name || "");
