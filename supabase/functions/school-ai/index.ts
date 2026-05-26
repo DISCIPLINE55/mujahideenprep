@@ -55,7 +55,7 @@ Strictly follow these rules:
 
     let apiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
     let apiAuthHeader = `Bearer ${GEMINI_API_KEY}`;
-    let apiModel = "gemini-2.5-flash";
+    let apiModel = "gemini-1.5-flash";
 
     if (OPENAI_API_KEY) {
       apiUrl = "https://api.openai.com/v1/chat/completions";

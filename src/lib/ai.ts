@@ -63,7 +63,7 @@ Strictly follow these rules:
           "Authorization": `Bearer ${VITE_GEMINI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "gemini-2.5-flash",
+          model: "gemini-1.5-flash",
           messages: [
             { role: "system", content: systemMessage },
             ...messages,
