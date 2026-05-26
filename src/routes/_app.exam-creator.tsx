@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { 
   Sparkles, Printer, Download, Image as ImageIcon, Paintbrush, 
   Bold, Italic, Underline, Trash2, FileText, Loader2, Eraser, 
-  Square, Circle, Minus 
+  Square, Circle, Minus, Upload 
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, type Subject } from "@/lib/storage";
@@ -356,6 +356,31 @@ Please perform these enhancements:
     e.target.value = ""; // Reset file picker
   };
 
+  // Upload Local Document File containing questions
+  const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (file.name.endsWith(".txt")) {
+        setDraftQuestions(text);
+        setSourceType("questions");
+        toast.success("Document text imported successfully!");
+      } else {
+        // Basic plain text extraction for other files
+        const cleanText = text.replace(/[^\x20-\x7E\n\r\t]/g, "").trim();
+        setDraftQuestions(cleanText.slice(0, 8000));
+        setSourceType("questions");
+        toast.success("Text extracted from document!");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // Reset file picker
+  };
+
   // Canvas Sketching Operations
   const initCanvas = () => {
     const canvas = canvasRef.current;
@@ -674,7 +699,16 @@ Please perform these enhancements:
                   </div>
                 ) : (
                   <div className="space-y-1 pt-1">
-                    <Label htmlFor="drafts-textarea" className="text-xs">Paste Your Draft Questions (one per line)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="drafts-textarea" className="text-xs">Paste Your Draft Questions (one per line)</Label>
+                      <button 
+                        type="button" 
+                        className="text-[10px] text-primary font-medium hover:underline flex items-center gap-0.5 cursor-pointer"
+                        onClick={() => document.getElementById("doc-upload-helper")?.click()}
+                      >
+                        <Upload className="h-2.5 w-2.5" /> Upload file
+                      </button>
+                    </div>
                     <Textarea
                       id="drafts-textarea"
                       placeholder="e.g. 1. What is gravity?&#10;2. Draft: who invented the telephone? (A) Bell (B) Edison"
@@ -682,6 +716,7 @@ Please perform these enhancements:
                       onChange={(e) => setDraftQuestions(e.target.value)}
                       className="min-h-[85px] text-xs leading-relaxed"
                     />
+                    <p className="text-[9px] text-muted-foreground leading-none mt-0.5">Supported format: .txt (Raw text) or copy-paste directly.</p>
                   </div>
                 )}
 
@@ -749,7 +784,7 @@ Please perform these enhancements:
                   title="Draw a diagram on canvas"
                 >
                   <Paintbrush className="h-3.5 w-3.5" />
-                  Sketch Diagram
+                  <span className="hidden sm:inline">Sketch Diagram</span>
                 </Button>
 
                 {/* Upload diagram */}
@@ -769,7 +804,28 @@ Please perform these enhancements:
                     title="Upload diagram image file"
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
-                    Upload Image
+                    <span className="hidden sm:inline">Upload Image</span>
+                  </Button>
+                </div>
+
+                {/* Upload document */}
+                <div className="relative">
+                  <input 
+                    type="file" 
+                    id="doc-upload-helper" 
+                    accept=".txt,.doc,.docx,.pdf" 
+                    onChange={handleDocUpload} 
+                    className="hidden" 
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-xs gap-1.5" 
+                    onClick={() => document.getElementById("doc-upload-helper")?.click()}
+                    title="Upload document containing questions"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Upload Doc</span>
                   </Button>
                 </div>
               </div>
@@ -785,7 +841,7 @@ Please perform these enhancements:
                   if (val === "txt") handleDownloadTxt();
                   else if (val === "doc") handleDownloadDoc();
                 }}>
-                  <SelectTrigger className="h-8 text-xs gap-1.5 w-28"><Download className="h-3.5 w-3.5" /><SelectValue placeholder="Export" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs gap-1.5 w-10 sm:w-28"><Download className="h-3.5 w-3.5" /><span className="hidden sm:inline"><SelectValue placeholder="Export" /></span></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="txt" className="text-xs">Plain Text (.txt)</SelectItem>
                     <SelectItem value="doc" className="text-xs">Word Doc (.doc)</SelectItem>
@@ -794,7 +850,7 @@ Please perform these enhancements:
 
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePrintExam} title="Print Exam Paper">
                   <Printer className="h-3.5 w-3.5" />
-                  Print Paper
+                  <span className="hidden sm:inline">Print Paper</span>
                 </Button>
               </div>
             </div>
