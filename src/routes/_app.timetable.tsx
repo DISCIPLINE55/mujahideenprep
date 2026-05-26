@@ -327,6 +327,13 @@ function TimetablePage() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Class Level *</Label>
+              <Select value={form.className} onValueChange={(v) => setForm({ ...form, className: v })}>
+                <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Subject *</Label>
               <Select value={form.subject} onValueChange={(v) => setForm({ ...form, subject: v })}>
                 <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>

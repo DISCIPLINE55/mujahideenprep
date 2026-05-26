@@ -90,6 +90,8 @@ function ExamCreatorPage() {
   const [penColor, setPenColor] = useState("#000000");
   const [penWidth, setPenWidth] = useState(3);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [drawMode, setDrawMode] = useState<"draw" | "text">("draw");
+  const [attachQuestion, setAttachQuestion] = useState("none");
 
   // Sync state content to editor during AI streaming
   useEffect(() => {
@@ -163,8 +165,8 @@ function ExamCreatorPage() {
   </table>
   <table style="width: 100%; text-align: left; font-size: 12px; font-weight: bold; margin-bottom: 15px;">
     <tr>
-      <td style="width: 65%;">STUDENT NAME: ____________________________________</td>
-      <td style="width: 35%; text-align: right;">INDEX NO: _________________</td>
+      <td style="width: 65%;">STUDENT NAME: ____________________________</td>
+      <td style="width: 35%; text-align: right;">INDEX NO: ______________</td>
     </tr>
   </table>
   <div style="text-align: left; font-size: 12px; font-style: italic; border: 1px solid #000; padding: 8px; margin-bottom: 20px;">
@@ -303,7 +305,19 @@ Format the output text as a neat, numbered academic test:
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64Url = event.target?.result as string;
-      const imgTag = `<br/><img src="${base64Url}" style="max-width: 320px; max-height: 240px; display: block; border: 1px solid #ccc; margin: 12px 0;" alt="diagram" /><br/>`;
+      const qNo = prompt("Attach this diagram to a specific question number? (Enter number, e.g. 5, or leave blank to insert at current cursor):");
+      
+      let imgTag = "";
+      if (!qNo || qNo.trim() === "") {
+        imgTag = `<br/><img src="${base64Url}" style="max-width: 320px; max-height: 240px; display: block; border: 1px solid #ccc; margin: 12px 0;" alt="diagram" /><br/>`;
+      } else {
+        imgTag = `<br/><div style="text-align: center; margin: 15px 0; display: inline-block; border: 1px solid #000; padding: 8px; background: white; font-family: 'Courier New', Courier, monospace;">
+          <img src="${base64Url}" style="max-width: 320px; max-height: 240px; display: block; border: none;" alt="diagram-q${qNo}" />
+          <div style="font-size: 11px; font-weight: bold; margin-top: 6px; text-transform: uppercase;">
+            Figure for Question ${qNo}
+          </div>
+        </div><br/>`;
+      }
       insertHTMLAtCursor(imgTag);
       toast.success("Diagram image inserted!");
     };
@@ -364,6 +378,17 @@ Format the output text as a neat, numbered academic test:
     if (!ctx) return;
 
     const { x, y } = getCoordinates(e);
+
+    if (drawMode === "text") {
+      const labelText = prompt("Enter label / text text:");
+      if (labelText) {
+        ctx.font = "bold 13px 'Courier New', Courier, monospace";
+        ctx.fillStyle = penColor;
+        ctx.fillText(labelText, x, y);
+      }
+      return;
+    }
+
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.strokeStyle = penColor;
@@ -399,9 +424,21 @@ Format the output text as a neat, numbered academic test:
     if (!canvas) return;
 
     const dataUrl = canvas.toDataURL("image/png");
-    const imgHtml = `<br/><img src="${dataUrl}" style="max-width: 300px; display: block; border: 1px dashed #000; padding: 4px; margin: 12px 0; background: white;" alt="canvas-diagram" /><br/>`;
+    let imgHtml = "";
+    if (attachQuestion === "none") {
+      imgHtml = `<br/><img src="${dataUrl}" style="max-width: 300px; display: block; border: 1px dashed #000; padding: 4px; margin: 12px 0; background: white;" alt="canvas-diagram" /><br/>`;
+    } else {
+      imgHtml = `<br/><div style="text-align: center; margin: 15px 0; display: inline-block; border: 1px solid #000; padding: 8px; background: white; font-family: 'Courier New', Courier, monospace;">
+        <img src="${dataUrl}" style="max-width: 300px; display: block; border: none;" alt="diagram-q${attachQuestion}" />
+        <div style="font-size: 11px; font-weight: bold; margin-top: 6px; text-transform: uppercase;">
+          Figure for Question ${attachQuestion}
+        </div>
+      </div><br/>`;
+    }
+    
     insertHTMLAtCursor(imgHtml);
     setCanvasOpen(false);
+    setAttachQuestion("none"); // Reset state
     toast.success("Sketch inserted successfully!");
   };
 
@@ -706,7 +743,7 @@ Format the output text as a neat, numbered academic test:
 
       {/* Canvas Sketchpad Drawing Dialog */}
       <Dialog open={canvasOpen} onOpenChange={setCanvasOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-xl sm:w-full mx-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Paintbrush className="h-5 w-5 text-primary" /> Diagram Sketchpad</DialogTitle>
             <DialogDescription className="text-xs">Draw geometric shapes, arrows, or labels using your cursor/touch screen, then insert them directly into the exam document.</DialogDescription>
@@ -730,6 +767,28 @@ Format the output text as a neat, numbered academic test:
               </div>
 
               <div className="flex items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Mode:</span>
+                <div className="flex border rounded-md overflow-hidden bg-background">
+                  <Button 
+                    variant={drawMode === "draw" ? "secondary" : "ghost"} 
+                    size="sm" 
+                    className="h-7 text-xs px-2.5 rounded-none cursor-pointer"
+                    onClick={() => setDrawMode("draw")}
+                  >
+                    Brush
+                  </Button>
+                  <Button 
+                    variant={drawMode === "text" ? "secondary" : "ghost"} 
+                    size="sm" 
+                    className="h-7 text-xs px-2.5 rounded-none cursor-pointer"
+                    onClick={() => setDrawMode("text")}
+                  >
+                    Text Label
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Stroke:</span>
                 <Select value={penWidth.toString()} onValueChange={(val) => setPenWidth(parseInt(val))}>
                   <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
@@ -743,7 +802,7 @@ Format the output text as a neat, numbered academic test:
               </div>
 
               <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={clearCanvas}>
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1 cursor-pointer" onClick={clearCanvas}>
                   <Eraser className="h-3 w-3" />
                   Clear
                 </Button>
@@ -768,9 +827,25 @@ Format the output text as a neat, numbered academic test:
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" className="text-xs" onClick={() => setCanvasOpen(false)}>Cancel</Button>
-            <Button className="text-xs bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleInsertCanvasImage}>Insert to Exam</Button>
+          <DialogFooter className="w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4 border-t pt-3">
+              <div className="flex items-center gap-2 text-xs w-full sm:w-auto">
+                <span className="font-semibold text-muted-foreground whitespace-nowrap">Attach to Question:</span>
+                <Select value={attachQuestion} onValueChange={setAttachQuestion}>
+                  <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">None (Cursor)</SelectItem>
+                    {Array.from({ length: 20 }, (_, idx) => (
+                      <SelectItem key={idx + 1} value={(idx + 1).toString()} className="text-xs">Question {idx + 1}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button variant="outline" className="text-xs h-8 cursor-pointer" onClick={() => setCanvasOpen(false)}>Cancel</Button>
+                <Button className="text-xs h-8 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer" onClick={handleInsertCanvasImage}>Insert to Exam</Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
