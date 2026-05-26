@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Trash2, Sparkles, Loader2, Printer } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, getItems, type Subject, type Teacher, type TimetableSlot } from "@/lib/storage";
 import { callSchoolAI } from "@/lib/ai";
@@ -50,7 +50,7 @@ function DroppableCell({ id, onClick, children }: { id: string, onClick?: () => 
   return (
     <div
       ref={setNodeRef}
-      className={`p-2 border rounded-lg min-h-[60px] cursor-pointer transition-colors relative group ${isOver ? 'bg-primary/20 border-primary' : 'hover:bg-accent/20'}`}
+      className={`p-2 border rounded-lg min-h-[60px] cursor-pointer transition-colors relative group print:min-h-[55px] print:p-1.5 print:rounded-md print:border-black/25 ${isOver ? 'bg-primary/20 border-primary' : 'hover:bg-accent/20'}`}
       onClick={onClick}
     >
       {children}
@@ -62,16 +62,19 @@ function DraggableSlot({ id, slot, onDelete, disabled }: { id: string, slot: Tim
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id, disabled });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 } : undefined;
   
+  const auth = getAuthSync();
+  const showClassName = auth?.role === "teacher";
+  
   return (
     <div 
       ref={setNodeRef} 
       style={style} 
       {...listeners} 
       {...attributes} 
-      className={`w-full h-full p-1.5 rounded-md border flex flex-col justify-center relative focus:outline-none transition-all ${getSubjectColor(slot.subject)}`}
+      className={`w-full h-full p-1.5 rounded-md border flex flex-col justify-center relative focus:outline-none transition-all print:bg-white print:text-black print:border-black/30 print:shadow-none ${getSubjectColor(slot.subject)}`}
     >
-      <p className="text-[10px] font-bold leading-tight truncate">{slot.subject}</p>
-      <p className="text-[9px] opacity-80 truncate">{slot.teacher}</p>
+      <p className="text-[10px] font-bold leading-tight truncate print:text-[10px] print:text-black">{slot.subject}</p>
+      <p className="text-[9px] opacity-80 truncate print:text-[9px] print:text-black/80 print:opacity-100">{showClassName ? slot.className : slot.teacher}</p>
       {!disabled && (
         <Button
           variant="ghost"
@@ -93,15 +96,16 @@ function TimetablePage() {
   const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
   const subjects = subjectStore.items;
   const teachers = teacherStore.items;
-  const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
+
+  const auth = getAuthSync();
+  const isAdmin = auth?.role === "admin";
+
+  const [selectedClass, setSelectedClass] = useState(isAdmin ? CLASS_LIST[0] : "My Schedule");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ day: DAYS[0], period: PERIODS[0], subject: "", teacher: "", className: CLASS_LIST[0] });
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-
-  const auth = getAuthSync();
-  const isAdmin = auth?.role === "admin";
 
   async function handleAISuggest() {
     setAiOpen(true); setAiText(""); setAiLoading(true);
@@ -121,10 +125,30 @@ function TimetablePage() {
     setAiLoading(false);
   }
 
-  const classSlots = useMemo(
-    () => store.items.filter((s) => s.className === selectedClass),
-    [store.items, selectedClass]
-  );
+  const classSlots = useMemo(() => {
+    let slots = store.items;
+
+    if (!isAdmin) {
+      // Find the logged-in teacher profile using our robust matching logic
+      const me = teachers.find((t) => 
+        t.id === auth?.teacherId ||
+        (auth?.userId && t.user_id === auth.userId) ||
+        (auth?.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+      );
+      if (me) {
+        slots = slots.filter((s) => s.teacher === me.name);
+      } else {
+        slots = [];
+      }
+      
+      if (selectedClass !== "My Schedule") {
+        slots = slots.filter((s) => s.className === selectedClass);
+      }
+      return slots;
+    }
+
+    return slots.filter((s) => s.className === selectedClass);
+  }, [store.items, selectedClass, auth, teachers, isAdmin]);
 
   function getSlot(day: string, period: string) {
     return classSlots.find((s) => s.day === day && s.period === period);
@@ -180,9 +204,37 @@ function TimetablePage() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: landscape;
+            margin: 0.5cm;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          .print-full-width {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+      `}} />
       <TopBar title="Timetable" />
-      <div className="p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-6 space-y-6 print:p-0 print:space-y-4">
+        {/* Printable Header */}
+        <div className="hidden print:flex flex-col items-center justify-center text-center pb-4 border-b-2 border-double border-primary/20 mb-4">
+          <h1 className="text-2xl font-bold tracking-wider text-primary uppercase">Mujahideen Preparatory School</h1>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Mankessim, Central Region, Ghana | ESTD 1997</p>
+          <p className="text-[10px] text-muted-foreground">Email: info@mujahideenprep.edu.gh | Tel: +233 24 123 4567</p>
+          <h2 className="text-base font-bold mt-3 px-6 py-1 border border-primary/25 bg-muted/30 rounded-full">
+            {selectedClass === "My Schedule" ? `TEACHER WEEKLY SCHEDULE: ${auth?.name || "Teacher"}` : `WEEKLY CLASS TIMETABLE: ${selectedClass}`}
+          </h2>
+          <p className="text-[9px] text-muted-foreground mt-1">Printed on: {new Date().toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
           <div>
             <h2 className="text-xl font-bold text-foreground">Class Timetable</h2>
             <p className="text-sm text-muted-foreground">Weekly schedule for each class</p>
@@ -194,24 +246,32 @@ function TimetablePage() {
                 AI Suggest
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="h-3.5 w-3.5 mr-1" />
+              Print Timetable
+            </Button>
             <Select value={selectedClass} onValueChange={setSelectedClass}>
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              <SelectContent>
+                {!isAdmin && <SelectItem value="My Schedule">My Schedule</SelectItem>}
+                {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
             </Select>
           </div>
         </div>
 
         <DndContext onDragEnd={handleDragEnd}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[800px]">
-              <div className="grid grid-cols-[120px_repeat(5,1fr)] gap-1">
-                <div className="p-2 font-bold text-sm text-muted-foreground" />
+          <div className="overflow-x-auto print:overflow-visible">
+            <div className="min-w-[800px] print:min-w-0 print:w-full print:max-w-none">
+              <div className="grid grid-cols-[120px_repeat(5,1fr)] print:grid-cols-[90px_repeat(5,1fr)] gap-1 print:gap-1.5 print:text-black">
+                <div className="p-2 font-bold text-sm text-muted-foreground print:hidden" />
+                <div className="hidden print:flex p-1 text-[11px] font-bold text-muted-foreground items-center justify-center border border-black/20 bg-muted/20">Period</div>
                 {DAYS.map((d) => (
-                  <div key={d} className="p-2 text-center font-bold text-sm bg-primary text-primary-foreground rounded-t-lg">{d}</div>
+                  <div key={d} className="p-2 text-center font-bold text-sm bg-primary text-primary-foreground print:bg-muted print:text-foreground print:border print:border-black/25 rounded-t-lg print:rounded-none print:py-1.5 print:text-xs">{d}</div>
                 ))}
                 {PERIODS.map((period) => (
                   <div key={period} className="contents">
-                    <div className="p-2 text-xs font-medium text-muted-foreground flex items-center">{period}</div>
+                    <div className="p-2 text-xs font-medium text-muted-foreground flex items-center print:text-[10px] print:p-1 print:justify-center print:border print:border-black/25 print:bg-muted/10 print:font-bold">{period}</div>
                     {DAYS.map((day) => {
                       const slot = getSlot(day, period);
                       const cellId = `${day}-${period}`;

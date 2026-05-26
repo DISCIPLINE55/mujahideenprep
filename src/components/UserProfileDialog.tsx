@@ -8,6 +8,48 @@ import { getAuthSync, setAuth, type AuthState } from "@/lib/auth";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
+function compressImage(file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export function UserProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const auth = getAuthSync();
   const { t } = useTranslation();
@@ -25,14 +67,18 @@ export function UserProfileDialog({ open, onOpenChange }: { open: boolean; onOpe
     window.dispatchEvent(new Event("storage")); // trigger TopBar refresh
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setAvatarUrl(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    
+    const loader = toast.loading("Compressing image...");
+    try {
+      const compressed = await compressImage(file, 150, 150, 0.7);
+      setAvatarUrl(compressed);
+      toast.success("Image compressed!", { id: loader });
+    } catch (err) {
+      toast.error("Failed to process image", { id: loader });
+    }
   }
 
   return (

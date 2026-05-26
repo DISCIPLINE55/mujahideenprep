@@ -69,7 +69,7 @@ export function DashboardLayout({ role }: { role: UserRole; name: string }) {
 
       <main
         className={cn(
-          "min-h-screen sidebar-transition",
+          "min-h-screen sidebar-transition print:ml-0 print:p-0",
           collapsed ? "lg:ml-16" : "lg:ml-60"
         )}
       >

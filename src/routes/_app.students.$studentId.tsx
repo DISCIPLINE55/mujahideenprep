@@ -31,6 +31,9 @@ function StudentProfilePage() {
   const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const student = studentStore.items.find((s) => s.id === studentId);
   const disciplineStore = useStore<DisciplineRecord>(KEYS.DISCIPLINE, []);
+  const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
+  const resultsStore = useStore<ExamResult>(KEYS.RESULTS, []);
+  const paymentsStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
 
   const [discOpen, setDiscOpen] = useState(false);
   const [discForm, setDiscForm] = useState<Omit<DisciplineRecord, "id" | "studentId">>({
@@ -52,9 +55,9 @@ function StudentProfilePage() {
     );
   }
 
-  const attendance = getItems<AttendanceRecord>(KEYS.ATTENDANCE, []).filter((a) => a.studentId === studentId);
-  const results = getItems<ExamResult>(KEYS.RESULTS, []).filter((r) => r.studentId === studentId);
-  const payments = getItems<Payment>(KEYS.PAYMENTS, defaultPayments).filter((p) => p.studentId === studentId);
+  const attendance = attendanceStore.items.filter((a) => a.studentId === studentId);
+  const results = resultsStore.items.filter((r) => r.studentId === studentId);
+  const payments = paymentsStore.items.filter((p) => p.studentId === studentId);
   const studentDiscipline = disciplineStore.items.filter((d) => d.studentId === studentId);
 
   const presentDays = attendance.filter((a) => a.status === "Present").length;

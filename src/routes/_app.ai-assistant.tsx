@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, User, Loader2, Trash2 } from "lucide-react";
+import { Send, Sparkles, User, Loader2, Trash2, Mic, MicOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { stripMarkdown } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/ai-assistant")({
   head: () => ({
@@ -53,14 +54,91 @@ async function streamChat({
 }
 
 function AIAssistantPage() {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("mpsms_ai_history");
+      if (stored) {
+        try {
+          return JSON.parse(stored) as Msg[];
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Voice recording / Speech transcription variables
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.lang = "en-US";
+
+        rec.onstart = () => {
+          setIsRecording(true);
+        };
+
+        rec.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput((prev) => (prev ? prev + " " + transcript : transcript));
+          toast.success("Voice transcribed!");
+        };
+
+        rec.onerror = (event: any) => {
+          console.error("Speech error:", event.error);
+          if (event.error === "not-allowed") {
+            toast.error("Microphone access denied.");
+          } else if (event.error !== "no-speech") {
+            toast.error(`Speech recognition failed: ${event.error}`);
+          }
+          setIsRecording(false);
+        };
+
+        rec.onend = () => {
+          setIsRecording(false);
+        };
+
+        recognitionRef.current = rec;
+      }
+    }
+  }, []);
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      toast.error("Speech recognition not supported in this browser. Try Chrome or Safari.");
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error("Failed to start recording:", err);
+      }
+    }
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mpsms_ai_history", JSON.stringify(messages));
     }
   }, [messages]);
 
@@ -185,13 +263,27 @@ function AIAssistantPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                placeholder="Ask me anything about school management..."
-                className="pr-12"
+                placeholder={isRecording ? "Listening..." : "Ask me anything about school management..."}
+                className="pr-12 pl-10"
                 disabled={isLoading}
               />
               <Button
+                variant="ghost"
                 size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                className={`absolute left-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full transition-all cursor-pointer ${
+                  isRecording 
+                    ? "text-red-500 bg-red-500/10 hover:bg-red-500/20 animate-pulse" 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={toggleRecording}
+                disabled={isLoading}
+                title={isRecording ? "Stop Listening" : "Record Voice Query"}
+              >
+                {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+              <Button
+                size="icon"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 cursor-pointer"
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
               >

@@ -49,7 +49,14 @@ function SettingsPage() {
   const role = auth?.role?.toLowerCase();
 
   // Teacher settings states
-  const teacher = useMemo(() => teacherStore.items.find(t => t.id === auth?.teacherId), [teacherStore.items, auth]);
+  const teacher = useMemo(() => {
+    if (!auth) return null;
+    return teacherStore.items.find(t => 
+      t.id === auth.teacherId ||
+      (auth.userId && t.user_id === auth.userId) ||
+      (auth.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+    );
+  }, [teacherStore.items, auth]);
   const [teacherForm, setTeacherForm] = useState<Partial<Teacher>>({});
 
   useEffect(() => {

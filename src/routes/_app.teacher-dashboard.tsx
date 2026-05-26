@@ -36,7 +36,14 @@ function TeacherDashboard() {
   const attendance = attendanceStore.items;
   const events = eventStore.items;
 
-  const teacher = useMemo(() => teachers.find((t) => t.id === auth?.teacherId), [teachers, auth]);
+  const teacher = useMemo(() => {
+    if (!auth) return null;
+    return teachers.find((t) => 
+      t.id === auth.teacherId ||
+      (auth.userId && t.user_id === auth.userId) ||
+      (auth.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+    );
+  }, [teachers, auth]);
   const teacherName = teacher?.name ?? auth?.name ?? "Teacher";
 
   // Parse assigned classes from teacher record (combining profile classes string and classes table)

@@ -8,7 +8,7 @@ export async function streamSchoolAI({
   onError,
 }: {
   messages: { role: string; content: string }[];
-  type?: "chat" | "report_comment" | "attendance_insight" | "fee_reminder" | "timetable_suggest";
+  type?: "chat" | "report_comment" | "attendance_insight" | "fee_reminder" | "timetable_suggest" | "exam_creator";
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -41,6 +41,17 @@ Be professional, helpful, and culturally aware of the Ghanaian educational conte
         fee_reminder: `You are the administration office of Mujahideen Preparatory School, Mankessim. Draft a polite, professional fee reminder letter/SMS to a parent/guardian. Include the school name, student details, and outstanding amount. Be respectful and firm. Use British English.`,
 
         timetable_suggest: `You are a timetable coordinator for Mujahideen Preparatory School. Based on the provided data about teachers, subjects, classes, and existing slots, suggest optimal timetable arrangements that avoid conflicts. Be practical and concise. Use British English.`,
+
+        exam_creator: `You are an expert curriculum developer and examiner for Mujahideen Preparatory School, Mankessim, Ghana.
+Your job is to generate standard, professional class or terminal examinations.
+Strictly follow these rules:
+1. Do NOT output any markdown header symbols (like #, ##, ###) or bold markers (like **). Instead, write headers in clean UPPERCASE or spacing, and write bold text in simple capitalization or plain text.
+2. Structure the exam with:
+   - SECTION A: OBJECTIVE TEST (Multiple choice questions with options A, B, C, D)
+   - SECTION B: ESSAY/THEORY (Structured questions requiring written answers)
+3. Ensure questions are age-appropriate and relevant to the selected class and subject topics.
+4. For questions requiring a diagram, output a clear, simple text/ASCII diagram (e.g. triangles using slashes/underscores, coordinate grids, or tables) and clearly label it, or describe the diagram in detail so the teacher can draw/insert it.
+5. Provide a clear marking scheme or key at the very end of the exam paper, separated by a dotted line.`,
       };
       
       const systemMessage = systemPrompts[type] || systemPrompts.chat;
@@ -142,7 +153,7 @@ Be professional, helpful, and culturally aware of the Ghanaian educational conte
 
 // Shared helper to call the school-ai edge function and stream a response into a single string.
 export async function callSchoolAI(opts: {
-  type: "chat" | "report_comment" | "attendance_insight" | "fee_reminder" | "timetable_suggest";
+  type: "chat" | "report_comment" | "attendance_insight" | "fee_reminder" | "timetable_suggest" | "exam_creator";
   prompt: string;
 }): Promise<string> {
   return new Promise((resolve, reject) => {

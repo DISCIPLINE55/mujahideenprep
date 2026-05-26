@@ -26,7 +26,8 @@ export const Route = createFileRoute("/_app/classes")({
 
 function ClassesPage() {
   const store = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const students = studentStore.items;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SchoolClass | null>(null);
   const [form, setForm] = useState({ name: "", teacher: "", capacity: 30 });
@@ -50,13 +51,13 @@ function ClassesPage() {
     const fromIndex = CLASS_LIST.indexOf(promoteFrom);
     if (fromIndex < 0 || fromIndex >= CLASS_LIST.length - 1) { toast.error("Cannot promote from the highest class"); return; }
     const toClass = CLASS_LIST[fromIndex + 1];
-    const allStudents = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+    const allStudents = studentStore.items;
     let count = 0;
     const updated = allStudents.map((s) => {
       if (s.class === promoteFrom && s.status === "Active") { count++; return { ...s, class: toClass }; }
       return s;
     });
-    setItems(KEYS.STUDENTS, updated);
+    studentStore.syncAll(updated);
     setPromoteOpen(false);
     toast.success(`${count} students promoted from ${promoteFrom} to ${toClass}`);
   }

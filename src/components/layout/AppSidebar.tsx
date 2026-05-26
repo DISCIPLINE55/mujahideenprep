@@ -49,6 +49,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Communications: MessageSquare,
   Reports: BarChart3,
   "AI Assistant": Sparkles,
+  "Exam Creator": FileText,
   Settings: Settings,
   Tutorial: HelpCircle,
 };
@@ -77,7 +78,7 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar-bg sidebar-transition shadow-lg lg:shadow-none",
+        "fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar-bg sidebar-transition shadow-lg lg:shadow-none print:hidden",
         collapsed ? "w-16" : "w-60"
       )}
     >

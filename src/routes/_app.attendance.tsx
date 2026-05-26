@@ -44,7 +44,11 @@ function AttendancePage() {
 
   const teacherClassNames = useMemo(() => {
     if (!isTeacher) return null;
-    const me = teachers.find((t) => t.id === auth?.teacherId);
+    const me = teachers.find((t) => 
+      t.id === auth?.teacherId ||
+      (auth?.userId && t.user_id === auth.userId) ||
+      (auth?.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+    );
     if (!me) return [];
 
     // 1. Get class names from teacher profile classes (comma-separated string, e.g. "Creche")

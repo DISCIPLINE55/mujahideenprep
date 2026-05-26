@@ -58,7 +58,8 @@ const defaultBooks: LibraryBook[] = [
 function LibraryPage() {
   const bookStore = useStore<LibraryBook>("mpsms_library_books", defaultBooks);
   const issueStore = useStore<BookIssue>("mpsms_library_issues", []);
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const students = studentStore.items;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);

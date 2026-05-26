@@ -61,6 +61,26 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     fetchCloud();
   }, [fetchCloud]);
 
+  useEffect(() => {
+    if (!tableName) return;
+
+    // Subscribe to Postgres changes for this table in real-time
+    const channel = supabase
+      .channel(`realtime-store-${tableName}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: tableName },
+        () => {
+          fetchCloud();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tableName, fetchCloud]);
+
   const add = useCallback(async (item: Omit<T, "id">) => {
     const newItem = { ...item, id: generateId() } as T;
     const updated = [newItem, ...items];

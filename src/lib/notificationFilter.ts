@@ -49,7 +49,11 @@ export function filterNotifications(
 
     if (role === "teacher") {
       // Find teacher details to identify assigned classes
-      const teacherObj = teachers.find(t => t.id === auth.teacherId);
+      const teacherObj = teachers.find(t => 
+        t.id === auth.teacherId ||
+        (auth.userId && t.user_id === auth.userId) ||
+        (auth.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+      );
       const teacherName = teacherObj?.name;
       
       const assignedClasses = new Set<string>();

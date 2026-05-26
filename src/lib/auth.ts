@@ -7,6 +7,7 @@ export interface AuthState {
   role: UserRole;
   name: string;
   email: string;
+  userId?: string;
   teacherId?: string;
   studentIds?: string[];
 }
@@ -50,6 +51,7 @@ export async function getAuth(): Promise<AuthState | null> {
     role,
     name: session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User",
     email: session.user.email || "",
+    userId: session.user.id,
     teacherId: session.user.user_metadata.teacherId,
     studentIds: studentIds ?? session.user.user_metadata.studentIds,
   };
@@ -112,6 +114,7 @@ export const ROLE_NAV: { to: string; label: string; roles: UserRole[] }[] = [
   { to: "/communications", label: "Communications", roles: ["admin"] },
   { to: "/reports", label: "Reports", roles: ["admin"] },
   { to: "/ai-assistant", label: "AI Assistant", roles: ["admin", "teacher"] },
+  { to: "/exam-creator", label: "Exam Creator", roles: ["admin", "teacher"] },
   { to: "/settings", label: "Settings", roles: ["admin", "teacher", "parent"] },
   { to: "/tutorial", label: "Tutorial", roles: ["admin", "teacher"] },
 ];

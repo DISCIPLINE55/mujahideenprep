@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useStore } from "@/hooks/use-store";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
@@ -66,7 +66,11 @@ function ResultsPage() {
   // Scope data per role
   const allowedClassNames = useMemo(() => {
     if (role === "teacher") {
-      const me = teachers.find((t) => t.id === auth?.teacherId);
+      const me = teachers.find((t) => 
+        t.id === auth?.teacherId ||
+        (auth?.userId && t.user_id === auth.userId) ||
+        (auth?.email && t.email?.toLowerCase() === auth.email.toLowerCase())
+      );
       if (!me) return [];
       
       // 1. Get class names from teacher profile classes (comma-separated string, e.g. "Creche")
@@ -115,6 +119,28 @@ function ResultsPage() {
   const [bulkClass, setBulkClass] = useState("");
   const [bulkSubject, setBulkSubject] = useState("");
   const [bulkData, setBulkData] = useState<Record<string, { class: number, exam: number }>>({});
+
+  // Prefill bulk entry data with existing results if any
+  useEffect(() => {
+    if (!bulkClass || !bulkSubject) {
+      setBulkData({});
+      return;
+    }
+    const initialData: Record<string, { class: number, exam: number }> = {};
+    const classStudents = allStudents.filter(s => s.class === bulkClass);
+    
+    classStudents.forEach(student => {
+      const result = allResults.find(r => r.studentId === student.id && r.term === settings.currentTerm);
+      const subData = result?.subjects.find(sub => sub.name === bulkSubject);
+      
+      initialData[student.id] = {
+        class: subData ? Number(subData.classScore) : 0,
+        exam: subData ? Number(subData.examScore) : 0
+      };
+    });
+    
+    setBulkData(initialData);
+  }, [bulkClass, bulkSubject, allResults, allStudents, settings.currentTerm]);
 
   // Bulk Print State
   const [bulkPrintOpen, setBulkPrintOpen] = useState(false);
@@ -264,7 +290,15 @@ function ResultsPage() {
     }
 
     const headers = ["Student ID", "Student Name", "Class Score", "Exam Score"];
-    const rows = classStudents.map(s => [s.id, s.name, "0", "0"]);
+    const rows = classStudents.map(s => {
+      const result = allResults.find(r => r.studentId === s.id && r.term === settings.currentTerm);
+      const subData = result?.subjects.find(sub => sub.name === bulkSubject);
+      
+      const classScore = subData?.classScore !== undefined ? String(subData.classScore) : "";
+      const examScore = subData?.examScore !== undefined ? String(subData.examScore) : "";
+      
+      return [s.id, s.name, classScore, examScore];
+    });
     
     const csvContent = [headers, ...rows]
       .map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))

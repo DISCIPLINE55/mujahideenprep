@@ -37,6 +37,48 @@ const GHANA_REGIONS = [
   "Upper East", "Upper West", "Volta", "Western", "Western North"
 ];
 
+function compressImage(file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 const emptyStudent: Omit<Student, "id"> = {
   name: "", class: CLASS_LIST[0], gender: "Male", guardian: "", phone: "", dob: "", status: "Active", fees: "Unpaid", address: "", photo: "",
   bloodGroup: "", emergencyContactName: "", emergencyContactPhone: "", medicalConditions: "", admissionDate: "", religion: "", nationality: "", region: "", amountPaid: 0, nhisNumber: ""
@@ -61,18 +103,21 @@ function StudentsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [pdfClass, setPdfClass] = useState<string | null>(null);
 
-  function handleBulkPromote() {
+  async function handleBulkPromote() {
     if (selected.size === 0) return;
     const updated = store.items.map(s => 
       selected.has(s.id) ? { ...s, class: promoteTo } : s
     );
-    setItems(KEYS.STUDENTS, updated);
-    // Force store to reload if needed, but usually setItems + local state update is better
-    // Since we use useStore, we should use its methods if available, or force refresh
-    window.location.reload(); // Simple way to ensure all hooks see the change
-    toast.success(`${selected.size} students promoted to ${promoteTo}`);
-    setSelected(new Set());
-    setPromoteOpen(false);
+    
+    const loader = toast.loading("Updating student classes...");
+    try {
+      await store.syncAll(updated);
+      toast.success(`${selected.size} students promoted to ${promoteTo}`, { id: loader });
+      setSelected(new Set());
+      setPromoteOpen(false);
+    } catch (err) {
+      toast.error("Failed to promote students", { id: loader });
+    }
   }
 
   const filtered = useMemo(() =>
@@ -139,14 +184,18 @@ function StudentsPage() {
     setOpen(false);
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setForm({ ...form, photo: event.target?.result as string });
-    };
-    reader.readAsDataURL(file);
+
+    const loader = toast.loading("Compressing image...");
+    try {
+      const compressed = await compressImage(file, 200, 200, 0.7);
+      setForm({ ...form, photo: compressed });
+      toast.success("Image compressed!", { id: loader });
+    } catch (err) {
+      toast.error("Failed to process image", { id: loader });
+    }
   }
 
   function handleDelete() {

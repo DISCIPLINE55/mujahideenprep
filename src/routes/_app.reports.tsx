@@ -12,6 +12,7 @@ import { generateAttendanceSummary, generateClassList, generateFeeStatement, gen
 import { toast } from "sonner";
 import { stripMarkdown } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import { useStore } from "@/hooks/use-store";
 
 import { streamSchoolAI } from "@/lib/ai";
 
@@ -28,12 +29,19 @@ export const Route = createFileRoute("/_app/reports")({
 const CHART_COLORS = ["oklch(0.28 0.14 280)", "oklch(0.55 0.22 340)", "oklch(0.85 0.20 130)", "oklch(0.75 0.15 80)", "oklch(0.45 0.18 200)"];
 
 function ReportsPage() {
-  const students = getItems<Student>(KEYS.STUDENTS, defaultStudents);
-  const teachers = getItems<Teacher>(KEYS.TEACHERS, defaultTeachers);
-  const classes = getItems<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const payments = getItems<Payment>(KEYS.PAYMENTS, defaultPayments);
-  const attendance = getItems<AttendanceRecord>(KEYS.ATTENDANCE, []);
-  const results = getItems<ExamResult>(KEYS.RESULTS, []);
+  const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
+  const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
+  const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
+  const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
+  const resultsStore = useStore<ExamResult>(KEYS.RESULTS, []);
+
+  const students = studentStore.items;
+  const teachers = teacherStore.items;
+  const classes = classStore.items;
+  const payments = paymentStore.items;
+  const attendance = attendanceStore.items;
+  const results = resultsStore.items;
 
   const [reportType, setReportType] = useState("enrollment");
   const [aiSummary, setAiSummary] = useState("");
