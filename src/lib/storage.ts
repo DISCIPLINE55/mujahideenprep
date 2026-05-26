@@ -17,19 +17,21 @@ export function getItems<T>(key: string, defaults: T[]): T[] {
 }
 
 // Active query deduplication cache
-const activeQueries: Record<string, Promise<{ data: any[] | null; error: any }>> = {};
+const activeQueries: Record<string, Promise<{ data: any[] | null; error: any }> | undefined> = {};
 
 export function fetchTableDeduplicated(table: string): Promise<{ data: any[] | null; error: any }> {
   if (activeQueries[table]) {
-    return activeQueries[table];
+    return activeQueries[table]!;
   }
-  const promise = supabase.from(table).select("*").then((res) => {
-    delete activeQueries[table];
-    return res;
-  }).catch((err) => {
-    delete activeQueries[table];
-    throw err;
-  });
+  const promise = Promise.resolve(supabase.from(table).select("*"))
+    .then((res) => {
+      delete activeQueries[table];
+      return res;
+    })
+    .catch((err: any) => {
+      delete activeQueries[table];
+      throw err;
+    });
   activeQueries[table] = promise;
   return promise;
 }

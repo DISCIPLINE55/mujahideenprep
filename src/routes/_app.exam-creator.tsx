@@ -865,7 +865,7 @@ Please perform these enhancements:
                 contentEditable={true}
                 suppressContentEditableWarning={true}
                 className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-4 sm:p-8 md:p-12 border shadow-sm rounded-md font-mono whitespace-pre-wrap break-words leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
-                placeholder="Click here to type or use the controls on the left to generate exam paper questions..."
+                {...{ placeholder: "Click here to type or use the controls on the left to generate exam paper questions..." }}
                 style={{ fontFamily: "'Courier New', Courier, monospace" }}
               />
             </div>

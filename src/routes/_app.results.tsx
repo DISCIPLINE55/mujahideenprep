@@ -338,12 +338,14 @@ function ResultsPage() {
           const line = lines[i].trim();
           if (!line) continue;
 
-          let parts = line.match(/"[^"]*"|[^,]+/g) || [];
-          parts = parts.map(p => p.replace(/^"|"$/g, "").trim());
+          const matchResult = line.match(/"[^"]*"|[^,]+/g) || [];
+          const parts = matchResult.map(p => p.replace(/^"|"$/g, "").trim());
 
           if (parts.length < 4) continue;
 
           const studentId = parts[0];
+          if (!studentId) continue;
+
           const classScore = parseFloat(parts[2]) || 0;
           const examScore = parseFloat(parts[3]) || 0;
 

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Sparkles, Loader2, Printer } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, getItems, type Subject, type Teacher, type TimetableSlot } from "@/lib/storage";
+import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, defaultStudents, getItems, type Subject, type Teacher, type TimetableSlot, type Student } from "@/lib/storage";
 import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
@@ -28,6 +28,17 @@ export const Route = createFileRoute("/_app/timetable")({
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const PERIODS = ["Period 1", "Period 2", "Period 3", "Period 4", "Period 5", "Period 6", "Period 7", "Period 8"];
+
+const PERIOD_TIMES: Record<string, string> = {
+  "Period 1": "08:00 AM - 08:40 AM",
+  "Period 2": "08:40 AM - 09:20 AM",
+  "Period 3": "09:20 AM - 10:00 AM",
+  "Period 4": "10:30 AM - 11:10 AM",
+  "Period 5": "11:10 AM - 11:50 AM",
+  "Period 6": "11:50 AM - 12:30 PM",
+  "Period 7": "01:30 PM - 02:10 PM",
+  "Period 8": "02:10 PM - 02:50 PM",
+};
 
 const SUBJECT_COLORS: Record<string, string> = {
   "Mathematics": "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
