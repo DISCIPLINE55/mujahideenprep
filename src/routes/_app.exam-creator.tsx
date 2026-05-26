@@ -337,19 +337,21 @@ Format the output text as a neat, numbered academic test:
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
 
     if ("touches" in e) {
       // Touch Event
       if (e.touches.length === 0) return { x: 0, y: 0 };
       return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top,
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
       };
     } else {
       // Mouse Event
       return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
       };
     }
   };
@@ -453,7 +455,7 @@ Format the output text as a neat, numbered academic test:
               <CardContent className="p-5 space-y-4">
                 <h3 className="font-bold text-sm text-primary uppercase tracking-wider mb-2">Exam Parameters</h3>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="class-select" className="text-xs">Class Level</Label>
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -478,7 +480,7 @@ Format the output text as a neat, numbered academic test:
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="academic-term" className="text-xs">Academic Term</Label>
                     <Select value={academicTerm} onValueChange={setAcademicTerm}>
@@ -515,7 +517,7 @@ Format the output text as a neat, numbered academic test:
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="q-type" className="text-xs">Question Format</Label>
                     <Select value={questionType} onValueChange={setQuestionType}>
@@ -538,7 +540,7 @@ Format the output text as a neat, numbered academic test:
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="time-allowed" className="text-xs">Time Allowed</Label>
                     <Input 
@@ -693,7 +695,7 @@ Format the output text as a neat, numbered academic test:
                 ref={editorRef}
                 contentEditable={true}
                 suppressContentEditableWarning={true}
-                className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-8 sm:p-12 border shadow-sm rounded-md font-mono whitespace-pre-wrap leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
+                className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-4 sm:p-8 md:p-12 border shadow-sm rounded-md font-mono whitespace-pre-wrap leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
                 placeholder="Click here to type or use the controls on the left to generate exam paper questions..."
                 style={{ fontFamily: "'Courier New', Courier, monospace" }}
               />
@@ -749,12 +751,12 @@ Format the output text as a neat, numbered academic test:
             </div>
 
             {/* Drawing Canvas */}
-            <div className="border border-border rounded-lg overflow-hidden bg-white shadow-inner">
+            <div className="border border-border rounded-lg overflow-hidden bg-white shadow-inner w-full max-w-[500px]">
               <canvas
                 ref={canvasRef}
                 width={500}
                 height={350}
-                className="cursor-crosshair bg-white"
+                className="cursor-crosshair bg-white w-full h-auto max-w-full aspect-[500/350]"
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={stopDrawing}
