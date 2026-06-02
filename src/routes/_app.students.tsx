@@ -133,7 +133,7 @@ function StudentsPage() {
   function openEdit(s: Student) {
     setEditing(s);
     setForm({ 
-      name: s.name, class: s.class, gender: s.gender, guardian: s.guardian, phone: s.phone, dob: s.dob, status: s.status, fees: s.fees, address: s.address, photo: s.photo || "",
+      name: s.name, class: s.class, gender: s.gender, guardian: s.guardian, phone: s.phone, dob: s.dob || "", status: s.status, fees: s.fees, address: s.address, photo: s.photo || "",
       bloodGroup: s.bloodGroup || "", emergencyContactName: s.emergencyContactName || "", emergencyContactPhone: s.emergencyContactPhone || "", medicalConditions: s.medicalConditions || "", admissionDate: s.admissionDate || "", religion: s.religion || "", nationality: s.nationality || "", region: s.region || "", amountPaid: s.amountPaid || 0, nhisNumber: s.nhisNumber || ""
     });
     setErrors({}); setOpen(true);
@@ -228,7 +228,7 @@ function StudentsPage() {
 
   function handleExport() {
     downloadCSV("students", ["Name", "Class", "Gender", "Guardian", "Phone", "DOB", "Status", "Fees", "Address", "Region", "Blood Group", "Emergency Contact", "Emergency Phone", "Medical Conditions", "Admission Date", "Religion", "Nationality"],
-      filtered.map((s) => [s.name, s.class, s.gender, s.guardian, s.phone, s.dob, s.status, s.fees, s.address, s.region || "", s.bloodGroup || "", s.emergencyContactName || "", s.emergencyContactPhone || "", s.medicalConditions || "", s.admissionDate || "", s.religion || "", s.nationality || ""]));
+      filtered.map((s) => [s.name, s.class, s.gender, s.guardian, s.phone, s.dob || "", s.status, s.fees, s.address, s.region || "", s.bloodGroup || "", s.emergencyContactName || "", s.emergencyContactPhone || "", s.medicalConditions || "", s.admissionDate || "", s.religion || "", s.nationality || ""]));
     toast.success("Filtered students exported to CSV");
   }
 
@@ -390,7 +390,7 @@ function StudentsPage() {
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
-              <Input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
+              <Input type="date" value={form.dob || ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Guardian Name *</Label>

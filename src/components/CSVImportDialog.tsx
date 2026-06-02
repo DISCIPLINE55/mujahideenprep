@@ -87,7 +87,7 @@ export function CSVImportDialog({ open, onOpenChange, onImport }: Props) {
 
           validRows.push({
             name, class: cls, gender, guardian, phone,
-            dob: (r.dob || "").trim(),
+            dob: (r.dob || "").trim() || null,
             address: (r.address || "").trim(),
             region: (r.region || "").trim(),
             status: (r.status || "Active").trim() || "Active",

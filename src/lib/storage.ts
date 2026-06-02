@@ -196,7 +196,7 @@ export interface Student {
   gender: string;
   guardian: string;
   phone: string;
-  dob: string;
+  dob?: string | null;
   status: string;
   fees: string;
   address: string;
