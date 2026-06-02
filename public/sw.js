@@ -1,4 +1,4 @@
-const CACHE_NAME = "mpsms-cache-v2";
+const CACHE_NAME = "mpsms-cache-v3";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -37,10 +37,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Network-First for HTML/Document navigation requests (index.html)
+  if (event.request.mode === "navigate" || event.request.headers.get("accept")?.includes("text/html")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Fall back to cached index.html if offline
+          return caches.match("/index.html") || caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate for other local assets (JS, CSS, images, PWA files)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Serve cached, update cache in background (stale-while-revalidate)
         fetch(event.request)
           .then((networkResponse) => {
             if (networkResponse.status === 200) {
@@ -64,10 +85,7 @@ self.addEventListener("fetch", (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Serve index.html as a fallback for document navigation request if offline
-          if (event.request.headers.get("accept")?.includes("text/html")) {
-            return caches.match("/index.html");
-          }
+          // No resource in cache and network offline
         });
     })
   );
