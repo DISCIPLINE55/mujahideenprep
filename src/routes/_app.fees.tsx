@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Download, Wallet, TrendingUp, AlertCircle, CheckCircle, Pencil, Trash2, Printer, Sparkles, Loader2, Copy, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, updateStudentFeeStatus, type Student, type Payment, type Notification } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultPayments, KEYS, updateStudentFeeStatus, type Student, type Payment, type Notification, type SchoolSettings, defaultSettings } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printFeeReceipt } from "@/components/FeeReceipt";
@@ -42,6 +42,8 @@ function FeesPage() {
   const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
   const notificationStore = useStore<Notification>(KEYS.NOTIFICATIONS, []);
+  const settingsStore = useStore<SchoolSettings>(KEYS.SETTINGS, [defaultSettings]);
+  const settings = settingsStore.items[0] || defaultSettings;
 
   const allStudents = studentStore.items;
   const students = isParent ? allStudents.filter((s) => auth?.studentIds?.includes(s.id)) : allStudents;
@@ -146,7 +148,7 @@ function FeesPage() {
     sorted.forEach(p => {
       const existing = map.get(p.studentId);
       if (existing) {
-        existing.totalFee += p.totalFee;
+        existing.totalFee = Math.max(existing.totalFee, p.totalFee);
         existing.amountPaid += p.amountPaid;
         if (p.date) existing.lastDate = p.date;
       } else {
@@ -295,7 +297,7 @@ function FeesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-foreground">Fee Management</h2>
-            <p className="text-sm text-muted-foreground">Term 2, 2025/2026 Academic Year</p>
+            <p className="text-sm text-muted-foreground">{settings.currentTerm}, {settings.academicYear} Academic Year</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, BookOpen } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { generateId, KEYS, getItems, defaultStudents, type Student } from "@/lib/storage";
+import { generateId, KEYS, defaultStudents, type Student, type LibraryBook, type LibraryIssue } from "@/lib/storage";
 import { useDebounce } from "@/lib/debounce";
 import { toast } from "sonner";
 
@@ -24,40 +24,19 @@ export const Route = createFileRoute("/_app/library")({
   component: LibraryPage,
 });
 
-interface LibraryBook {
-  id: string;
-  title: string;
-  author: string;
-  isbn: string;
-  category: string;
-  quantity: number;
-  available: number;
-}
-
-interface BookIssue {
-  id: string;
-  bookId: string;
-  bookTitle: string;
-  studentId: string;
-  studentName: string;
-  issueDate: string;
-  returnDate: string;
-  returned: boolean;
-}
-
 const CATEGORIES = ["Textbook", "Fiction", "Non-Fiction", "Reference", "Religious", "Science", "History", "Other"];
 
 const defaultBooks: LibraryBook[] = [
-  { id: "b1", title: "Mathematics for JHS", author: "K. Asante", isbn: "978-0001", category: "Textbook", quantity: 30, available: 25 },
-  { id: "b2", title: "English Grammar Essentials", author: "A. Darko", isbn: "978-0002", category: "Textbook", quantity: 25, available: 20 },
-  { id: "b3", title: "The Holy Quran (Translation)", author: "Various", isbn: "978-0003", category: "Religious", quantity: 50, available: 45 },
-  { id: "b4", title: "Junior Science Experiments", author: "E. Kumah", isbn: "978-0004", category: "Science", quantity: 15, available: 12 },
-  { id: "b5", title: "History of Ghana", author: "Y. Boakye", isbn: "978-0005", category: "History", quantity: 20, available: 18 },
+  { id: "b1", title: "Mathematics for JHS", author: "K. Asante", isbn: "978-0001", category: "Textbook", copies: 30, available: 25, location: "" },
+  { id: "b2", title: "English Grammar Essentials", author: "A. Darko", isbn: "978-0002", category: "Textbook", copies: 25, available: 20, location: "" },
+  { id: "b3", title: "The Holy Quran (Translation)", author: "Various", isbn: "978-0003", category: "Religious", copies: 50, available: 45, location: "" },
+  { id: "b4", title: "Junior Science Experiments", author: "E. Kumah", isbn: "978-0004", category: "Science", copies: 15, available: 12, location: "" },
+  { id: "b5", title: "History of Ghana", author: "Y. Boakye", isbn: "978-0005", category: "History", copies: 20, available: 18, location: "" },
 ];
 
 function LibraryPage() {
-  const bookStore = useStore<LibraryBook>("mpsms_library_books", defaultBooks);
-  const issueStore = useStore<BookIssue>("mpsms_library_issues", []);
+  const bookStore = useStore<LibraryBook>(KEYS.BOOKS, defaultBooks);
+  const issueStore = useStore<LibraryIssue>(KEYS.ISSUES, []);
   const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const students = studentStore.items;
 
@@ -66,7 +45,7 @@ function LibraryPage() {
   const [bookOpen, setBookOpen] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryBook | null>(null);
-  const [bookForm, setBookForm] = useState({ title: "", author: "", isbn: "", category: "Textbook", quantity: 1, available: 1 });
+  const [bookForm, setBookForm] = useState({ title: "", author: "", isbn: "", category: "Textbook", copies: 1, available: 1, location: "" });
   const [issueForm, setIssueForm] = useState({ bookId: "", studentId: "", issueDate: new Date().toISOString().split("T")[0], returnDate: "" });
 
   const filtered = useMemo(() =>
@@ -87,7 +66,7 @@ function LibraryPage() {
     }
     setBookOpen(false);
     setEditing(null);
-    setBookForm({ title: "", author: "", isbn: "", category: "Textbook", quantity: 1, available: 1 });
+    setBookForm({ title: "", author: "", isbn: "", category: "Textbook", copies: 1, available: 1, location: "" });
   }
 
   function handleIssueBook() {
@@ -103,17 +82,18 @@ function LibraryPage() {
       studentId: student.id,
       studentName: student.name,
       issueDate: issueForm.issueDate,
-      returnDate: issueForm.returnDate,
-      returned: false,
-    } as Omit<BookIssue, "id">);
+      dueDate: issueForm.returnDate || new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
+      returnDate: "",
+      status: "Issued"
+    } as Omit<LibraryIssue, "id">);
     bookStore.update({ ...book, available: book.available - 1 });
     toast.success(`"${book.title}" issued to ${student.name}`);
     setIssueOpen(false);
     setIssueForm({ bookId: "", studentId: "", issueDate: new Date().toISOString().split("T")[0], returnDate: "" });
   }
 
-  function handleReturnBook(issue: BookIssue) {
-    issueStore.update({ ...issue, returned: true });
+  function handleReturnBook(issue: LibraryIssue) {
+    issueStore.update({ ...issue, status: "Returned", returnDate: new Date().toISOString().split("T")[0] });
     const book = bookStore.items.find((b) => b.id === issue.bookId);
     if (book) bookStore.update({ ...book, available: book.available + 1 });
     toast.success("Book returned");
@@ -123,11 +103,11 @@ function LibraryPage() {
     { key: "title", header: "Title" },
     { key: "author", header: "Author" },
     { key: "category", header: "Category" },
-    { key: "quantity", header: "Total", render: (row: LibraryBook) => String(row.quantity) },
+    { key: "copies", header: "Total", render: (row: LibraryBook) => String(row.copies) },
     { key: "available", header: "Available", render: (row: LibraryBook) => <Badge variant={row.available > 0 ? "default" : "destructive"}>{row.available}</Badge> },
     { key: "actions", header: "Actions", render: (row: LibraryBook) => (
       <div className="flex gap-1">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(row); setBookForm({ title: row.title, author: row.author, isbn: row.isbn, category: row.category, quantity: row.quantity, available: row.available }); setBookOpen(true); }}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(row); setBookForm({ title: row.title, author: row.author, isbn: row.isbn, category: row.category, copies: row.copies, available: row.available, location: row.location || "" }); setBookOpen(true); }}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { bookStore.remove(row.id); toast.success("Book removed"); }}>
@@ -148,7 +128,7 @@ function LibraryPage() {
           </div>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button size="sm" variant="outline" className="flex-1 sm:flex-initial" onClick={() => setIssueOpen(true)}><BookOpen className="h-4 w-4 mr-1" /> Issue Book</Button>
-            <Button size="sm" className="flex-1 sm:flex-initial" onClick={() => { setEditing(null); setBookForm({ title: "", author: "", isbn: "", category: "Textbook", quantity: 1, available: 1 }); setBookOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add Book</Button>
+            <Button size="sm" className="flex-1 sm:flex-initial" onClick={() => { setEditing(null); setBookForm({ title: "", author: "", isbn: "", category: "Textbook", copies: 1, available: 1, location: "" }); setBookOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add Book</Button>
           </div>
         </div>
 
@@ -162,19 +142,22 @@ function LibraryPage() {
           <div>
             <h3 className="text-base font-semibold text-foreground mb-3">Recent Book Issues</h3>
             <div className="space-y-2">
-              {[...issueStore.items].reverse().slice(0, 10).map((issue) => (
-                <div key={issue.id} className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{issue.bookTitle}</p>
-                    <p className="text-xs text-muted-foreground">{issue.studentName} • Issued: {issue.issueDate}</p>
+              {[...issueStore.items].reverse().slice(0, 10).map((issue) => {
+                const isReturned = issue.status === "Returned" || (issue as any).returned === true;
+                return (
+                  <div key={issue.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{issue.bookTitle}</p>
+                      <p className="text-xs text-muted-foreground">{issue.studentName} • Issued: {issue.issueDate} • Due: {issue.dueDate}</p>
+                    </div>
+                    {isReturned ? (
+                      <Badge variant="default">Returned</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => handleReturnBook(issue)}>Return</Button>
+                    )}
                   </div>
-                  {issue.returned ? (
-                    <Badge variant="default">Returned</Badge>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => handleReturnBook(issue)}>Return</Button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -197,7 +180,7 @@ function LibraryPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Total Copies</Label><Input type="number" min={0} value={bookForm.quantity} onChange={(e) => setBookForm({ ...bookForm, quantity: parseInt(e.target.value) || 0 })} /></div>
+              <div className="space-y-2"><Label>Total Copies</Label><Input type="number" min={0} value={bookForm.copies} onChange={(e) => setBookForm({ ...bookForm, copies: parseInt(e.target.value) || 0 })} /></div>
               <div className="space-y-2"><Label>Available</Label><Input type="number" min={0} value={bookForm.available} onChange={(e) => setBookForm({ ...bookForm, available: parseInt(e.target.value) || 0 })} /></div>
             </div>
           </div>

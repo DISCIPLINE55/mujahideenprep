@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getItems, setItems, generateId, defaultStudents, defaultSubjects, KEYS, type Student, type Subject, type ExamResult, type SchoolSettings, defaultSettings } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultSubjects, KEYS, type Student, type Subject, type ExamResult, type SchoolSettings, defaultSettings, type AttendanceRecord } from "@/lib/storage";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LayoutGrid, ListFilter, Search, Upload, Download, Pencil, Trash2, FileText, Sparkles, Loader2, Printer, Plus } from "lucide-react";
@@ -43,6 +43,7 @@ function ResultsPage() {
   const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
   const subjectStore = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
   const settingsStore = useStore<SchoolSettings>(KEYS.SETTINGS, [defaultSettings]);
+  const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
 
   const allResults = resultStore.items;
   const allStudents = studentStore.items;
@@ -50,6 +51,27 @@ function ResultsPage() {
   const classes = classStore.items;
   const subjects = subjectStore.items;
   const settings = settingsStore.items[0] || defaultSettings;
+  const attendanceRecords = attendanceStore.items;
+
+  const attendanceRates = useMemo(() => {
+    const rates = new Map<string, string>();
+    const studentRecords = new Map<string, { present: number; total: number }>();
+    attendanceRecords.forEach((rec) => {
+      const current = studentRecords.get(rec.studentId) || { present: 0, total: 0 };
+      current.total++;
+      if (rec.status === "Present" || rec.status === "Late") {
+        current.present++;
+      }
+      studentRecords.set(rec.studentId, current);
+    });
+    studentRecords.forEach((stats, studentId) => {
+      if (stats.total > 0) {
+        const rate = Math.round((stats.present / stats.total) * 100);
+        rates.set(studentId, `${rate}%`);
+      }
+    });
+    return rates;
+  }, [attendanceRecords]);
 
   // Grade helper
   const getGrade = (score: number) => {
@@ -159,7 +181,12 @@ function ResultsPage() {
     classResults.sort((a, b) => a.studentName.localeCompare(b.studentName));
 
     const htmlBody = classResults.map(res => {
-      return `<div class="print-page">${printReportCard({ result: res, position: 0, totalInClass: 0, nhisNumber: "" }, true)}</div>`;
+      const student = allStudents.find(s => s.id === res.studentId);
+      const pos = positions.get(res.id) ?? 0;
+      const total = classCounts.get(res.class) ?? 0;
+      const nhis = student?.nhisNumber || "";
+      const attRate = attendanceRates.get(res.studentId) ?? "98%";
+      return `<div class="print-page">${printReportCard({ result: res, position: pos, totalInClass: total, nhisNumber: nhis, attendanceRate: attRate }, true)}</div>`;
     }).join('<div style="page-break-after: always;"></div>');
 
     const htmlContent = `
@@ -390,7 +417,13 @@ function ResultsPage() {
     byClass.forEach((classResults, cls) => {
       counts.set(cls, classResults.length);
       classResults.sort((a, b) => b.average - a.average);
-      classResults.forEach((r, i) => pos.set(r.id, i + 1));
+      let currentRank = 1;
+      classResults.forEach((r, i) => {
+        if (i > 0 && r.average < classResults[i - 1].average) {
+          currentRank = i + 1;
+        }
+        pos.set(r.id, currentRank);
+      });
     });
     return { positions: pos, classCounts: counts };
   }, [results]);
@@ -422,7 +455,8 @@ function ResultsPage() {
               result: row, 
               position: positions.get(row.id) ?? 0, 
               totalInClass: classCounts.get(row.class) ?? 0,
-              nhisNumber: student?.nhisNumber
+              nhisNumber: student?.nhisNumber,
+              attendanceRate: attendanceRates.get(row.studentId) ?? "98%"
             }); 
           }}>
             <FileText className="h-4 w-4" />
@@ -441,7 +475,7 @@ function ResultsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-foreground">Exam Results</h2>
-            <p className="text-sm text-muted-foreground">Term 2, 2025/2026 Academic Year • {results.length} results recorded</p>
+            <p className="text-sm text-muted-foreground">{settings.currentTerm}, {settings.academicYear} Academic Year • {results.length} results recorded</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>

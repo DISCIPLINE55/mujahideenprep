@@ -539,14 +539,18 @@ export async function updateStudentFeeStatus(studentId: string): Promise<string>
       
     if (error) throw error;
     
-    let totalFee = 0;
+    let maxTotalFee = 0;
     let amountPaid = 0;
     if (payments) {
       payments.forEach((p) => {
-        totalFee += Number(p.totalFee || 0);
+        const pFee = Number(p.totalFee || 0);
+        if (pFee > maxTotalFee) {
+          maxTotalFee = pFee;
+        }
         amountPaid += Number(p.amountPaid || 0);
       });
     }
+    const totalFee = maxTotalFee;
     
     let status = "Unpaid";
     if (amountPaid >= totalFee && totalFee > 0) {

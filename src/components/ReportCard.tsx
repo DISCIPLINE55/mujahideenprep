@@ -6,9 +6,10 @@ interface ReportCardProps {
   position: number;
   totalInClass: number;
   nhisNumber?: string;
+  attendanceRate?: string;
 }
 
-export function printReportCard({ result, position, totalInClass, nhisNumber }: ReportCardProps, returnHtml = false) {
+export function printReportCard({ result, position, totalInClass, nhisNumber, attendanceRate }: ReportCardProps, returnHtml = false) {
   const settings = getSchoolSettings();
 
   const styles = `
@@ -71,7 +72,7 @@ export function printReportCard({ result, position, totalInClass, nhisNumber }: 
     <div class="info-item"><span>Academic Year</span><strong>${settings.academicYear || "2025/2026"}</strong></div>
     <div class="info-item"><span>Academic Term</span><strong>${result.term}</strong></div>
     <div class="info-item"><span>NHIS Number</span><strong>${nhisNumber || "N/A"}</strong></div>
-    <div class="info-item"><span>Attendance Rate</span><strong>98%</strong></div>
+    <div class="info-item"><span>Attendance Rate</span><strong>${attendanceRate || "98%"}</strong></div>
   </div>
 
   <table class="no-break">

@@ -88,7 +88,7 @@ function ReportsPage() {
     const s = students.find((x) => x.id === selectedStudentId);
     if (!s) { toast.error("Select a student first"); return; }
     const studentPayments = payments.filter((p) => p.studentId === s.id);
-    const totalFee = studentPayments[0]?.totalFee || 0;
+    const totalFee = Math.max(...studentPayments.map(p => Number(p.totalFee || 0)), 0);
     generateFeeStatement({
       studentName: s.name,
       studentClass: s.class,
