@@ -150,7 +150,7 @@ export async function syncCloudToLocal(): Promise<void> {
         }
         if (data) {
           if (table === "settings") {
-            localStorage.setItem(key, JSON.stringify(data[0] || defaultSettings));
+            localStorage.setItem(key, JSON.stringify([data[0] || defaultSettings]));
           } else {
             localStorage.setItem(key, JSON.stringify(data));
           }

@@ -178,7 +178,7 @@ function SettingsPage() {
         id: (settings as any).id || "school_settings_1"
       });
       if (error) throw error;
-      localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+      localStorage.setItem(KEYS.SETTINGS, JSON.stringify([settings]));
       toast.success("All settings synced to cloud", { id: loader });
     } catch (err: any) {
       toast.error(`Save failed: ${err.message}`, { id: loader });

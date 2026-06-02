@@ -33,3 +33,29 @@ window.addEventListener("beforeinstallprompt", (e) => {
   (window as any).deferredPrompt = e;
   window.dispatchEvent(new CustomEvent("pwa-install-ready"));
 });
+
+// Recover from dynamic import chunk loading failures (e.g. after fresh production builds)
+window.addEventListener("error", (e) => {
+  const msg = e.message || "";
+  if (
+    msg.includes("Dynamically imported module") || 
+    msg.includes("Importing a module script failed") ||
+    msg.includes("Failed to fetch dynamically imported module")
+  ) {
+    console.warn("Dynamic import failure detected, reloading to fetch latest bundle...", e);
+    window.location.reload();
+  }
+}, true);
+
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e.reason;
+  if (reason && (reason.name === "ChunkLoadError" || (reason.message && (
+    reason.message.includes("Dynamically imported module") || 
+    reason.message.includes("Importing a module script failed") ||
+    reason.message.includes("Failed to fetch dynamically imported module")
+  )))) {
+    console.warn("ChunkLoadError detected, reloading page...", e);
+    window.location.reload();
+  }
+});
+

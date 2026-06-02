@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ const ROLES: { key: UserRole; label: string; icon: typeof ShieldCheck; desc: str
 ];
 
 function LoginPage() {
+  const navigate = useNavigate();
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,9 +45,9 @@ function LoginPage() {
     const auth = getAuthSync();
     if (auth && auth.loggedIn) {
       const dest = auth.role === "teacher" ? "/teacher-dashboard" : auth.role === "parent" ? "/parent-dashboard" : "/dashboard";
-      window.location.href = dest;
+      navigate({ to: dest });
     }
-  }, []);
+  }, [navigate]);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -114,7 +115,7 @@ function LoginPage() {
           setAuth(auth);
 
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
-          window.location.href = dest;
+          navigate({ to: dest });
         }
       }
     } catch (err: any) {

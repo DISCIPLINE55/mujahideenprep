@@ -1,5 +1,6 @@
 import { createRouter, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { useEffect } from "react";
 
 function DefaultErrorComponent({
   error,
@@ -9,6 +10,18 @@ function DefaultErrorComponent({
   reset: () => void;
 }) {
   const router = useRouter();
+
+  useEffect(() => {
+    if (error && (
+      error.name === "ChunkLoadError" || 
+      error.message?.includes("Failed to fetch dynamically imported module") || 
+      error.message?.includes("Importing a module script failed") ||
+      error.message?.includes("Dynamically imported module")
+    )) {
+      console.warn("Chunk load error caught in router error component, reloading...");
+      window.location.reload();
+    }
+  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

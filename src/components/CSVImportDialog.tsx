@@ -14,7 +14,7 @@ interface Props {
   onImport: (students: Omit<Student, "id">[]) => Promise<void> | void;
 }
 
-const REQUIRED = ["name", "class", "gender", "guardian", "phone"];
+const REQUIRED = ["name", "class"];
 const TEMPLATE_HEADERS = ["name","class","gender","guardian","phone","dob","address","region","status","fees"];
 
 export function CSVImportDialog({ open, onOpenChange, onImport }: Props) {
@@ -63,14 +63,28 @@ export function CSVImportDialog({ open, onOpenChange, onImport }: Props) {
           const lineNo = i + 2;
           const name = (r.name || "").trim();
           const cls = (r.class || "").trim();
-          const gender = (r.gender || "").trim();
-          const guardian = (r.guardian || "").trim();
-          const phone = (r.phone || "").trim();
+          let gender = (r.gender || "").trim();
+          let guardian = (r.guardian || "").trim();
+          let phone = (r.phone || "").trim();
+
           if (!name) { errs.push(`Row ${lineNo}: missing name`); return; }
           if (!CLASS_LIST.includes(cls)) { errs.push(`Row ${lineNo}: invalid class "${cls}"`); return; }
-          if (!["Male","Female"].includes(gender)) { errs.push(`Row ${lineNo}: gender must be Male or Female`); return; }
-          if (!guardian) { errs.push(`Row ${lineNo}: missing guardian`); return; }
-          if (!phone) { errs.push(`Row ${lineNo}: missing phone`); return; }
+
+          if (!gender) {
+            gender = "Male";
+          } else if (!["Male", "Female"].includes(gender)) {
+            errs.push(`Row ${lineNo}: gender must be Male or Female`);
+            return;
+          }
+
+          if (!guardian) {
+            guardian = "Unassigned";
+          }
+
+          if (!phone) {
+            phone = "Unassigned";
+          }
+
           validRows.push({
             name, class: cls, gender, guardian, phone,
             dob: (r.dob || "").trim(),
@@ -109,7 +123,7 @@ export function CSVImportDialog({ open, onOpenChange, onImport }: Props) {
         <DialogHeader>
           <DialogTitle>Bulk Import Students from CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to create multiple students at once. Required columns: name, class, gender, guardian, phone.
+            Upload a CSV file to create multiple students at once. Required columns: name, class. Other fields (gender, guardian, phone, dob, address, region, status, fees) are optional and default to sensible values if omitted.
           </DialogDescription>
         </DialogHeader>
 

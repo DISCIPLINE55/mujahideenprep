@@ -114,6 +114,7 @@ function AuthGuardLayout() {
       try {
         const a = await getAuth();
         if (!a) {
+          localStorage.removeItem("mpsms_auth_meta");
           navigate({ to: "/" });
           return;
         }
@@ -123,6 +124,7 @@ function AuthGuardLayout() {
         syncCloudToLocal().catch(console.error);
       } catch (err) {
         console.error("Auth verification failed:", err);
+        localStorage.removeItem("mpsms_auth_meta");
         navigate({ to: "/" });
       }
     }
