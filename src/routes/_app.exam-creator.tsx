@@ -18,6 +18,7 @@ import { KEYS, CLASS_LIST, defaultSubjects, type Subject } from "@/lib/storage";
 import { streamSchoolAI } from "@/lib/ai";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
+import { getSchoolSettings } from "@/lib/printBranding";
 
 export const Route = createFileRoute("/_app/exam-creator")({
   head: () => ({
@@ -150,13 +151,14 @@ function ExamCreatorPage() {
 
   // Generate Document Heading
   const getHeaderTemplate = () => {
+    const s = getSchoolSettings();
     const dateStr = new Date().toLocaleDateString(undefined, { dateStyle: 'medium' });
-    return `<div style="text-align: center; font-family: 'Courier New', Courier, monospace; margin-bottom: 20px;">
-  <div style="font-size: 20px; font-weight: bold; text-transform: uppercase;">MUJAHIDEEN PREPARATORY SCHOOL</div>
-  <div style="font-size: 13px; font-weight: bold; text-transform: uppercase;">P.O. BOX 24, MANKESSIM, CENTRAL REGION</div>
-  <div style="font-size: 14px; font-weight: bold; margin-top: 5px; text-transform: uppercase;">${examType} - ${academicTerm.toUpperCase()} - ${academicYear}</div>
+    return `<div style="text-align: center; font-family: 'Times New Roman', Times, serif; margin-bottom: 20px;">
+  <div style="font-size: 22px; font-weight: bold; text-transform: uppercase; color: #111;">${s.name.toUpperCase()}</div>
+  <div style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #333; margin-top: 3px;">${s.location.toUpperCase()}</div>
+  ${s.motto ? `<div style="font-size: 11px; font-style: italic; font-weight: bold; margin-top: 4px; color: #555;">"${s.motto}"</div>` : ""}
   <hr style="border: none; border-top: 3px double #000; margin: 15px 0;" />
-  <table style="width: 100%; text-align: left; font-size: 12px; font-weight: bold; border-collapse: collapse; margin-bottom: 10px;">
+  <table style="width: 100%; text-align: left; font-size: 13px; font-weight: bold; border-collapse: collapse; margin-bottom: 10px; font-family: 'Times New Roman', Times, serif;">
     <tr>
       <td style="width: 50%; padding: 4px 0;">CLASS: ${selectedClass.toUpperCase()}</td>
       <td style="width: 50%; padding: 4px 0; text-align: right;">TIME ALLOWED: ${timeAllowed.toUpperCase()}</td>
@@ -166,13 +168,13 @@ function ExamCreatorPage() {
       <td style="width: 50%; padding: 4px 0; text-align: right;">DATE: ${dateStr}</td>
     </tr>
   </table>
-  <table style="width: 100%; text-align: left; font-size: 12px; font-weight: bold; margin-bottom: 15px;">
+  <table style="width: 100%; text-align: left; font-size: 13px; font-weight: bold; margin-bottom: 15px; font-family: 'Times New Roman', Times, serif;">
     <tr>
       <td style="width: 65%;">STUDENT NAME: ____________________________</td>
       <td style="width: 35%; text-align: right;">INDEX NO: ______________</td>
     </tr>
   </table>
-  <div style="text-align: left; font-size: 12px; font-style: italic; border: 1px solid #000; padding: 8px; margin-bottom: 20px;">
+  <div style="text-align: left; font-size: 13px; font-style: italic; border: 1px solid #000; padding: 8px; margin-bottom: 20px; font-family: 'Times New Roman', Times, serif;">
     INSTRUCTIONS: ${instructions}
   </div>
 </div>
@@ -197,41 +199,59 @@ function ExamCreatorPage() {
     let userPrompt = "";
     if (sourceType === "topics") {
       userPrompt = `
-Generate a professional terminal examination paper.
+You are an expert curriculum developer and master examiner for West African and GES (Ghana Education Service) schools.
+Generate a professional, high-standard terminal examination paper based on the parameters below.
+
 CLASS LEVEL: ${selectedClass}
 SUBJECT: ${subject}
 EXAM TYPE: ${examType}
 QUESTION FORMATS REQUESTED: ${questionType}
 NUMBER OF QUESTIONS: ${numQuestions}
-TOPICS TO SOURCE FROM: ${topics}
-INSTRUCTIONS TO RENDER: ${instructions}
+TOPICS TO COVER: ${topics}
+EXAM INSTRUCTIONS: ${instructions}
 
-Format the output text as a neat, numbered academic test:
-- Start directly with SECTION A (if Objectives/MCQs are requested) and/or SECTION B (if Theory/Essay is requested).
-- If Objectives/MCQs are generated, list standard A, B, C, D choices clearly aligned vertically or on single lines.
-- Do NOT output any markdown tags (no **, no ##, no #). Format using capitals and line breaks only.
-- Include a dotted line at the end, followed by a hidden or separate ANSWER MARKING SCHEME/KEY (e.g. ANSWER KEY: 1. A, 2. C...) for the teacher's reference.
+CRITICAL RULES FOR CONTENT QUALITY & STRUCTURE:
+1. NO DUPLICATION: Every question must be completely unique, testing a distinct concept or sub-topic. There must be absolutely ZERO overlap, repetition of scenarios, or similarity in the questions.
+2. COGNITIVE DIVERSITY: Balance the questions across Bloom's Taxonomy: recall, comprehension, application, and analysis. Ensure the language and complexity are age-appropriate for ${selectedClass}.
+3. FORMAT SECTIONS CLEARLY:
+   - If Objectives/MCQs are requested, label it as "SECTION A: OBJECTIVES [Marks: 1 mark each]". Each question must have a number (e.g., 1.) and exactly 4 options labeled A, B, C, D. Align options vertically on separate lines:
+     A) Option Text
+     B) Option Text
+     C) Option Text
+     D) Option Text
+   - If Theory/Essay is requested, label it as "SECTION B: THEORY/ESSAY". Number the questions consecutively. State the marks allocated to each question in brackets, e.g., [5 marks] or [10 marks].
+4. GEOGRAPHIC/CULTURAL CONTEXT: Use localized names (e.g., Kwame, Amina, Kofi, Fatimah) and relevant Ghanaian context (e.g., local currency GHS, local geography, crops) where appropriate.
+5. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers). Use capital letters for section headers and standard carriage returns for layout separation.
+6. ANSWER KEY: At the very end of the exam paper, draw a clear separator line: "--------------------------------------------------" and provide a detailed "ANSWER KEY / MARKING SCHEME" containing correct options for MCQs and outline answers for theory questions.
 `;
     } else {
       userPrompt = `
-You are a highly professional examination enhancement assistant. Take the draft questions provided below and enhance, rephrase, and structure them into a high-standard school exam.
+You are an expert curriculum developer and master examiner for West African and GES (Ghana Education Service) schools.
+Your task is to take the raw, draft questions submitted by a teacher and upgrade them into a highly professional, well-structured examination paper.
+
 CLASS LEVEL: ${selectedClass}
 SUBJECT: ${subject}
 EXAM TYPE: ${examType}
 QUESTION FORMATS REQUESTED: ${questionType}
 TIME ALLOWED: ${timeAllowed}
-INSTRUCTIONS TO RENDER: ${instructions}
+EXAM INSTRUCTIONS: ${instructions}
 
-DRAFT QUESTIONS TO ENHANCE:
+RAW TEACHER QUESTIONS TO ENHANCE:
 ${draftQuestions}
 
-Please perform these enhancements:
-1. Rephrase each question to sound clear, unambiguous, and grammatically impeccable matching the appropriate academic grade: ${selectedClass}.
-2. Ensure proper vertical alignment and letter choices (A, B, C, D) if Multiple Choice format is requested.
-3. Organize the exam into clean sections (e.g. SECTION A, SECTION B) matching the requested question format: ${questionType}.
-4. Conform exactly to West African / GES standards of school examinations.
-5. Do NOT output any markdown tags (no **, no ##, no #). Format using capitals and line breaks only.
-6. Include a dotted line at the end, followed by a separate ANSWER KEY/MARKING SCHEME for the teacher.
+CRITICAL RULES FOR ENHANCEMENT:
+1. PROFESSIONAL REPHRASING: Upgrade the grammar, clarity, and precision of each question. Make them sound like official exam board questions. The tone must be academic, formal, and tailored for ${selectedClass}.
+2. MAINTAIN INTENT & DIVERSITY: Do not change the core concepts of the draft questions, but structure them cleanly. Keep the exact question count. Ensure no two questions sound similar.
+3. STRUCTURE & ALIGNMENT:
+   - Group objectives/MCQs under "SECTION A: OBJECTIVES" and theory under "SECTION B: THEORY".
+   - For MCQs: If options are missing or poorly written, generate 4 distinct, plausible options (A, B, C, D) aligned vertically:
+     A) Option Text
+     B) Option Text
+     C) Option Text
+     D) Option Text
+   - For Theory/Essay: Provide clean layout spacing and add allocated marks in brackets, e.g. [5 marks].
+4. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers). Use capital letters for headings and line breaks for spacing.
+5. ANSWER KEY: At the very end after a separator line "--------------------------------------------------", provide a complete "ANSWER KEY / MARKING SCHEME" corresponding to the enhanced questions.
 `;
     }
 
@@ -247,7 +267,7 @@ Please perform these enhancements:
         const cleanedText = cleanExamText(accumulatedText);
         // Convert double-newlines in plain text to html line breaks for preview
         const htmlBody = cleanedText.replace(/\n/g, "<br/>");
-        setExamContent(headerHtml + `<div style="font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.6; text-align: left;">` + htmlBody + `</div>`);
+        setExamContent(headerHtml + `<div style="font-family: 'Times New Roman', Times, serif; font-size: 16px; line-height: 1.6; text-align: justify; color: #111;">` + htmlBody + `</div>`);
       },
       onDone: () => {
         setIsGenerating(false);
@@ -864,9 +884,9 @@ Please perform these enhancements:
                 ref={editorRef}
                 contentEditable={true}
                 suppressContentEditableWarning={true}
-                className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-4 sm:p-8 md:p-12 border shadow-sm rounded-md font-mono whitespace-pre-wrap break-words leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
+                className="min-h-[750px] w-full max-w-[800px] mx-auto bg-white text-black p-4 sm:p-8 md:p-12 border shadow-sm rounded-md font-serif whitespace-pre-wrap break-words leading-relaxed outline-none focus:ring-1 focus:ring-primary/20 relative exam-paper-print"
                 {...{ placeholder: "Click here to type or use the controls on the left to generate exam paper questions..." }}
-                style={{ fontFamily: "'Courier New', Courier, monospace" }}
+                style={{ fontFamily: "'Times New Roman', Times, serif" }}
               />
             </div>
           </div>
