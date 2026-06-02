@@ -109,7 +109,7 @@ export async function deleteItemAsync<T extends { id: string }>(
 
 export async function syncCloudToLocal(): Promise<void> {
   const lastSync = localStorage.getItem("mpsms_last_sync_time");
-  if (lastSync && Date.now() - parseInt(lastSync) < 60000) {
+  if (lastSync && Date.now() - parseInt(lastSync) < 300000) {
     return;
   }
 

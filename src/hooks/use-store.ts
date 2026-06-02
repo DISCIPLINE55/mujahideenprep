@@ -28,11 +28,23 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
   const [loading, setLoading] = useState(false);
   const tableName = KEY_TO_TABLE[key];
 
-  const fetchCloud = useCallback(async () => {
+  const fetchCloud = useCallback(async (force = false) => {
     if (!tableName) return;
+
+    // Check cache expiration (30 seconds TTL)
+    const cacheKey = `mpsms_last_fetch_${tableName}`;
+    const lastFetch = localStorage.getItem(cacheKey);
+    if (!force && lastFetch && Date.now() - parseInt(lastFetch) < 30000) {
+      return;
+    }
+
     try {
       const { data, error } = await fetchTableDeduplicated(tableName);
       if (error) throw error;
+
+      // Update cache timestamp
+      localStorage.setItem(cacheKey, Date.now().toString());
+
       if (data && data.length > 0) {
         // Sort client-side to ensure newer items display at top
         const sortedData = [...data].sort((a: any, b: any) => {
@@ -184,7 +196,7 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     update, 
     remove, 
     loading, 
-    refresh: fetchCloud, 
+    refresh: () => fetchCloud(true), 
     syncAll,
     setAll: (v: T[]) => { setItems(key, v, false); setItemsState(v); } 
   };
