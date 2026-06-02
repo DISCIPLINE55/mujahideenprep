@@ -19,6 +19,7 @@ import { streamSchoolAI } from "@/lib/ai";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 import { getSchoolSettings } from "@/lib/printBranding";
+import logoImg from "@/assets/logo.png";
 
 export const Route = createFileRoute("/_app/exam-creator")({
   head: () => ({
@@ -127,7 +128,7 @@ function ExamCreatorPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [examContent, setExamContent] = useState("");
   const [includeAnswerKey, setIncludeAnswerKey] = useState(true);
-  const [diagramGen, setDiagramGen] = useState("Standard Examination Diagrams");
+  const [diagramGen, setDiagramGen] = useState("Examination Standard");
   const [generateMarkingScheme, setGenerateMarkingScheme] = useState(true);
 
   // Editor Ref
@@ -199,30 +200,42 @@ function ExamCreatorPage() {
   // Generate Document Heading
   const getHeaderTemplate = () => {
     const s = getSchoolSettings();
-    const dateStr = new Date().toLocaleDateString(undefined, { dateStyle: 'medium' });
-    return `<div style="text-align: center; font-family: 'Times New Roman', Times, serif; margin-bottom: 20px;">
-  <div style="font-size: 22px; font-weight: bold; text-transform: uppercase; color: #111;">${s.name.toUpperCase()}</div>
-  <div style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #333; margin-top: 3px;">${s.location.toUpperCase()}</div>
-  ${s.motto ? `<div style="font-size: 11px; font-style: italic; font-weight: bold; margin-top: 4px; color: #555;">"${s.motto}"</div>` : ""}
-  <hr style="border: none; border-top: 3px double #000; margin: 15px 0;" />
-  <table style="width: 100%; text-align: left; font-size: 13px; font-weight: bold; border-collapse: collapse; margin-bottom: 10px; font-family: 'Times New Roman', Times, serif;">
+    return `<div style="font-family: 'Times New Roman', Times, serif; color: #111; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 8px; font-size: 13px; line-height: 1.25;">
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
     <tr>
-      <td style="width: 50%; padding: 4px 0;">CLASS: ${selectedClass.toUpperCase()}</td>
-      <td style="width: 50%; padding: 4px 0; text-align: right;">TIME ALLOWED: ${timeAllowed.toUpperCase()}</td>
-    </tr>
-    <tr>
-      <td style="width: 50%; padding: 4px 0;">SUBJECT: ${subject.toUpperCase()}</td>
-      <td style="width: 50%; padding: 4px 0; text-align: right;">DATE: ${dateStr}</td>
-    </tr>
-  </table>
-  <table style="width: 100%; text-align: left; font-size: 13px; font-weight: bold; margin-bottom: 15px; font-family: 'Times New Roman', Times, serif;">
-    <tr>
-      <td style="width: 65%;">STUDENT NAME: ____________________________</td>
-      <td style="width: 35%; text-align: right;">INDEX NO: ______________</td>
+      <td style="width: 65px; vertical-align: middle; padding: 0;">
+        <img src="${logoImg}" alt="Logo" style="width: 55px; height: 55px; object-fit: cover; border-radius: 5px; border: 1px solid #111;" />
+      </td>
+      <td style="text-align: center; vertical-align: middle; padding: 0 10px 0 0;">
+        <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.5px;">${s.name.toUpperCase()}</div>
+        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #444; margin-top: 2px;">${s.location.toUpperCase()}</div>
+        <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-top: 4px; color: #000;">
+          ${examType.toUpperCase()} &ndash; ${academicTerm.toUpperCase()} ${academicYear}
+        </div>
+      </td>
     </tr>
   </table>
-  <div style="text-align: left; font-size: 13px; font-style: italic; border: 1px solid #000; padding: 8px; margin-bottom: 20px; font-family: 'Times New Roman', Times, serif;">
-    INSTRUCTIONS: ${instructions}
+  
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-weight: bold; border-top: 1px solid #333; border-bottom: 1px solid #333; padding: 2px 0;">
+    <tr>
+      <td style="width: 50%; padding: 3px 0;">Subject: ${subject}</td>
+      <td style="width: 50%; padding: 3px 0; text-align: right;">Class: ${selectedClass}</td>
+    </tr>
+    <tr>
+      <td style="width: 50%; padding: 3px 0;">Time Allowed: ${timeAllowed}</td>
+      <td style="width: 50%; padding: 3px 0; text-align: right;">Total Marks: 50</td>
+    </tr>
+  </table>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-weight: bold;">
+    <tr>
+      <td style="width: 60%; padding: 1px 0;">Name: _________________________________________</td>
+      <td style="width: 40%; padding: 1px 0; text-align: right;">Index No: ______________________</td>
+    </tr>
+  </table>
+
+  <div style="font-style: italic; font-weight: bold; padding: 3px 0 0 0; font-size: 12px;">
+    Instructions: ${instructions}
   </div>
 </div>
 `;
@@ -256,7 +269,7 @@ QUESTION FORMATS REQUESTED: ${questionType}
 NUMBER OF QUESTIONS: ${numQuestions}
 TOPICS TO COVER: ${topics}
 EXAM INSTRUCTIONS: ${instructions}
-DIAGRAM GENERATION SETTING: ${diagramGen}
+DIAGRAM QUALITY SETTING: ${diagramGen}
 GENERATE MARKING SCHEME: ${generateMarkingScheme ? "Yes" : "No"}
 
 CRITICAL RULES FOR CONTENT QUALITY & STRUCTURE:
@@ -273,17 +286,22 @@ CRITICAL RULES FOR CONTENT QUALITY & STRUCTURE:
 5. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers, no asterisks, no hashes, no code blocks). Use capital letters for section headers and standard carriage returns for layout separation.
 
 6. AUTOMATIC DIAGRAM GENERATION (CRITICAL):
-   ${diagramGen !== "None" ? `- Since diagram generation is set to "${diagramGen}", you MUST automatically identify questions that benefit from diagrams, figures, or illustrations (especially for Mathematics, Integrated Science, Social Studies, ICT, or RME) and generate an inline black-and-white print-ready SVG diagram directly below the question.
-   - Embed the raw SVG tag directly in the HTML stream:
-     <div class="exam-diagram-container" style="text-align: center; margin: 15px auto; display: flex; justify-content: center; width: 100%;"><svg viewBox="0 0 400 200" width="300" height="150" style="background: white; border: 1.5px solid #000; padding: 5px;">...shapes, lines, texts...</svg></div>
-   - Diagrams must be strictly BLACK AND WHITE (use stroke="black", fill="none" or simple light gray shades e.g., fill="#cccccc"). Do not use any colored artwork. It must be suitable for photocopying.
-   - Use correct vector elements: <rect>, <circle>, <line>, <polygon>, <path>, and <text> for labels.
-   - Mathematics: shapes (triangles, circles, rectangles), number lines, coordinate grids, bar/pie charts.
-   - Science: simple circuit schematics (cell, bulb, switch), water cycle outlines, digestive system blocks, plant parts.
-   - Social Studies: 4-point or 8-point compass rose, simple family tree charts, map outlines.
-   - ICT: box flowcharts, system blocks.
-   - RME: pillars or relationship trees.
-   - Do NOT use generic decorative images.` : `- Diagram generation is set to "None". Do NOT generate or include any diagrams or SVGs.`}
+   ${diagramGen !== "None" ? `- Since Diagram Quality is set to "${diagramGen}", you MUST automatically analyze the topics and determine whether a question benefits from diagrams.
+   - For questions on topics requiring visual illustrations, you MUST generate and embed an inline black-and-white, print-ready, high-resolution, vector-based SVG diagram directly below the question.
+   - Embed the raw SVG tag directly in the HTML stream inside this styled container:
+     <div class="exam-diagram-container" style="text-align: center; margin: 15px auto; display: flex; justify-content: center; width: 100%;"><svg viewBox="0 0 400 250" width="350" height="220" style="background: white; border: 1.5px solid #111; padding: 5px;">...shapes, paths, text labels...</svg></div>
+   - All SVGs must be strictly BLACK AND WHITE (use stroke="black", fill="none" or simple light gray shades e.g., fill="#cccccc" / fill="#eaeaea" for fills). No color. Suitable for photocopy printing.
+   - All labels inside the SVG must be clear and legible, pointing to parts using lines/arrows. Use the SVG <text> tag for labels.
+   - Specific Diagram Standards:
+     * Science - Labelled Flower: Draw a realistic outline flower showing: Petal, Sepal, Stigma, Style, Ovary, with pointer lines.
+     * Science - Digestive System: Draw a realistic schematic showing mouth, oesophagus tube, stomach outline, small intestine, and large intestine, with labels and pointer lines.
+     * Science - Respiratory System: Draw Nose, Trachea, Lungs, and Diaphragm.
+     * Science - Water Cycle: Draw Sun, clouds, precipitation rain, ocean collection, evaporation, and condensation with flow arrows.
+     * Science - Food Chain: Draw a flowchart with illustrated boxes (e.g., Grass, Grasshopper, Frog, Snake) with connecting arrows and labels.
+     * Science - Electrical Circuits: Use standard circuit symbols (Battery parallel lines, Bulb circle with X, Switch angled line, Wires).
+     * Math: Accurate triangles (labelled vertices, angles), circles (radius/diameter, center), coordinate planes (axes, tick marks, plotted points), number lines (ticks, arrows, numbers), bar graphs (rect values, axis), or pie charts (slice paths, labels).
+     * ICT: computer system unit box, networked nodes, flowcharts (processes, diamonds).
+     * RME: family trees, pillars, decision trees.` : `- Diagram generation is set to "None". Do NOT generate or include any diagrams or SVGs.`}
 
 7. ANSWER KEY SEPARATOR:
    ${generateMarkingScheme ? `- Since Generate Marking Scheme is enabled, you MUST output the exact tag [ANSWER KEY] on its own line at the very end of the exam paper, and then write the detailed marking scheme/answer key (correct options for MCQs, outline answers for theory/essay, mark allocation, teacher marking guides, and suggested solutions). Everything after this tag will be printed on a separate sheet.
@@ -300,7 +318,7 @@ EXAM TYPE: ${examType}
 QUESTION FORMATS REQUESTED: ${questionType}
 TIME ALLOWED: ${timeAllowed}
 EXAM INSTRUCTIONS: ${instructions}
-DIAGRAM GENERATION SETTING: ${diagramGen}
+DIAGRAM QUALITY SETTING: ${diagramGen}
 GENERATE MARKING SCHEME: ${generateMarkingScheme ? "Yes" : "No"}
 
 RAW TEACHER QUESTIONS TO ENHANCE:
@@ -323,17 +341,22 @@ CRITICAL RULES FOR ENHANCEMENT:
 4. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers, no asterisks, no hashes, no code blocks). Use capital letters for headings and line breaks for spacing.
 
 5. AUTOMATIC DIAGRAM GENERATION (CRITICAL):
-   ${diagramGen !== "None" ? `- Since diagram generation is set to "${diagramGen}", you MUST automatically identify questions that benefit from diagrams, figures, or illustrations (especially for Mathematics, Integrated Science, Social Studies, ICT, or RME) and generate an inline black-and-white print-ready SVG diagram directly below the question.
-   - Embed the raw SVG tag directly in the HTML stream:
-     <div class="exam-diagram-container" style="text-align: center; margin: 15px auto; display: flex; justify-content: center; width: 100%;"><svg viewBox="0 0 400 200" width="300" height="150" style="background: white; border: 1.5px solid #000; padding: 5px;">...shapes, lines, texts...</svg></div>
-   - Diagrams must be strictly BLACK AND WHITE (use stroke="black", fill="none" or simple light gray shades e.g., fill="#cccccc"). Do not use any colored artwork. It must be suitable for photocopying.
-   - Use correct vector elements: <rect>, <circle>, <line>, <polygon>, <path>, and <text> for labels.
-   - Mathematics: shapes (triangles, circles, rectangles), number lines, coordinate grids, bar/pie charts.
-   - Science: simple circuit schematics (cell, bulb, switch), water cycle outlines, digestive system blocks, plant parts.
-   - Social Studies: 4-point or 8-point compass rose, simple family tree charts, map outlines.
-   - ICT: box flowcharts, system blocks.
-   - RME: pillars or relationship trees.
-   - Do NOT use generic decorative images.` : `- Diagram generation is set to "None". Do NOT generate or include any diagrams or SVGs.`}
+   ${diagramGen !== "None" ? `- Since Diagram Quality is set to "${diagramGen}", you MUST automatically analyze the topics and determine whether a question benefits from diagrams.
+   - For questions on topics requiring visual illustrations, you MUST generate and embed an inline black-and-white, print-ready, high-resolution, vector-based SVG diagram directly below the question.
+   - Embed the raw SVG tag directly in the HTML stream inside this styled container:
+     <div class="exam-diagram-container" style="text-align: center; margin: 15px auto; display: flex; justify-content: center; width: 100%;"><svg viewBox="0 0 400 250" width="350" height="220" style="background: white; border: 1.5px solid #111; padding: 5px;">...shapes, paths, text labels...</svg></div>
+   - All SVGs must be strictly BLACK AND WHITE (use stroke="black", fill="none" or simple light gray shades e.g., fill="#cccccc" / fill="#eaeaea" for fills). No color. Suitable for photocopy printing.
+   - All labels inside the SVG must be clear and legible, pointing to parts using lines/arrows. Use the SVG <text> tag for labels.
+   - Specific Diagram Standards:
+     * Science - Labelled Flower: Draw a realistic outline flower showing: Petal, Sepal, Stigma, Style, Ovary, with pointer lines.
+     * Science - Digestive System: Draw a realistic schematic showing mouth, oesophagus tube, stomach outline, small intestine, and large intestine, with labels and pointer lines.
+     * Science - Respiratory System: Draw Nose, Trachea, Lungs, and Diaphragm.
+     * Science - Water Cycle: Draw Sun, clouds, precipitation rain, ocean collection, evaporation, and condensation with flow arrows.
+     * Science - Food Chain: Draw a flowchart with illustrated boxes (e.g., Grass, Grasshopper, Frog, Snake) with connecting arrows and labels.
+     * Science - Electrical Circuits: Use standard circuit symbols (Battery parallel lines, Bulb circle with X, Switch angled line, Wires).
+     * Math: Accurate triangles (labelled vertices, angles), circles (radius/diameter, center), coordinate planes (axes, tick marks, plotted points), number lines (ticks, arrows, numbers), bar graphs (rect values, axis), or pie charts (slice paths, labels).
+     * ICT: computer system unit box, networked nodes, flowcharts (processes, diamonds).
+     * RME: family trees, pillars, decision trees.` : `- Diagram generation is set to "None". Do NOT generate or include any diagrams or SVGs.`}
 
 6. ANSWER KEY SEPARATOR:
    ${generateMarkingScheme ? `- Since Generate Marking Scheme is enabled, you MUST output the exact tag [ANSWER KEY] on its own line at the very end of the exam paper, and then write the detailed marking scheme/answer key (correct options for MCQs, outline answers for theory/essay, mark allocation, teacher marking guides, and suggested solutions). Everything after this tag will be printed on a separate sheet.
@@ -788,14 +811,15 @@ CRITICAL RULES FOR ENHANCEMENT:
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="diagram-generation" className="text-xs">Diagram Generation</Label>
+                    <Label htmlFor="diagram-quality" className="text-xs">Diagram Quality</Label>
                     <Select value={diagramGen} onValueChange={setDiagramGen}>
-                      <SelectTrigger id="diagram-generation" className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="diagram-quality" className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="None" className="text-xs">None</SelectItem>
-                        <SelectItem value="Simple Educational Diagrams" className="text-xs">Simple Educational</SelectItem>
-                        <SelectItem value="Standard Examination Diagrams" className="text-xs">Standard Examination</SelectItem>
-                        <SelectItem value="Advanced AI-Generated Diagrams" className="text-xs">Advanced AI-Generated</SelectItem>
+                        <SelectItem value="Basic" className="text-xs">Basic</SelectItem>
+                        <SelectItem value="Standard" className="text-xs">Standard</SelectItem>
+                        <SelectItem value="Advanced" className="text-xs">Advanced</SelectItem>
+                        <SelectItem value="Examination Standard" className="text-xs">Examination Standard</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
