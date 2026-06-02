@@ -8,7 +8,7 @@ import { Lock, Mail, ShieldCheck, GraduationCap, Users } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type UserRole, type AuthState, getAuthSync } from "@/lib/auth";
+import { type UserRole, type AuthState, getAuthSync, setAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import logoImg from "@/assets/logo.png";
 
@@ -86,6 +86,33 @@ function LoginPage() {
             .select("role")
             .eq("user_id", data.user.id);
           const role = roles?.[0]?.role || data.user.user_metadata.role || "parent";
+
+          // Pre-populate parent student links if role is parent
+          let studentIds: string[] | undefined = data.user.user_metadata.studentIds;
+          if (role === "parent") {
+            try {
+              const { data: links } = await supabase
+                .from("parent_students")
+                .select("student_id")
+                .eq("parent_user_id", data.user.id);
+              if (links) studentIds = links.map((l: any) => l.student_id);
+            } catch (err) {
+              console.warn("Could not pre-fetch parent students:", err);
+            }
+          }
+
+          // Cache auth details synchronously to prevent blank flash
+          const auth: AuthState = {
+            loggedIn: true,
+            role,
+            name: data.user.user_metadata.full_name || data.user.email?.split("@")[0] || "User",
+            email: data.user.email || "",
+            userId: data.user.id,
+            teacherId: data.user.user_metadata.teacherId,
+            studentIds,
+          };
+          setAuth(auth);
+
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
           window.location.href = dest;
         }

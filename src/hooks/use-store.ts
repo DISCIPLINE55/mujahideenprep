@@ -70,8 +70,43 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: tableName },
-        () => {
-          fetchCloud();
+        (payload: any) => {
+          const eventType = payload.eventType;
+          const newRow = payload.new;
+          const oldRow = payload.old;
+
+          if (!eventType) return;
+
+          setItemsState((prevItems) => {
+            let updatedItems = [...prevItems];
+            if (eventType === "INSERT") {
+              if (newRow && !updatedItems.some((item) => item.id === newRow.id)) {
+                updatedItems = [newRow as T, ...updatedItems];
+              }
+            } else if (eventType === "UPDATE") {
+              if (newRow) {
+                updatedItems = updatedItems.map((item) =>
+                  item.id === newRow.id ? { ...item, ...newRow } : item
+                );
+              }
+            } else if (eventType === "DELETE") {
+              if (oldRow && oldRow.id) {
+                updatedItems = updatedItems.filter((item) => item.id !== oldRow.id);
+              }
+            }
+
+            // Client-side sort to keep descending order by created_at if available
+            updatedItems.sort((a: any, b: any) => {
+              if (a.created_at && b.created_at) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+              }
+              return 0;
+            });
+
+            // Update localStorage cache synchronously
+            setItems(key, updatedItems, false);
+            return updatedItems;
+          });
         }
       )
       .subscribe();
@@ -79,7 +114,7 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tableName, fetchCloud]);
+  }, [tableName, key]);
 
   const add = useCallback(async (item: Omit<T, "id">) => {
     const newItem = { ...item, id: generateId() } as T;

@@ -13,52 +13,67 @@ export interface AuthState {
 }
 
 export async function getAuth(): Promise<AuthState | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("mpsms_auth_meta");
-    }
-    return null;
-  }
-
-  // Fetch role from user_roles (source of truth); fall back to metadata
-  let role: UserRole = (session.user.user_metadata.role as UserRole) || "parent";
   try {
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id);
-    if (roles && roles.length > 0) {
-      // Prefer admin > teacher > parent if multiple
-      const order: UserRole[] = ["admin", "teacher", "parent"];
-      const found = order.find((r) => roles.some((x: any) => x.role === r));
-      if (found) role = found;
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (!session) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("mpsms_auth_meta");
+      }
+      return null;
     }
-  } catch { /* ignore, use metadata fallback */ }
 
-  // Optional: load linked students for parents
-  let studentIds: string[] | undefined;
-  if (role === "parent") {
-    const { data: links } = await supabase
-      .from("parent_students")
-      .select("student_id")
-      .eq("parent_user_id", session.user.id);
-    studentIds = links?.map((l: any) => l.student_id);
-  }
+    // Fetch role from user_roles (source of truth); fall back to metadata
+    let role: UserRole = (session.user.user_metadata.role as UserRole) || "parent";
+    try {
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+      if (rolesError) throw rolesError;
+      if (roles && roles.length > 0) {
+        // Prefer admin > teacher > parent if multiple
+        const order: UserRole[] = ["admin", "teacher", "parent"];
+        const found = order.find((r) => roles.some((x: any) => x.role === r));
+        if (found) role = found;
+      }
+    } catch (err) {
+      console.warn("Error fetching user role, falling back to metadata:", err);
+    }
 
-  const auth: AuthState = {
-    loggedIn: true,
-    role,
-    name: session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User",
-    email: session.user.email || "",
-    userId: session.user.id,
-    teacherId: session.user.user_metadata.teacherId,
-    studentIds: studentIds ?? session.user.user_metadata.studentIds,
-  };
-  if (typeof window !== "undefined") {
-    localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
+    // Optional: load linked students for parents
+    let studentIds: string[] | undefined;
+    if (role === "parent") {
+      try {
+        const { data: links, error: linksError } = await supabase
+          .from("parent_students")
+          .select("student_id")
+          .eq("parent_user_id", session.user.id);
+        if (linksError) throw linksError;
+        studentIds = links?.map((l: any) => l.student_id);
+      } catch (err) {
+        console.warn("Error fetching linked students for parent:", err);
+      }
+    }
+
+    const auth: AuthState = {
+      loggedIn: true,
+      role,
+      name: session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User",
+      email: session.user.email || "",
+      userId: session.user.id,
+      teacherId: session.user.user_metadata.teacherId,
+      studentIds: studentIds ?? session.user.user_metadata.studentIds,
+    };
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
+    }
+    return auth;
+  } catch (err) {
+    console.error("Critical error in getAuth:", err);
+    // On failure, attempt to return cached metadata if exists to maintain session continuity offline
+    return getAuthSync();
   }
-  return auth;
 }
 
 export function getAuthSync(): AuthState | null {
