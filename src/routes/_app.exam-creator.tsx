@@ -32,11 +32,19 @@ export const Route = createFileRoute("/_app/exam-creator")({
 
 // Helper to sanitize markdown from AI output
 function cleanExamText(text: string): string {
-  return text
+  let cleaned = text
     .replace(/\*\*/g, "") // remove bold markers
-    .replace(/##+/g, "")  // remove headers
-    .replace(/#/g, "")    // remove headers
+    .replace(/\*/g, "")   // remove single asterisks
+    .replace(/#+/g, "")   // remove headers
     .replace(/`/g, "");   // remove code backticks
+
+  // Replace [ANSWER KEY] separator with page break and key wrapper
+  cleaned = cleaned.replace(
+    /\[ANSWER KEY\]/gi,
+    '<div class="page-break" style="page-break-before: always; break-before: page; margin-top: 40px; border-top: 2px dashed #000; padding-top: 20px;"></div><div class="exam-answer-key"><h2>ANSWER KEY & MARKING SCHEME</h2>'
+  );
+
+  return cleaned;
 }
 
 function ExamCreatorPage() {
@@ -82,6 +90,7 @@ function ExamCreatorPage() {
   // Generation status
   const [isGenerating, setIsGenerating] = useState(false);
   const [examContent, setExamContent] = useState("");
+  const [includeAnswerKey, setIncludeAnswerKey] = useState(true);
 
   // Editor Ref
   const editorRef = useRef<HTMLDivElement>(null);
@@ -221,8 +230,8 @@ CRITICAL RULES FOR CONTENT QUALITY & STRUCTURE:
      D) Option Text
    - If Theory/Essay is requested, label it as "SECTION B: THEORY/ESSAY". Number the questions consecutively. State the marks allocated to each question in brackets, e.g., [5 marks] or [10 marks].
 4. GEOGRAPHIC/CULTURAL CONTEXT: Use localized names (e.g., Kwame, Amina, Kofi, Fatimah) and relevant Ghanaian context (e.g., local currency GHS, local geography, crops) where appropriate.
-5. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers). Use capital letters for section headers and standard carriage returns for layout separation.
-6. ANSWER KEY: At the very end of the exam paper, draw a clear separator line: "--------------------------------------------------" and provide a detailed "ANSWER KEY / MARKING SCHEME" containing correct options for MCQs and outline answers for theory questions.
+5. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers, no asterisks, no hashes, no code blocks). Use capital letters for section headers and standard carriage returns for layout separation.
+6. ANSWER KEY SEPARATOR: At the very end of the exam paper, you MUST output the exact tag [ANSWER KEY] on its own line, and then write the detailed marking scheme/answer key. Do not output standard dashes like "---" for separator. Everything after this tag will be printed on a separate sheet.
 `;
     } else {
       userPrompt = `
@@ -239,6 +248,9 @@ EXAM INSTRUCTIONS: ${instructions}
 RAW TEACHER QUESTIONS TO ENHANCE:
 ${draftQuestions}
 
+RAW TEACHER ANSWERS (IF GIVEN):
+If there are any answers or notes inside the raw draft questions, separate them out and append them to the final Answer Key.
+
 CRITICAL RULES FOR ENHANCEMENT:
 1. PROFESSIONAL REPHRASING: Upgrade the grammar, clarity, and precision of each question. Make them sound like official exam board questions. The tone must be academic, formal, and tailored for ${selectedClass}.
 2. MAINTAIN INTENT & DIVERSITY: Do not change the core concepts of the draft questions, but structure them cleanly. Keep the exact question count. Ensure no two questions sound similar.
@@ -250,8 +262,8 @@ CRITICAL RULES FOR ENHANCEMENT:
      C) Option Text
      D) Option Text
    - For Theory/Essay: Provide clean layout spacing and add allocated marks in brackets, e.g. [5 marks].
-4. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers). Use capital letters for headings and line breaks for spacing.
-5. ANSWER KEY: At the very end after a separator line "--------------------------------------------------", provide a complete "ANSWER KEY / MARKING SCHEME" corresponding to the enhanced questions.
+4. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers, no asterisks, no hashes, no code blocks). Use capital letters for headings and line breaks for spacing.
+5. ANSWER KEY SEPARATOR: At the very end of the exam paper, you MUST output the exact tag [ANSWER KEY] on its own line, and then write the detailed marking scheme/answer key. Do not output standard dashes like "---" for separator. Everything after this tag will be printed on a separate sheet.
 `;
     }
 
@@ -541,6 +553,17 @@ CRITICAL RULES FOR ENHANCEMENT:
             margin: 0 !important;
             padding: 0 !important;
           }
+          .grid, .grid-cols-1, .lg:grid-cols-12 {
+            display: block !important;
+          }
+          .lg:col-span-8 {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .p-6, .space-y-6, .space-y-4 {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
           .exam-paper-print {
             border: none !important;
             box-shadow: none !important;
@@ -550,6 +573,11 @@ CRITICAL RULES FOR ENHANCEMENT:
             max-width: 100% !important;
             min-height: 0 !important;
           }
+          ${!includeAnswerKey ? `
+          .exam-answer-key, .page-break {
+            display: none !important;
+          }
+          ` : ""}
         }
         #exam-editor-content img {
           max-width: 100% !important;
@@ -867,6 +895,16 @@ CRITICAL RULES FOR ENHANCEMENT:
                     <SelectItem value="doc" className="text-xs">Word Doc (.doc)</SelectItem>
                   </SelectContent>
                 </Select>
+
+                <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer select-none border rounded px-2.5 h-8 bg-card hover:bg-accent transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={includeAnswerKey}
+                    onChange={(e) => setIncludeAnswerKey(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span>Print Answer Key</span>
+                </label>
 
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePrintExam} title="Print Exam Paper">
                   <Printer className="h-3.5 w-3.5" />

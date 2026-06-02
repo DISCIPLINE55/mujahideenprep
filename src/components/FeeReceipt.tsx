@@ -1,5 +1,5 @@
 import { type Payment } from "@/lib/storage";
-import { brandedPrintHeader, brandedPrintFooter } from "@/lib/printBranding";
+import { brandedPrintHeader, brandedPrintFooter, printHtml } from "@/lib/printBranding";
 
 export function printFeeReceipt(payment: Payment) {
   const balance = payment.totalFee - payment.amountPaid;
@@ -44,10 +44,5 @@ ${brandedPrintFooter()}
 </div>
 </body></html>`;
 
-  const win = window.open("", "_blank");
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => win.print(), 500);
-  }
+  printHtml(html, `Fee Receipt - ${payment.studentName}`);
 }

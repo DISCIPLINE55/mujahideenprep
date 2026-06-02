@@ -49,3 +49,33 @@ export function brandedPrintFooter(): string {
   </div>
 </div>`;
 }
+
+export function printHtml(html: string, title?: string) {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (doc) {
+    if (title) {
+      doc.title = title;
+    }
+    doc.write(html);
+    doc.close();
+
+    if (iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
+    }
+  }
+}

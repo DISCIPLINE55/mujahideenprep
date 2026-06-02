@@ -81,7 +81,8 @@ function CommunicationsPage() {
         result += chunk;
       },
       onDone: () => {
-        const formattedResult = `<p>${result.replace(/\n/g, '<br>')}</p>`;
+        const cleaned = stripMarkdown(result);
+        const formattedResult = `<p>${cleaned.replace(/\n/g, '<br>')}</p>`;
         setForm((f) => ({ ...f, message: formattedResult }));
         editor?.commands.setContent(formattedResult);
         toast.success("AI message generated!");

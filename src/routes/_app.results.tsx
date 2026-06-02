@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
 import { printReportCard } from "@/components/ReportCard";
+import { printHtml } from "@/lib/printBranding";
 import { callSchoolAI } from "@/lib/ai";
 import { toast } from "sonner";
 import { getAuthSync, type UserRole } from "@/lib/auth";
@@ -157,27 +158,23 @@ function ResultsPage() {
     // Sort by student name
     classResults.sort((a, b) => a.studentName.localeCompare(b.studentName));
 
-    const win = window.open("", "_blank");
-    if (win) {
-      const html = classResults.map(res => {
-        return `<div class="print-page">${printReportCard({ result: res, position: 0, totalInClass: 0, nhisNumber: "" }, true)}</div>`;
-      }).join('<div style="page-break-after: always;"></div>');
+    const htmlBody = classResults.map(res => {
+      return `<div class="print-page">${printReportCard({ result: res, position: 0, totalInClass: 0, nhisNumber: "" }, true)}</div>`;
+    }).join('<div style="page-break-after: always;"></div>');
 
-      win.document.write(`
-        <html>
-          <head>
-            <title>Bulk Reports - ${printClass}</title>
-            <style>
-              @media print { .print-page { page-break-after: always; } }
-              body { margin: 0; padding: 0; }
-            </style>
-          </head>
-          <body>${html}</body>
-        </html>
-      `);
-      win.document.close();
-      setTimeout(() => win.print(), 500);
-    }
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Bulk Reports - ${printClass}</title>
+          <style>
+            @media print { .print-page { page-break-after: always; } }
+            body { margin: 0; padding: 0; }
+          </style>
+        </head>
+        <body>${htmlBody}</body>
+      </html>
+    `;
+    printHtml(htmlContent, `Bulk Reports - ${printClass}`);
     setBulkPrintOpen(false);
   }
 

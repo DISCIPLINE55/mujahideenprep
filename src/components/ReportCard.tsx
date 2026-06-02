@@ -1,5 +1,5 @@
 import { type ExamResult } from "@/lib/storage";
-import { getSchoolSettings, brandedPrintHeader, brandedPrintFooter } from "@/lib/printBranding";
+import { getSchoolSettings, brandedPrintHeader, brandedPrintFooter, printHtml } from "@/lib/printBranding";
 
 interface ReportCardProps {
   result: ExamResult;
@@ -130,10 +130,5 @@ export function printReportCard({ result, position, totalInClass, nhisNumber }: 
   if (returnHtml) return content;
 
   const html = `<!DOCTYPE html><html><head><title>Report Card - ${result.studentName}</title><style>${styles}</style></head><body>${content}</body></html>`;
-  const win = window.open("", "_blank");
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => win.print(), 500);
-  }
+  printHtml(html, `Report Card - ${result.studentName}`);
 }

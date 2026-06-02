@@ -169,7 +169,6 @@
   [data-sidebar],
   nav,
   header,
-  .sidebar-transition,
   button:not(.print-keep) {
     display: none !important;
   }
