@@ -30,12 +30,48 @@ export const Route = createFileRoute("/_app/exam-creator")({
   component: ExamCreatorPage,
 });
 
+function convertNewlinesToBr(text: string): string {
+  const svgBlocks: string[] = [];
+  
+  // Replace <svg...>...</svg> blocks with placeholders
+  let textWithPlaceholders = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+    svgBlocks.push(match);
+    return `___SVG_BLOCK_PLACEHOLDER_${svgBlocks.length - 1}___`;
+  });
+  
+  // Handle open/unfinished SVG blocks during streaming
+  let unfinishedSvg = "";
+  const openSvgIndex = textWithPlaceholders.toLowerCase().lastIndexOf("<svg");
+  const closeSvgIndex = textWithPlaceholders.toLowerCase().lastIndexOf("</svg>");
+  if (openSvgIndex > closeSvgIndex) {
+    const unfinishedPart = textWithPlaceholders.substring(openSvgIndex);
+    unfinishedSvg = unfinishedPart;
+    textWithPlaceholders = textWithPlaceholders.substring(0, openSvgIndex);
+  }
+
+  // Replace newlines with <br/> inside safe text blocks
+  let formatted = textWithPlaceholders.replace(/\n/g, "<br/>");
+
+  // Restore placeholders
+  svgBlocks.forEach((block, idx) => {
+    formatted = formatted.replace(`___SVG_BLOCK_PLACEHOLDER_${idx}___`, block);
+  });
+
+  // Restore unfinished SVG
+  if (unfinishedSvg) {
+    formatted += unfinishedSvg;
+  }
+
+  return formatted;
+}
+
 // Helper to sanitize markdown from AI output
 function cleanExamText(text: string): string {
   let cleaned = text
     .replace(/\*\*/g, "") // remove bold markers
     .replace(/\*/g, "")   // remove single asterisks
-    .replace(/#+/g, "")   // remove headers
+    .replace(/(?:^|\n)#+\s+/g, "\n") // remove markdown headers at start of line
+    .replace(/#+\s+/g, "") // remove any remaining header hashes followed by space
     .replace(/`/g, "");   // remove code backticks
 
   // Replace [ANSWER KEY] separator with page break and key wrapper
@@ -91,6 +127,8 @@ function ExamCreatorPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [examContent, setExamContent] = useState("");
   const [includeAnswerKey, setIncludeAnswerKey] = useState(true);
+  const [diagramGen, setDiagramGen] = useState("Standard Examination Diagrams");
+  const [generateMarkingScheme, setGenerateMarkingScheme] = useState(true);
 
   // Editor Ref
   const editorRef = useRef<HTMLDivElement>(null);
@@ -218,6 +256,8 @@ QUESTION FORMATS REQUESTED: ${questionType}
 NUMBER OF QUESTIONS: ${numQuestions}
 TOPICS TO COVER: ${topics}
 EXAM INSTRUCTIONS: ${instructions}
+DIAGRAM GENERATION SETTING: ${diagramGen}
+GENERATE MARKING SCHEME: ${generateMarkingScheme ? "Yes" : "No"}
 
 CRITICAL RULES FOR CONTENT QUALITY & STRUCTURE:
 1. NO DUPLICATION: Every question must be completely unique, testing a distinct concept or sub-topic. There must be absolutely ZERO overlap, repetition of scenarios, or similarity in the questions.
@@ -231,7 +271,23 @@ CRITICAL RULES FOR CONTENT QUALITY & STRUCTURE:
    - If Theory/Essay is requested, label it as "SECTION B: THEORY/ESSAY". Number the questions consecutively. State the marks allocated to each question in brackets, e.g., [5 marks] or [10 marks].
 4. GEOGRAPHIC/CULTURAL CONTEXT: Use localized names (e.g., Kwame, Amina, Kofi, Fatimah) and relevant Ghanaian context (e.g., local currency GHS, local geography, crops) where appropriate.
 5. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers, no asterisks, no hashes, no code blocks). Use capital letters for section headers and standard carriage returns for layout separation.
-6. ANSWER KEY SEPARATOR: At the very end of the exam paper, you MUST output the exact tag [ANSWER KEY] on its own line, and then write the detailed marking scheme/answer key. Do not output standard dashes like "---" for separator. Everything after this tag will be printed on a separate sheet.
+
+6. AUTOMATIC DIAGRAM GENERATION (CRITICAL):
+   ${diagramGen !== "None" ? `- Since diagram generation is set to "${diagramGen}", you MUST automatically identify questions that benefit from diagrams, figures, or illustrations (especially for Mathematics, Integrated Science, Social Studies, ICT, or RME) and generate an inline black-and-white print-ready SVG diagram directly below the question.
+   - Embed the raw SVG tag directly in the HTML stream:
+     <div class="exam-diagram-container" style="text-align: center; margin: 15px auto; display: flex; justify-content: center; width: 100%;"><svg viewBox="0 0 400 200" width="300" height="150" style="background: white; border: 1.5px solid #000; padding: 5px;">...shapes, lines, texts...</svg></div>
+   - Diagrams must be strictly BLACK AND WHITE (use stroke="black", fill="none" or simple light gray shades e.g., fill="#cccccc"). Do not use any colored artwork. It must be suitable for photocopying.
+   - Use correct vector elements: <rect>, <circle>, <line>, <polygon>, <path>, and <text> for labels.
+   - Mathematics: shapes (triangles, circles, rectangles), number lines, coordinate grids, bar/pie charts.
+   - Science: simple circuit schematics (cell, bulb, switch), water cycle outlines, digestive system blocks, plant parts.
+   - Social Studies: 4-point or 8-point compass rose, simple family tree charts, map outlines.
+   - ICT: box flowcharts, system blocks.
+   - RME: pillars or relationship trees.
+   - Do NOT use generic decorative images.` : `- Diagram generation is set to "None". Do NOT generate or include any diagrams or SVGs.`}
+
+7. ANSWER KEY SEPARATOR:
+   ${generateMarkingScheme ? `- Since Generate Marking Scheme is enabled, you MUST output the exact tag [ANSWER KEY] on its own line at the very end of the exam paper, and then write the detailed marking scheme/answer key (correct options for MCQs, outline answers for theory/essay, mark allocation, teacher marking guides, and suggested solutions). Everything after this tag will be printed on a separate sheet.
+   - Do not output standard dashes like "---" for separator.` : `- Do not generate any marking scheme or answer key. Do not output the [ANSWER KEY] tag.`}
 `;
     } else {
       userPrompt = `
@@ -244,6 +300,8 @@ EXAM TYPE: ${examType}
 QUESTION FORMATS REQUESTED: ${questionType}
 TIME ALLOWED: ${timeAllowed}
 EXAM INSTRUCTIONS: ${instructions}
+DIAGRAM GENERATION SETTING: ${diagramGen}
+GENERATE MARKING SCHEME: ${generateMarkingScheme ? "Yes" : "No"}
 
 RAW TEACHER QUESTIONS TO ENHANCE:
 ${draftQuestions}
@@ -263,7 +321,23 @@ CRITICAL RULES FOR ENHANCEMENT:
      D) Option Text
    - For Theory/Essay: Provide clean layout spacing and add allocated marks in brackets, e.g. [5 marks].
 4. NO MARKDOWN: Do NOT output any markdown tags (no **, no ##, no #, no bold markers, no asterisks, no hashes, no code blocks). Use capital letters for headings and line breaks for spacing.
-5. ANSWER KEY SEPARATOR: At the very end of the exam paper, you MUST output the exact tag [ANSWER KEY] on its own line, and then write the detailed marking scheme/answer key. Do not output standard dashes like "---" for separator. Everything after this tag will be printed on a separate sheet.
+
+5. AUTOMATIC DIAGRAM GENERATION (CRITICAL):
+   ${diagramGen !== "None" ? `- Since diagram generation is set to "${diagramGen}", you MUST automatically identify questions that benefit from diagrams, figures, or illustrations (especially for Mathematics, Integrated Science, Social Studies, ICT, or RME) and generate an inline black-and-white print-ready SVG diagram directly below the question.
+   - Embed the raw SVG tag directly in the HTML stream:
+     <div class="exam-diagram-container" style="text-align: center; margin: 15px auto; display: flex; justify-content: center; width: 100%;"><svg viewBox="0 0 400 200" width="300" height="150" style="background: white; border: 1.5px solid #000; padding: 5px;">...shapes, lines, texts...</svg></div>
+   - Diagrams must be strictly BLACK AND WHITE (use stroke="black", fill="none" or simple light gray shades e.g., fill="#cccccc"). Do not use any colored artwork. It must be suitable for photocopying.
+   - Use correct vector elements: <rect>, <circle>, <line>, <polygon>, <path>, and <text> for labels.
+   - Mathematics: shapes (triangles, circles, rectangles), number lines, coordinate grids, bar/pie charts.
+   - Science: simple circuit schematics (cell, bulb, switch), water cycle outlines, digestive system blocks, plant parts.
+   - Social Studies: 4-point or 8-point compass rose, simple family tree charts, map outlines.
+   - ICT: box flowcharts, system blocks.
+   - RME: pillars or relationship trees.
+   - Do NOT use generic decorative images.` : `- Diagram generation is set to "None". Do NOT generate or include any diagrams or SVGs.`}
+
+6. ANSWER KEY SEPARATOR:
+   ${generateMarkingScheme ? `- Since Generate Marking Scheme is enabled, you MUST output the exact tag [ANSWER KEY] on its own line at the very end of the exam paper, and then write the detailed marking scheme/answer key (correct options for MCQs, outline answers for theory/essay, mark allocation, teacher marking guides, and suggested solutions). Everything after this tag will be printed on a separate sheet.
+   - Do not output standard dashes like "---" for separator.` : `- Do not generate any marking scheme or answer key. Do not output the [ANSWER KEY] tag.`}
 `;
     }
 
@@ -277,8 +351,7 @@ CRITICAL RULES FOR ENHANCEMENT:
       onDelta: (chunk) => {
         accumulatedText += chunk;
         const cleanedText = cleanExamText(accumulatedText);
-        // Convert double-newlines in plain text to html line breaks for preview
-        const htmlBody = cleanedText.replace(/\n/g, "<br/>");
+        const htmlBody = convertNewlinesToBr(cleanedText);
         setExamContent(headerHtml + `<div style="font-family: 'Times New Roman', Times, serif; font-size: 16px; line-height: 1.6; text-align: justify; color: #111;">` + htmlBody + `</div>`);
       },
       onDone: () => {
@@ -711,6 +784,31 @@ CRITICAL RULES FOR ENHANCEMENT:
                       onChange={(e) => setInstructions(e.target.value)} 
                       className="h-9 text-xs" 
                     />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="diagram-generation" className="text-xs">Diagram Generation</Label>
+                    <Select value={diagramGen} onValueChange={setDiagramGen}>
+                      <SelectTrigger id="diagram-generation" className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None" className="text-xs">None</SelectItem>
+                        <SelectItem value="Simple Educational Diagrams" className="text-xs">Simple Educational</SelectItem>
+                        <SelectItem value="Standard Examination Diagrams" className="text-xs">Standard Examination</SelectItem>
+                        <SelectItem value="Advanced AI-Generated Diagrams" className="text-xs">Advanced AI-Generated</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={generateMarkingScheme}
+                        onChange={(e) => setGenerateMarkingScheme(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span>Generate Marking Scheme</span>
+                    </label>
                   </div>
                 </div>
 
