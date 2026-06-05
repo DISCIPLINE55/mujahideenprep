@@ -38,20 +38,97 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  loading?: boolean
+  noSpinner?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      loading = false,
+      noSpinner = false,
+      onClick,
+      disabled,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const [isPending, setIsPending] = React.useState(false);
+
+    const handleClick = React.useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+      setIsPending(true);
+      const startTime = Date.now();
+      try {
+        if (onClick) {
+          await onClick(e);
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+      } finally {
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 300) {
+          await new Promise((resolve) => setTimeout(resolve, 300 - elapsed));
+        }
+        setIsPending(false);
+      }
+    }, [onClick]);
+
+    if (asChild) {
+      return (
+        <Slot
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          {...props}
+          {...({ disabled, onClick } as any)}
+        />
+      );
+    }
+
+    const isInteractiveVariant = variant !== "link" && variant !== "ghost";
+    const canShowSpinner = !noSpinner && isInteractiveVariant;
+    const showSpinner = (loading || isPending) && canShowSpinner;
+
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        disabled={disabled || showSpinner}
+        onClick={canShowSpinner ? handleClick : onClick}
         {...props}
-      />
-    )
+      >
+        {showSpinner && (
+          <svg
+            className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        )}
+        {children}
+      </button>
+    );
   }
 )
 Button.displayName = "Button"
 
 export { Button, buttonVariants }
+
