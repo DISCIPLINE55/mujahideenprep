@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useLocation } from "@tanstack/react-router";
 import { AppSidebar, MobileSidebarToggle } from "./AppSidebar";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import type { UserRole } from "@/lib/auth";
 import { syncCloudToLocal } from "@/lib/storage";
 import { usePWA } from "@/hooks/use-pwa";
@@ -73,17 +73,14 @@ export function DashboardLayout({ role }: { role: UserRole; name: string }) {
           collapsed ? "lg:ml-16" : "lg:ml-60"
         )}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
+        >
+          <Outlet />
+        </motion.div>
       </main>
 
       <InstallPwaDialog

@@ -1,4 +1,4 @@
-const CACHE_NAME = "mpsms-cache-v3";
+const CACHE_NAME = "mpsms-cache-v4";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -37,8 +37,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-First for HTML/Document navigation requests (index.html)
-  if (event.request.mode === "navigate" || event.request.headers.get("accept")?.includes("text/html")) {
+  const isCodeOrAsset = 
+    event.request.mode === "navigate" || 
+    event.request.headers.get("accept")?.includes("text/html") ||
+    event.request.url.endsWith(".js") ||
+    event.request.url.endsWith(".css") ||
+    event.request.url.includes("/assets/");
+
+  // Network-First strategy for HTML documents, JS, CSS, and compiled assets
+  if (isCodeOrAsset) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -51,14 +58,17 @@ self.addEventListener("fetch", (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Fall back to cached index.html if offline
-          return caches.match("/index.html") || caches.match(event.request);
+          // Fall back to cached index.html or specific assets if offline
+          if (event.request.mode === "navigate" || event.request.headers.get("accept")?.includes("text/html")) {
+            return caches.match("/index.html") || caches.match(event.request);
+          }
+          return caches.match(event.request);
         })
     );
     return;
   }
 
-  // Stale-While-Revalidate for other local assets (JS, CSS, images, PWA files)
+  // Stale-While-Revalidate for other static local assets (images, icons, manifest.json)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
