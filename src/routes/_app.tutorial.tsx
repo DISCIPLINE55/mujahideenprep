@@ -246,6 +246,52 @@ function TutorialPage() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
+
+                {/* Admin - AI Timetable Scheduler */}
+                <AccordionItem value="admin-timetable" className="border rounded-xl px-6 bg-card shadow-sm hover:shadow transition-shadow">
+                  <AccordionTrigger className="hover:no-underline py-5">
+                    <div className="flex items-center gap-4 text-left">
+                      <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-500">
+                        <CalendarDays className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-foreground">AI Timetable Scheduler</h3>
+                        <p className="text-sm text-muted-foreground font-normal">Generating and applying class schedules automatically</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 pb-6 space-y-4">
+                    <ol className="space-y-3 pl-4 list-decimal text-muted-foreground">
+                      <li>Select the <span className="font-semibold text-foreground">Timetable</span> tab.</li>
+                      <li>Filter the view to select a specific class.</li>
+                      <li>Click the <span className="font-semibold text-foreground">AI Suggest</span> button in the toolbar.</li>
+                      <li>Review the generated periods, conflicts, and subjects.</li>
+                      <li>Click the green <span className="font-semibold text-foreground">Confirm & Apply</span> button to save and overwrite the schedule instantly.</li>
+                    </ol>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Admin - Offline Outbox Sync */}
+                <AccordionItem value="admin-sync" className="border rounded-xl px-6 bg-card shadow-sm hover:shadow transition-shadow">
+                  <AccordionTrigger className="hover:no-underline py-5">
+                    <div className="flex items-center gap-4 text-left">
+                      <div className="p-2.5 rounded-lg bg-teal-500/10 text-teal-500">
+                        <Smartphone className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-foreground">Offline Mode & Auto-Sync Engine</h3>
+                        <p className="text-sm text-muted-foreground font-normal">Working without internet access and resolving conflicts</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 pb-6 space-y-4">
+                    <ol className="space-y-3 pl-4 list-decimal text-muted-foreground">
+                      <li>Monitor the connection badge in the header. If you lose internet access, it will turn yellow and display <span className="font-semibold text-foreground">Offline Mode</span>.</li>
+                      <li>You can continue registering students, marking payments, or updating grades. Your changes are automatically stored in the local outbox.</li>
+                      <li>When the connection restores, the badge turns green (<span className="font-semibold text-emerald-600">Online</span>) and automatically uploads your outbox actions sequentially without conflict overrides.</li>
+                    </ol>
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
             </TabsContent>
           )}
@@ -349,6 +395,52 @@ function TutorialPage() {
                     <li>Enter the student's name, overall performance indicators, and any notes (e.g., "strives to learn, but easily distracted").</li>
                     <li>Click **Generate**. The assistant uses Google Gemini to write a warm, encouraging, British English comment in seconds.</li>
                     <li>Copy and paste the comment directly into the student's report card remarks field!</li>
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Teacher - AI Exam Creator */}
+              <AccordionItem value="teacher-exams" className="border rounded-xl px-6 bg-card shadow-sm hover:shadow transition-shadow">
+                <AccordionTrigger className="hover:no-underline py-5">
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-500">
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">AI Exam Creator & Printing Controls</h3>
+                      <p className="text-sm text-muted-foreground font-normal">Creating test papers, generating SVG diagrams, and hiding answer sheets</p>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-6 space-y-4">
+                  <ol className="space-y-3 pl-4 list-decimal text-muted-foreground">
+                    <li>Select <span className="font-semibold text-foreground">Exam Creator</span> in the sidebar.</li>
+                    <li>Enter your Grade, Subject, Term, and specific topics to cover.</li>
+                    <li>Choose your preferred **Diagram Quality** (e.g. *Examination Standard*) to generate high-resolution inline vector drawings linked with questions.</li>
+                    <li>Click **Generate Exam**. The AI compiles the questions and builds a marking scheme at the bottom.</li>
+                    <li>Toggle printing sheets: Keep **Print Answer Key** checked to automatically separate the marking scheme onto its own page with dividers, or uncheck it to hide the answer key completely for student-only printing.</li>
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Teacher - Offline Mode */}
+              <AccordionItem value="teacher-sync" className="border rounded-xl px-6 bg-card shadow-sm hover:shadow transition-shadow">
+                <AccordionTrigger className="hover:no-underline py-5">
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="p-2.5 rounded-lg bg-teal-500/10 text-teal-500">
+                      <Smartphone className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">Offline Roster Logs & Automatic Syncing</h3>
+                      <p className="text-sm text-muted-foreground font-normal">Marking class attendance and grades without internet coverage</p>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-6 space-y-4">
+                  <ol className="space-y-3 pl-4 list-decimal text-muted-foreground">
+                    <li>If network signals drop in the classroom, you can still mark attendance and enter grades. Your changes save instantly to the local cache.</li>
+                    <li>The system records your operations inside the background outbox.</li>
+                    <li>When connection returns, the app automatically pushes the queue to Supabase, keeping parent notifications and student dashboards fully aligned.</li>
                   </ol>
                 </AccordionContent>
               </AccordionItem>
