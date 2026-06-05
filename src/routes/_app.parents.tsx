@@ -126,7 +126,9 @@ function ParentsPage() {
         localStorage.setItem("mpsms_students_lite_cache", JSON.stringify(s));
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to load parents");
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        toast.error(err.message || "Failed to load parents");
+      }
     } finally {
       setLoading(false);
     }
