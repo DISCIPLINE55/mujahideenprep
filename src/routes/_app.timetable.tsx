@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Sparkles, Loader2, Printer } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { KEYS, CLASS_LIST, defaultSubjects, defaultTeachers, defaultStudents, getItems, type Subject, type Teacher, type TimetableSlot, type Student } from "@/lib/storage";
+import { defaultStudents, defaultTeachers, KEYS, type Student, type Teacher, type TimetableSlot, type Subject, defaultSubjects, generateId, CLASS_LIST } from "@/lib/storage";
 import { callSchoolAI } from "@/lib/ai";
+import { getSchoolSettings } from "@/lib/printBranding";
 import { toast } from "sonner";
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
 import { getAuthSync } from "@/lib/auth";
@@ -103,6 +104,7 @@ function DraggableSlot({ id, slot, onDelete, disabled }: { id: string, slot: Tim
 
 function TimetablePage() {
   const store = useStore<TimetableSlot>(KEYS.TIMETABLE, []);
+  const settings = getSchoolSettings();
   const subjectStore = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
   const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
   const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
@@ -136,6 +138,26 @@ function TimetablePage() {
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
+  const parsedSuggestions = useMemo(() => {
+    if (!aiText) return null;
+    const match = aiText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (!match) return null;
+    try {
+      const parsed = JSON.parse(match[1].trim());
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed as { day: string; period: string; subject: string; teacher: string }[];
+      }
+    } catch (e) {
+      console.warn("Failed to parse AI suggested timetable slots:", e);
+    }
+    return null;
+  }, [aiText]);
+
+  const renderedAiText = useMemo(() => {
+    if (!aiText) return "";
+    return aiText.replace(/```json\s*([\s\S]*?)\s*```/, "").trim();
+  }, [aiText]);
+
   async function handleAISuggest() {
     setAiOpen(true); setAiText(""); setAiLoading(true);
     try {
@@ -144,7 +166,14 @@ function TimetablePage() {
       const teacherList = teachers.filter(t => t.status === "Active").map(t => `${t.name} (${t.subject})`).join("; ");
       const text = await callSchoolAI({
         type: "timetable_suggest",
-        prompt: `Class: ${selectedClass}. Subjects available: ${subjectList}. Teachers available: ${teacherList}. Filled slots: ${filledSlots}. Suggest assignments for empty periods (Mon-Fri, Periods 1-8) avoiding teacher conflicts. Format as a clear list.`,
+        prompt: `Class: ${selectedClass}. Subjects available: ${subjectList}. Teachers available: ${teacherList}. Filled slots: ${filledSlots}. Suggest assignments for empty periods (Mon-Fri, Periods 1-8) avoiding teacher conflicts. Format your recommendations as a clear, user-friendly text list, and at the very end of your response, output a valid JSON array block containing the suggested additions (for empty slots only) enclosed in \`\`\`json and \`\`\`.
+Each suggestion in the JSON array must follow this exact format:
+{
+  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday",
+  "period": "Period 1" | "Period 2" | "Period 3" | "Period 4" | "Period 5" | "Period 6" | "Period 7" | "Period 8",
+  "subject": "Subject Name",
+  "teacher": "Teacher Name"
+}`,
       });
       setAiText(text.trim());
     } catch (e) {
@@ -152,6 +181,40 @@ function TimetablePage() {
       setAiOpen(false);
     }
     setAiLoading(false);
+  }
+
+  async function handleApplyAISuggestions() {
+    if (!parsedSuggestions || parsedSuggestions.length === 0) return;
+    const loader = toast.loading("Applying timetable suggestions...");
+    try {
+      const newItems = [...store.items];
+      parsedSuggestions.forEach((sugg) => {
+        const existingIndex = newItems.findIndex(
+          (s) => s.className === selectedClass && s.day === sugg.day && s.period === sugg.period
+        );
+        
+        const newSlot = {
+          id: existingIndex >= 0 ? newItems[existingIndex].id : generateId(),
+          day: sugg.day,
+          period: sugg.period,
+          subject: sugg.subject,
+          teacher: sugg.teacher,
+          className: selectedClass
+        };
+        
+        if (existingIndex >= 0) {
+          newItems[existingIndex] = newSlot;
+        } else {
+          newItems.push(newSlot);
+        }
+      });
+      
+      await store.syncAll(newItems);
+      toast.success("AI timetable suggestions applied successfully!", { id: loader });
+      setAiOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to apply suggestions", { id: loader });
+    }
   }
 
   const classSlots = useMemo(() => {
@@ -286,9 +349,13 @@ function TimetablePage() {
       <div className="p-6 space-y-6 print:p-0 print:space-y-4">
         {/* Printable Header */}
         <div className="hidden print:flex flex-col items-center justify-center text-center pb-4 border-b-2 border-double border-primary/20 mb-4">
-          <h1 className="text-2xl font-bold tracking-wider text-primary uppercase">Mujahideen Preparatory School</h1>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Mankessim, Central Region, Ghana | ESTD 1997</p>
-          <p className="text-[10px] text-muted-foreground">Email: info@mujahideenprep.edu.gh | Tel: +233 24 123 4567</p>
+          <h1 className="text-2xl font-bold tracking-wider text-primary uppercase">{settings.name || "Mujahideen Preparatory School"}</h1>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">{settings.location || "Mankessim, Central Region, Ghana"}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {settings.email ? `Email: ${settings.email}` : ""}
+            {settings.email && settings.phone ? " | " : ""}
+            {settings.phone ? `Tel: ${settings.phone}` : ""}
+          </p>
           <h2 className="text-base font-bold mt-3 px-6 py-1 border border-primary/25 bg-muted/30 rounded-full">
             {selectedClass === "My Schedule" ? `TEACHER WEEKLY SCHEDULE: ${auth?.name || "Teacher"}` : `WEEKLY CLASS TIMETABLE: ${selectedClass}`}
           </h2>
@@ -437,11 +504,14 @@ function TimetablePage() {
             {aiLoading ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Analysing schedule...</div>
             ) : (
-              <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans">{aiText}</pre>
+              <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans">{renderedAiText}</pre>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAiOpen(false)}>Close</Button>
+            {parsedSuggestions && parsedSuggestions.length > 0 && (
+              <Button onClick={handleApplyAISuggestions}><Sparkles className="h-4 w-4 mr-1" /> Confirm & Apply</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

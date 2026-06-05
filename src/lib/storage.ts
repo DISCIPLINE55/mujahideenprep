@@ -57,14 +57,14 @@ export function setItems<T>(key: string, items: T[] | T, sync = true): void {
   try {
     localStorage.setItem(key, JSON.stringify(items));
 
-    // Background sync to Supabase if sync flag is enabled
     if (sync) {
       const table = TABLE_MAP[key];
       if (table) {
         const data = Array.isArray(items) ? items : [items];
-        supabase.from(table).upsert(data).then(({ error }) => {
-          if (error) console.error(`Sync error for ${table}:`, error);
+        data.forEach(item => {
+          queueSyncAction(table, key, "upsert", (item as any).id, item);
         });
+        processSyncOutbox();
       }
     }
   } catch (err) {
@@ -75,13 +75,11 @@ export function setItems<T>(key: string, items: T[] | T, sync = true): void {
 export async function setItemsAsync<T>(key: string, items: T[] | T): Promise<void> {
   const table = TABLE_MAP[key];
   if (table) {
-    try {
-      const data = Array.isArray(items) ? items : [items];
-      const { error } = await supabase.from(table).upsert(data);
-      if (error) console.error(`Sync error for ${table}:`, error);
-    } catch (err) {
-      console.error(`Supabase write error for ${table}:`, err);
-    }
+    const data = Array.isArray(items) ? items : [items];
+    data.forEach(item => {
+      queueSyncAction(table, key, "upsert", (item as any).id, item);
+    });
+    await processSyncOutbox();
   }
   // Always update localStorage as cache
   try {
@@ -97,10 +95,8 @@ export async function deleteItemAsync<T extends { id: string }>(
 ): Promise<T[]> {
   const table = TABLE_MAP[key];
   if (table) {
-    try {
-      const { error } = await supabase.from(table).delete().eq("id", id);
-      if (error) console.error(`Delete error for ${table}:`, error);
-    } catch {}
+    queueSyncAction(table, key, "delete", id);
+    processSyncOutbox();
   }
   const items = getItems<T>(key, defaults).filter((i) => i.id !== id);
   try { localStorage.setItem(key, JSON.stringify(items)); } catch {}
@@ -115,6 +111,9 @@ export async function syncCloudToLocal(): Promise<void> {
 
   // Save sync time immediately to block concurrent triggers
   localStorage.setItem("mpsms_last_sync_time", Date.now().toString());
+
+  // Run pending outbox sync first
+  await processSyncOutbox();
 
   try {
     // Read user role directly from local metadata to filter sync scope
@@ -150,9 +149,11 @@ export async function syncCloudToLocal(): Promise<void> {
         }
         if (data) {
           if (table === "settings") {
-            localStorage.setItem(key, JSON.stringify([data[0] || defaultSettings]));
+            const merged = mergeServerRecords(key, data);
+            localStorage.setItem(key, JSON.stringify([merged[0] || defaultSettings]));
           } else {
-            localStorage.setItem(key, JSON.stringify(data));
+            const merged = mergeServerRecords(key, data);
+            localStorage.setItem(key, JSON.stringify(merged));
           }
         }
       } catch (err) {
@@ -575,5 +576,146 @@ export async function updateStudentFeeStatus(studentId: string): Promise<string>
     console.error("Error updating student fee status:", err);
     return "Unpaid";
   }
+}
+
+// ===== Outbox Sync Engine =====
+
+export interface SyncAction {
+  id: string;
+  table: string;
+  key: string;
+  action: "upsert" | "delete";
+  recordId: string;
+  record?: any;
+  timestamp: number;
+}
+
+export function getSyncOutbox(): SyncAction[] {
+  try {
+    const raw = localStorage.getItem("mpsms_sync_outbox");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveSyncOutbox(outbox: SyncAction[]): void {
+  try {
+    localStorage.setItem("mpsms_sync_outbox", JSON.stringify(outbox));
+  } catch (err) {
+    console.error("Failed to save sync outbox:", err);
+  }
+}
+
+export function queueSyncAction(table: string, key: string, action: "upsert" | "delete", recordId: string, record?: any): void {
+  const outbox = getSyncOutbox();
+  const existingIndex = outbox.findIndex(a => a.table === table && a.recordId === recordId);
+  const newAction: SyncAction = {
+    id: Math.random().toString(36).substring(2, 9),
+    table,
+    key,
+    action,
+    recordId,
+    record,
+    timestamp: Date.now()
+  };
+  
+  if (existingIndex >= 0) {
+    outbox[existingIndex] = newAction;
+  } else {
+    outbox.push(newAction);
+  }
+  saveSyncOutbox(outbox);
+}
+
+let isProcessingOutbox = false;
+
+export async function processSyncOutbox(): Promise<void> {
+  if (isProcessingOutbox) return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  
+  const outbox = getSyncOutbox();
+  if (outbox.length === 0) return;
+  
+  isProcessingOutbox = true;
+  console.log(`[Sync Engine] Processing outbox with ${outbox.length} pending actions...`);
+  
+  const actionsToProcess = [...outbox];
+  
+  for (const action of actionsToProcess) {
+    try {
+      if (action.action === "upsert") {
+        const recordToPush = {
+          ...action.record,
+          updated_at: new Date().toISOString(),
+          is_deleted: false
+        };
+        const { error } = await supabase.from(action.table).upsert(recordToPush);
+        if (error) throw error;
+      } else if (action.action === "delete") {
+        const { error } = await supabase
+          .from(action.table)
+          .update({ is_deleted: true, updated_at: new Date().toISOString() })
+          .eq("id", action.recordId);
+        if (error) throw error;
+      }
+      
+      const currentOutbox = getSyncOutbox().filter(a => a.id !== action.id);
+      saveSyncOutbox(currentOutbox);
+    } catch (err) {
+      console.error(`[Sync Engine] Action ${action.id} failed for table ${action.table}:`, err);
+      break;
+    }
+  }
+  
+  isProcessingOutbox = false;
+}
+
+export function mergeServerRecords<T extends { id: string, updated_at?: string }>(key: string, serverRecords: T[]): T[] {
+  const localItems = getItems<T>(key, []);
+  const outbox = getSyncOutbox();
+  const table = TABLE_MAP[key];
+  
+  const pendingIds = new Set(
+    outbox.filter(a => a.table === table).map(a => a.recordId)
+  );
+  
+  const mergedMap = new Map<string, T>();
+  
+  localItems.forEach(item => {
+    mergedMap.set(item.id, item);
+  });
+  
+  serverRecords.forEach(serverRec => {
+    if (pendingIds.has(serverRec.id)) {
+      return;
+    }
+    
+    if ((serverRec as any).is_deleted === true) {
+      mergedMap.delete(serverRec.id);
+      return;
+    }
+    
+    const localRec = mergedMap.get(serverRec.id);
+    if (!localRec) {
+      mergedMap.set(serverRec.id, serverRec);
+    } else {
+      const localTime = localRec.updated_at ? new Date(localRec.updated_at).getTime() : 0;
+      const serverTime = serverRec.updated_at ? new Date(serverRec.updated_at).getTime() : 0;
+      
+      if (serverTime >= localTime) {
+        mergedMap.set(serverRec.id, serverRec);
+      }
+    }
+  });
+  
+  const serverIds = new Set(serverRecords.map(r => r.id));
+  mergedMap.forEach((rec, id) => {
+    if (!serverIds.has(id) && !pendingIds.has(id)) {
+      mergedMap.delete(id);
+    }
+  });
+  
+  return Array.from(mergedMap.values());
 }
 

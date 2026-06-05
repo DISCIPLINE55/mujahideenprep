@@ -12,6 +12,7 @@ import { generateAttendanceSummary, generateClassList, generateFeeStatement, gen
 import { toast } from "sonner";
 import { stripMarkdown } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import { getSchoolSettings } from "@/lib/printBranding";
 import { useStore } from "@/hooks/use-store";
 
 import { streamSchoolAI } from "@/lib/ai";
@@ -70,16 +71,53 @@ function ReportsPage() {
     const studentResults = results.filter((r) => r.studentId === s.id);
     if (studentResults.length === 0) { toast.error("No exam results recorded for this student"); return; }
     const latest = studentResults[studentResults.length - 1];
+    
+    // Calculate position and class total
+    const classResults = results.filter((r) => r.class === s.class && r.term === latest?.term);
+    classResults.sort((a, b) => b.average - a.average);
+    let position = 0;
+    let currentRank = 1;
+    classResults.forEach((r, i) => {
+      if (i > 0 && r.average < classResults[i - 1].average) {
+        currentRank = i + 1;
+      }
+      if (r.studentId === s.id) {
+        position = currentRank;
+      }
+    });
+    const totalInClass = classResults.length;
+
+    // Calculate attendance rate
+    const studentRecords = attendance.filter((a) => a.studentId === s.id);
+    let attendanceRate = "98%";
+    if (studentRecords.length > 0) {
+      const present = studentRecords.filter((r) => r.status === "Present" || r.status === "Late").length;
+      const rate = Math.round((present / studentRecords.length) * 100);
+      attendanceRate = `${rate}%`;
+    }
+
+    const settings = getSchoolSettings();
+    const gradingScale = settings.gradingScales?.find(scale => latest.average >= scale.minScore);
+    const teacherRemarks = gradingScale ? gradingScale.remark : "Fail";
+
     generateReportCard({
       studentName: s.name,
       studentClass: s.class,
       term: latest?.term,
+      academicYear: settings.academicYear || "2025/2026",
+      nhisNumber: s.nhisNumber || "",
+      attendanceRate,
+      position,
+      totalInClass,
       results: (latest?.subjects || []).map((sub) => ({
         subject: sub.name,
-        score: Number(sub.total) || 0,
+        classScore: sub.classScore !== undefined ? Number(sub.classScore) : undefined,
+        examScore: sub.examScore !== undefined ? Number(sub.examScore) : undefined,
+        total: Number(sub.total) || 0,
         grade: sub.grade,
         remarks: sub.remark,
       })),
+      teacherRemarks,
     });
     toast.success("Report card PDF downloaded");
   }

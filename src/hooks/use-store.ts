@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { getItems, setItems, generateId, KEYS, fetchTableDeduplicated } from "@/lib/storage";
+import { getItems, setItems, generateId, KEYS, fetchTableDeduplicated, queueSyncAction, processSyncOutbox, mergeServerRecords, getSyncOutbox } from "@/lib/storage";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -23,7 +23,7 @@ const KEY_TO_TABLE: Record<string, string> = {
   [KEYS.ISSUES]: "library_issues",
 };
 
-export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
+export function useStore<T extends { id: string; updated_at?: string; is_deleted?: boolean }>(key: string, defaults: T[]) {
   const [items, setItemsState] = useState<T[]>(() => getItems(key, defaults));
   const [loading, setLoading] = useState(false);
   const tableName = KEY_TO_TABLE[key];
@@ -45,9 +45,10 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
       // Update cache timestamp
       localStorage.setItem(cacheKey, Date.now().toString());
 
-      if (data && data.length > 0) {
+      if (data && (data.length > 0 || getSyncOutbox().some((a: any) => a.table === tableName))) {
+        const merged = mergeServerRecords(key, data);
         // Sort client-side to ensure newer items display at top
-        const sortedData = [...data].sort((a: any, b: any) => {
+        const sortedData = [...merged].sort((a: any, b: any) => {
           if (a.created_at && b.created_at) {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
           }
@@ -90,19 +91,34 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
           if (!eventType) return;
 
           setItemsState((prevItems) => {
+            const outbox = getSyncOutbox();
+            const pendingIds = new Set(
+              outbox.filter((a: any) => a.table === tableName).map((a: any) => a.recordId)
+            );
+
             let updatedItems = [...prevItems];
             if (eventType === "INSERT") {
-              if (newRow && !updatedItems.some((item) => item.id === newRow.id)) {
+              if (newRow && !pendingIds.has(newRow.id) && !newRow.is_deleted && !updatedItems.some((item) => item.id === newRow.id)) {
                 updatedItems = [newRow as T, ...updatedItems];
               }
             } else if (eventType === "UPDATE") {
               if (newRow) {
-                updatedItems = updatedItems.map((item) =>
-                  item.id === newRow.id ? { ...item, ...newRow } : item
-                );
+                if (pendingIds.has(newRow.id)) {
+                  return prevItems;
+                }
+                if (newRow.is_deleted) {
+                  updatedItems = updatedItems.filter((item) => item.id !== newRow.id);
+                } else {
+                  updatedItems = updatedItems.map((item) =>
+                    item.id === newRow.id ? { ...item, ...newRow } : item
+                  );
+                }
               }
             } else if (eventType === "DELETE") {
               if (oldRow && oldRow.id) {
+                if (pendingIds.has(oldRow.id)) {
+                  return prevItems;
+                }
                 updatedItems = updatedItems.filter((item) => item.id !== oldRow.id);
               }
             }
@@ -129,7 +145,12 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
   }, [tableName, key]);
 
   const add = useCallback(async (item: Omit<T, "id">) => {
-    const newItem = { ...item, id: generateId() } as T;
+    const newItem = {
+      ...item,
+      id: generateId(),
+      updated_at: new Date().toISOString(),
+      is_deleted: false
+    } as unknown as T;
     const updated = [newItem, ...items];
     
     // Update Local
@@ -138,17 +159,18 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
 
     // Update Cloud
     if (tableName) {
-      const { error } = await supabase.from(tableName).insert(newItem);
-      if (error) {
-        toast.error(`Cloud sync failed: ${error.message}`);
-        console.error(error);
-      }
+      queueSyncAction(tableName, key, "upsert", newItem.id, newItem);
+      processSyncOutbox();
     }
     return newItem;
   }, [items, key, tableName]);
 
   const update = useCallback(async (updated: T) => {
-    const newItems = items.map((i) => (i.id === updated.id ? updated : i));
+    const updatedWithTime = {
+      ...updated,
+      updated_at: new Date().toISOString()
+    };
+    const newItems = items.map((i) => (i.id === updated.id ? updatedWithTime : i));
     
     // Update Local
     setItems(key, newItems, false);
@@ -156,8 +178,8 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
 
     // Update Cloud
     if (tableName) {
-      const { error } = await supabase.from(tableName).update(updated).eq("id", updated.id);
-      if (error) toast.error("Cloud update failed");
+      queueSyncAction(tableName, key, "upsert", updated.id, updatedWithTime);
+      processSyncOutbox();
     }
   }, [items, key, tableName]);
 
@@ -170,8 +192,8 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
 
     // Update Cloud
     if (tableName) {
-      const { error } = await supabase.from(tableName).delete().eq("id", id);
-      if (error) toast.error("Cloud delete failed");
+      queueSyncAction(tableName, key, "delete", id);
+      processSyncOutbox();
     }
   }, [items, key, tableName]);
 
@@ -182,11 +204,10 @@ export function useStore<T extends { id: string }>(key: string, defaults: T[]) {
 
     // Update Cloud
     if (tableName) {
-      const { error } = await supabase.from(tableName).upsert(newItems);
-      if (error) {
-        toast.error(`Cloud bulk sync failed: ${error.message}`);
-        console.error(error);
-      }
+      newItems.forEach((item) => {
+        queueSyncAction(tableName, key, "upsert", item.id, item);
+      });
+      processSyncOutbox();
     }
   }, [items, key, tableName]);
 

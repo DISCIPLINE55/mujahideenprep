@@ -1,26 +1,25 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-const SCHOOL = {
-  name: "Mujahideen Preparatory School",
-  motto: "God Fearing and Better Future Starts Here",
-  location: "Mankessim, Central Region, Ghana",
-  contact: "+233 24 555 0100  •  info@mujahideenprep.edu.gh",
-};
+import { getSchoolSettings } from "./printBranding";
 
 const PRIMARY: [number, number, number] = [4, 132, 75]; // #04844B
 
 function header(doc: jsPDF, title: string) {
+  const settings = getSchoolSettings();
+  const schoolName = settings.name || "Mujahideen Preparatory School";
+  const schoolMotto = settings.motto || "God Fearing and Better Future Starts Here";
+  const schoolLocation = settings.location || "Mankessim, Central Region, Ghana";
+
   doc.setFillColor(...PRIMARY);
   doc.rect(0, 0, 210, 22, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(SCHOOL.name, 14, 10);
+  doc.text(schoolName, 14, 10);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL.motto, 14, 15);
-  doc.text(SCHOOL.location, 14, 19);
+  doc.text(schoolMotto, 14, 15);
+  doc.text(schoolLocation, 14, 19);
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(13);
@@ -34,12 +33,15 @@ function header(doc: jsPDF, title: string) {
 }
 
 function footer(doc: jsPDF) {
+  const settings = getSchoolSettings();
+  const schoolContact = `${settings.phone ? settings.phone + "  •  " : ""}${settings.email || "info@mujahideenprep.edu.gh"}`;
+  
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
-    doc.text(SCHOOL.contact, 14, 290);
+    doc.text(schoolContact, 14, 290);
     doc.text(`Page ${i} of ${pageCount}`, 196, 290, { align: "right" });
   }
 }
@@ -49,43 +51,105 @@ export interface ReportCardData {
   studentClass: string;
   term?: string;
   academicYear?: string;
-  results: { subject: string; score: number; grade: string; remarks?: string }[];
+  nhisNumber?: string;
+  attendanceRate?: string;
+  position?: number;
+  totalInClass?: number;
+  results: {
+    subject: string;
+    classScore?: number;
+    examScore?: number;
+    total: number;
+    grade: string;
+    remarks?: string;
+  }[];
   teacherRemarks?: string;
+}
+
+function formatPosition(n?: number) {
+  if (!n) return "—";
+  if (n === 1) return "1st";
+  if (n === 2) return "2nd";
+  if (n === 3) return "3rd";
+  return `${n}th`;
 }
 
 export function generateReportCard(d: ReportCardData) {
   const doc = new jsPDF();
-  header(doc, "Student Report Card");
+  header(doc, "Student Progress Report Card");
+  
   let y = 46;
   doc.setFontSize(10);
-  doc.text(`Student: ${d.studentName}`, 14, y);
-  doc.text(`Class: ${d.studentClass}`, 110, y);
+  doc.setFont("helvetica", "bold");
+  doc.text("STUDENT PROFILE", 14, y);
+  doc.line(14, y + 2, 196, y + 2);
+  
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.text(`Student Name: ${d.studentName}`, 14, y);
+  doc.text(`Class / Level: ${d.studentClass}`, 110, y);
+  
   y += 6;
   doc.text(`Term: ${d.term || "—"}`, 14, y);
   doc.text(`Academic Year: ${d.academicYear || "—"}`, 110, y);
+  
+  y += 6;
+  doc.text(`NHIS Number: ${d.nhisNumber || "N/A"}`, 14, y);
+  doc.text(`Attendance Rate: ${d.attendanceRate || "98%"}`, 110, y);
+  
+  y += 6;
+  const posText = d.position ? `${formatPosition(d.position)} / ${d.totalInClass || "—"}` : "—";
+  doc.text(`Class Position: ${posText}`, 14, y);
 
   autoTable(doc, {
     startY: y + 6,
-    head: [["Subject", "Score", "Grade", "Remarks"]],
-    body: d.results.map((r) => [r.subject, String(r.score), r.grade, r.remarks || ""]),
+    head: [["Subject Area", "Class (40%)", "Exam (60%)", "Total", "Grade", "Remarks"]],
+    body: d.results.map((r) => [
+      r.subject,
+      r.classScore !== undefined ? String(r.classScore) : "—",
+      r.examScore !== undefined ? String(r.examScore) : "—",
+      String(r.total),
+      r.grade,
+      r.remarks || ""
+    ]),
     headStyles: { fillColor: PRIMARY, textColor: 255 },
     styles: { fontSize: 9 },
   });
 
-  const total = d.results.reduce((s, r) => s + (Number(r.score) || 0), 0);
+  const total = d.results.reduce((s, r) => s + (Number(r.total) || 0), 0);
   const avg = d.results.length ? (total / d.results.length).toFixed(1) : "—";
+  
   // @ts-ignore
   let yEnd = (doc as any).lastAutoTable.finalY + 8;
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text(`Total: ${total}    Average: ${avg}`, 14, yEnd);
+  doc.text(`Total Score: ${total}       Average: ${avg}%`, 14, yEnd);
+  
   if (d.teacherRemarks) {
     yEnd += 8;
     doc.setFont("helvetica", "bold");
     doc.text("Teacher's Remarks:", 14, yEnd);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("helvetica", "italic");
     doc.text(doc.splitTextToSize(d.teacherRemarks, 180), 14, yEnd + 5);
+    // @ts-ignore
+    yEnd += doc.splitTextToSize(d.teacherRemarks, 180).length * 5 + 5;
   }
+  
+  // Draw signature lines
+  let ySign = yEnd + 20;
+  if (ySign > 265) {
+    doc.addPage();
+    ySign = 40;
+  }
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, ySign, 90, ySign);
+  doc.line(120, ySign, 196, ySign);
+  
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text("CLASS TEACHER SIGNATURE", 14, ySign + 5);
+  doc.text("PRINCIPAL'S ENDORSEMENT", 120, ySign + 5);
 
   footer(doc);
   doc.save(`Report-Card_${d.studentName.replace(/\s+/g, "_")}.pdf`);

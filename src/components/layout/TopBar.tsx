@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { getItems, KEYS, defaultTeachers, defaultStudents, defaultClasses, type Notification, type Teacher, type Student, type SchoolClass } from "@/lib/storage";
+import { getItems, KEYS, defaultTeachers, defaultStudents, defaultClasses, type Notification, type Teacher, type Student, type SchoolClass, processSyncOutbox } from "@/lib/storage";
 import { filterNotifications } from "@/lib/notificationFilter";
 import { Link } from "@tanstack/react-router";
 import { getAuth, getAuthSync, signOut } from "@/lib/auth";
@@ -35,8 +35,12 @@ export function TopBar({ title }: { title: string }) {
       setUnreadCount(visible.filter((n) => !n.read).length);
     }
     refresh();
+    processSyncOutbox();
 
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      processSyncOutbox();
+    };
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener("online", handleOnline);

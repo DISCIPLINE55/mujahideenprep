@@ -22,6 +22,7 @@ type ParentRow = {
   user_id: string;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
   children: { student_id: string; name: string }[];
 };
 
@@ -49,6 +50,7 @@ function ParentsPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
   const [invitePassword, setInvitePassword] = useState("");
 
   const [linkOpen, setLinkOpen] = useState<string | null>(null);
@@ -58,6 +60,7 @@ function ParentsPage() {
   const [editParent, setEditParent] = useState<ParentRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editPassword, setEditPassword] = useState("");
 
   const [parentSearch, setParentSearch] = useState("");
@@ -97,7 +100,7 @@ function ParentsPage() {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, full_name, email, phone")
         .in("id", userIds);
 
       const { data: links } = await supabase
@@ -109,6 +112,7 @@ function ParentsPage() {
         user_id: p.id,
         full_name: p.full_name,
         email: p.email,
+        phone: p.phone,
         children: (links ?? [])
           .filter((l: any) => l.parent_user_id === p.id)
           .map((l: any) => ({ student_id: l.student_id, name: l.students?.name ?? "Unknown" })),
@@ -139,7 +143,7 @@ function ParentsPage() {
       const { data, error } = await supabase.auth.signUp({
         email: inviteEmail.trim(),
         password: invitePassword,
-        options: { data: { full_name: inviteName, role: "parent" } },
+        options: { data: { full_name: inviteName, role: "parent", phone: invitePhone.trim() } },
       });
       if (error) throw error;
       // Assign parent role
@@ -152,7 +156,7 @@ function ParentsPage() {
       toast.success("Parent account created. Share the temporary password securely.");
       logActivity(`Created parent account: ${inviteEmail}`);
       setInviteOpen(false);
-      setInviteEmail(""); setInviteName(""); setInvitePassword("");
+      setInviteEmail(""); setInviteName(""); setInvitePhone(""); setInvitePassword("");
       load();
     } catch (err: any) {
       toast.error(err.message || "Failed to create account");
@@ -169,7 +173,7 @@ function ParentsPage() {
     try {
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({ full_name: editName.trim(), email: editEmail.trim() })
+        .update({ full_name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() })
         .eq("id", editParent.user_id);
       if (profileErr) throw profileErr;
 
@@ -251,6 +255,7 @@ function ParentsPage() {
                 <div className="space-y-3 py-2">
                   <div className="space-y-1.5"><Label>Full name</Label><Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} /></div>
                   <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} /></div>
+                  <div className="space-y-1.5"><Label>Phone Number</Label><Input value={invitePhone} onChange={(e) => setInvitePhone(e.target.value)} placeholder="024XXXXXXX" /></div>
                   <div className="space-y-1.5"><Label>Temporary password</Label><Input type="text" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} placeholder="At least 8 characters" /></div>
                   <p className="text-xs text-muted-foreground">Share this password with the parent. They should change it on first login.</p>
                 </div>
@@ -287,13 +292,14 @@ function ParentsPage() {
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <div>
                         <p className="font-medium">{p.full_name || "(no name)"}</p>
-                        <p className="text-xs text-muted-foreground">{p.email}</p>
+                        <p className="text-xs text-muted-foreground">{p.email}{p.phone ? ` • ${p.phone}` : ""}</p>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Button size="sm" variant="outline" onClick={() => {
                           setEditParent(p);
                           setEditName(p.full_name || "");
                           setEditEmail(p.email || "");
+                          setEditPhone(p.phone || "");
                           setEditPassword("");
                         }}><Pencil className="h-4 w-4 mr-1" /> Edit</Button>
                         <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteParent(p.user_id)}>
@@ -390,6 +396,10 @@ function ParentsPage() {
             <div className="space-y-1.5">
               <Label>Email Address</Label>
               <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@address.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone Number</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="024XXXXXXX" />
             </div>
           </div>
           <DialogFooter>

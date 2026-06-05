@@ -149,18 +149,27 @@ function SettingsPage() {
   useEffect(() => {
     async function init() {
       try {
-        const { data, error } = await supabase.from("settings").select("*").single();
-        if (data) {
-          setSettings(data as SchoolSettings);
+        const isAdminUser = role === "admin";
+        
+        let selectColumns = "*";
+        if (!isAdminUser) {
+          selectColumns = "name, logo, motto, academicYear, currentTerm";
         }
         
-        // Fetch fee structures
-        const { data: structs } = await supabase.from("fee_structure").select("*");
-        if (structs) setFeeStructures(structs);
+        const { data, error } = await supabase.from("settings").select(selectColumns).single();
+        if (data) {
+          setSettings(data as unknown as SchoolSettings);
+        }
+        
+        if (isAdminUser) {
+          // Fetch fee structures
+          const { data: structs } = await supabase.from("fee_structure").select("*");
+          if (structs) setFeeStructures(structs);
 
-        // Fetch activity logs
-        const { data: logData } = await supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(100);
-        if (logData) setLogs(logData);
+          // Fetch activity logs
+          const { data: logData } = await supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(100);
+          if (logData) setLogs(logData);
+        }
       } catch (err) {
         console.error("Init error:", err);
       } finally {
@@ -168,7 +177,7 @@ function SettingsPage() {
       }
     }
     init();
-  }, []);
+  }, [role]);
 
   async function handleSave() {
     const loader = toast.loading("Saving configuration...");
