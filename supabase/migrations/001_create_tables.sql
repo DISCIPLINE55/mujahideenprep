@@ -261,13 +261,17 @@ BEGIN
     'timetable','events','activity_logs','fee_structure',
     'library_books','library_issues','communications','discipline'
   ]) LOOP
-    EXECUTE format('
-      CREATE POLICY IF NOT EXISTS "%s_auth_all" ON %I
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    ', tbl, tbl);
+    BEGIN
+      EXECUTE format('DROP POLICY IF EXISTS "%s_auth_all" ON %I;', tbl, tbl);
+      EXECUTE format('
+        CREATE POLICY "%s_auth_all" ON %I
+          FOR ALL
+          TO authenticated
+          USING (true)
+          WITH CHECK (true);
+      ', tbl, tbl);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
   END LOOP;
 END $$;
 
@@ -282,13 +286,17 @@ BEGIN
     'timetable','events','activity_logs','fee_structure',
     'library_books','library_issues','communications','discipline'
   ]) LOOP
-    EXECUTE format('
-      CREATE POLICY IF NOT EXISTS "%s_anon_all" ON %I
-        FOR ALL
-        TO anon
-        USING (true)
-        WITH CHECK (true);
-    ', tbl, tbl);
+    BEGIN
+      EXECUTE format('DROP POLICY IF EXISTS "%s_anon_all" ON %I;', tbl, tbl);
+      EXECUTE format('
+        CREATE POLICY "%s_anon_all" ON %I
+          FOR ALL
+          TO anon
+          USING (true)
+          WITH CHECK (true);
+      ', tbl, tbl);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
   END LOOP;
 END $$;
 
