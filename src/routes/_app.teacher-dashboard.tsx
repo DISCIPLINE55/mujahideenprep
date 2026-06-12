@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/layout/TopBar";
 import { StatsCard } from "@/components/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ClipboardCheck, CalendarDays, BookOpen } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users, ClipboardCheck, CalendarDays, BookOpen, Search } from "lucide-react";
 import { getItems, defaultStudents, defaultTeachers, defaultClasses, defaultEvents, defaultSubjects, KEYS, type Student, type Teacher, type SchoolClass, type AttendanceRecord, type TimetableSlot, type SchoolEvent } from "@/lib/storage";
 import { getAuthSync } from "@/lib/auth";
 import { useStore } from "@/hooks/use-store";
@@ -69,6 +71,17 @@ function TeacherDashboard() {
     [students, assignedClassNames]
   );
 
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentClassFilter, setStudentClassFilter] = useState("All Classes");
+
+  const filteredStudents = useMemo(() => {
+    return myStudents.filter((s) => {
+      const matchSearch = s.name.toLowerCase().includes(studentSearch.toLowerCase());
+      const matchClass = studentClassFilter === "All Classes" || s.class === studentClassFilter;
+      return matchSearch && matchClass;
+    });
+  }, [myStudents, studentSearch, studentClassFilter]);
+
   const todayStr = new Date().toISOString().split("T")[0];
   const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
@@ -132,27 +145,55 @@ function TeacherDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">My Students</CardTitle></CardHeader>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Assigned Students ({filteredStudents.length})</CardTitle>
+            </CardHeader>
             <CardContent>
               {myStudents.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No students in your assigned classes.</p>
               ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {myStudents.slice(0, 10).map((s) => (
-                    <div key={s.id} className="flex items-center justify-between rounded-lg border p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">{s.name.charAt(0)}</div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{s.name}</p>
-                          <p className="text-xs text-muted-foreground">{s.class}</p>
-                        </div>
-                      </div>
-                      <Badge variant={s.status === "Active" ? "default" : "secondary"} className="text-[10px]">{s.status}</Badge>
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Search student..."
+                        className="pl-8 text-sm h-9"
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                      />
                     </div>
-                  ))}
-                  {myStudents.length > 10 && (
-                    <p className="text-xs text-muted-foreground text-center">+{myStudents.length - 10} more students</p>
-                  )}
+                    <Select value={studentClassFilter} onValueChange={setStudentClassFilter}>
+                      <SelectTrigger className="w-full sm:w-[130px] h-9 text-sm">
+                        <SelectValue placeholder="Class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All Classes">All Classes</SelectItem>
+                        {assignedClassNames.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    {filteredStudents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No matching students found.</p>
+                    ) : (
+                      filteredStudents.map((s) => (
+                        <div key={s.id} className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">{s.name.charAt(0)}</div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{s.name}</p>
+                              <p className="text-xs text-muted-foreground">{s.class}</p>
+                            </div>
+                          </div>
+                          <Badge variant={s.status === "Active" ? "default" : "secondary"} className="text-[10px]">{s.status}</Badge>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>

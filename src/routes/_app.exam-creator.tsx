@@ -14,7 +14,7 @@ import {
   Square, Circle, Minus, Upload 
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
-import { KEYS, CLASS_LIST, defaultSubjects, type Subject } from "@/lib/storage";
+import { KEYS, CLASS_LIST, defaultSubjects, queueSyncAction, type Subject, type ExamPaper } from "@/lib/storage";
 import { streamSchoolAI } from "@/lib/ai";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
@@ -109,6 +109,11 @@ function ExamCreatorPage() {
   const subjectStore = useStore<Subject>(KEYS.SUBJECTS, defaultSubjects);
   const activeSubjects = subjectStore.items.filter(s => s.status === "Active");
 
+  // Load saved exams
+  const examStore = useStore<ExamPaper>(KEYS.EXAMS, []);
+  const allExams = examStore.items;
+  const exams = isTeacher ? allExams.filter(e => e.created_by === auth?.name || e.created_by === auth?.userId) : allExams;
+
   // Form states
   const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
   const [subject, setSubject] = useState(activeSubjects[0]?.name || "General Science");
@@ -144,6 +149,18 @@ function ExamCreatorPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<"draw" | "text">("draw");
   const [attachQuestion, setAttachQuestion] = useState("none");
+
+  // Saved Exams Module States
+  const [examsDialogOpen, setExamsDialogOpen] = useState(false);
+  const [examSearch, setExamSearch] = useState("");
+  const [examFilterClass, setExamFilterClass] = useState("All");
+  const [currentExamId, setCurrentExamId] = useState<string | null>(null);
+
+  const filteredExams = exams.filter(e => {
+    const matchSearch = e.title.toLowerCase().includes(examSearch.toLowerCase()) || e.subject.toLowerCase().includes(examSearch.toLowerCase());
+    const matchClass = examFilterClass === "All" || e.class_name === examFilterClass;
+    return matchSearch && matchClass;
+  });
 
   // Sync state content to editor during AI streaming
   useEffect(() => {
@@ -200,45 +217,94 @@ function ExamCreatorPage() {
   // Generate Document Heading
   const getHeaderTemplate = () => {
     const s = getSchoolSettings();
-    return `<div style="font-family: 'Times New Roman', Times, serif; color: #111; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 8px; font-size: 13px; line-height: 1.25;">
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
-    <tr>
-      <td style="width: 65px; vertical-align: middle; padding: 0;">
-        <img src="${logoImg}" alt="Logo" style="width: 55px; height: 55px; object-fit: cover; border-radius: 5px; border: 1px solid #111;" />
-      </td>
-      <td style="text-align: center; vertical-align: middle; padding: 0 10px 0 0;">
-        <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.5px;">${s.name.toUpperCase()}</div>
-        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #444; margin-top: 2px;">${s.location.toUpperCase()}</div>
-        <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-top: 4px; color: #000;">
-          ${examType.toUpperCase()} &ndash; ${academicTerm.toUpperCase()} ${academicYear}
-        </div>
-      </td>
-    </tr>
-  </table>
+    return `<div style="font-family: 'Times New Roman', Times, serif; color: #111; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; font-size: 14px; line-height: 1.4;">
+  <div style="text-align: center; margin-bottom: 10px;">
+    <img src="${logoImg}" alt="Logo" style="width: 60px; height: 60px; object-fit: cover; margin: 0 auto; display: block;" />
+    <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin-top: 5px;">${s.name.toUpperCase()}</div>
+    <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; color: #333;">${s.location.toUpperCase()}</div>
+    <div style="font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: 8px;">
+      ${examType.toUpperCase()}
+    </div>
+  </div>
   
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-weight: bold; border-top: 1px solid #333; border-bottom: 1px solid #333; padding: 2px 0;">
-    <tr>
-      <td style="width: 50%; padding: 3px 0;">Subject: ${subject}</td>
-      <td style="width: 50%; padding: 3px 0; text-align: right;">Class: ${selectedClass}</td>
-    </tr>
-    <tr>
-      <td style="width: 50%; padding: 3px 0;">Time Allowed: ${timeAllowed}</td>
-      <td style="width: 50%; padding: 3px 0; text-align: right;">Total Marks: 50</td>
-    </tr>
-  </table>
+  <div style="margin-bottom: 8px; font-weight: bold;">
+    <div>Class: ${selectedClass}</div>
+    <div>Subject: ${subject}</div>
+    <div>Time: ${timeAllowed}</div>
+  </div>
 
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-weight: bold;">
-    <tr>
-      <td style="width: 60%; padding: 1px 0;">Name: _________________________________________</td>
-      <td style="width: 40%; padding: 1px 0; text-align: right;">Index No: ______________________</td>
-    </tr>
-  </table>
+  <div style="margin-bottom: 8px; font-weight: bold;">
+    <div style="margin-bottom: 4px;">Name: ____________________________________________________________________</div>
+    <div>Index Number: ___________________________________________________________</div>
+  </div>
 
-  <div style="font-style: italic; font-weight: bold; padding: 3px 0 0 0; font-size: 12px;">
-    Instructions: ${instructions}
+  <div style="font-style: italic; font-weight: bold; padding-top: 5px; font-size: 13px;">
+    Instructions:<br/>
+    ${instructions.replace(/\n/g, "<br/>")}
   </div>
 </div>
 `;
+  };
+
+  const handleSaveExam = () => {
+    if (!editorRef.current) return;
+    const content = editorRef.current.innerHTML;
+    if (!content || content.trim() === "") {
+      toast.error("Cannot save an empty exam.");
+      return;
+    }
+
+    const examId = currentExamId || Date.now().toString(36);
+    const examData: ExamPaper = {
+      id: examId,
+      title: `${selectedClass} - ${subject} (${examType})`,
+      academic_year: academicYear,
+      academic_term: academicTerm,
+      class_name: selectedClass,
+      subject: subject,
+      exam_type: examType,
+      duration: timeAllowed,
+      instructions: instructions,
+      content: content,
+      created_by: auth?.name || auth?.userId || "Unknown",
+      status: "draft"
+    };
+
+    queueSyncAction("exams", KEYS.EXAMS, "upsert", examId, examData);
+    setCurrentExamId(examId);
+    toast.success("Exam saved successfully!");
+  };
+
+  const handleLoadExam = (e: ExamPaper) => {
+    setSelectedClass(e.class_name);
+    setSubject(e.subject);
+    setExamType(e.exam_type);
+    setTimeAllowed(e.duration);
+    setInstructions(e.instructions);
+    setAcademicYear(e.academic_year);
+    setAcademicTerm(e.academic_term);
+    setExamContent(e.content);
+    setCurrentExamId(e.id);
+    setExamsDialogOpen(false);
+    toast.success("Exam loaded into editor.");
+  };
+
+  const handleUpdateExamStatus = (e: ExamPaper, newStatus: string) => {
+    const updated = { ...e, status: newStatus };
+    queueSyncAction("exams", KEYS.EXAMS, "upsert", e.id, updated);
+    toast.success(`Exam status updated to ${newStatus}`);
+  };
+
+  const handleDeleteExam = (id: string) => {
+    if (confirm("Are you sure you want to archive/delete this exam?")) {
+      queueSyncAction("exams", KEYS.EXAMS, "delete", id);
+      if (currentExamId === id) {
+        setCurrentExamId(null);
+        setExamContent("");
+        if (editorRef.current) editorRef.current.innerHTML = "";
+      }
+      toast.success("Exam archived.");
+    }
   };
 
   // Call AI Exam Generator
@@ -690,11 +756,14 @@ CRITICAL RULES FOR ENHANCEMENT:
       `}} />
       <TopBar title="Exam Creator" />
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between print-hide">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between print-hide gap-4">
           <div>
             <h2 className="text-xl font-bold text-foreground">AI Exam Creator</h2>
             <p className="text-sm text-muted-foreground">Generate, draw, and print standard examinations</p>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setExamsDialogOpen(true)}>
+            <FileText className="h-4 w-4 mr-2" /> View Saved Exams
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1028,7 +1097,10 @@ CRITICAL RULES FOR ENHANCEMENT:
                   <span>Print Answer Key</span>
                 </label>
 
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePrintExam} title="Print Exam Paper">
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSaveExam} title="Save Exam to Database">
+                  <span className="hidden sm:inline">Save Exam</span>
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrintExam} title="Print Exam Paper">
                   <Printer className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Print Paper</span>
                 </Button>
@@ -1159,6 +1231,90 @@ CRITICAL RULES FOR ENHANCEMENT:
               </div>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Saved Exams Drawer / Dialog */}
+      <Dialog open={examsDialogOpen} onOpenChange={setExamsDialogOpen}>
+        <DialogContent className="max-w-4xl w-[90vw] h-[80vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-6 pb-2 border-b">
+            <DialogTitle className="flex items-center gap-2 text-xl"><FileText className="h-5 w-5 text-primary" /> Exam History & Storage</DialogTitle>
+            <DialogDescription>View, load, edit, and print saved exams.</DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="p-4 flex flex-col sm:flex-row gap-3 bg-muted/20 border-b">
+              <div className="relative flex-1">
+                <Input
+                  placeholder="Search exams by title or subject..."
+                  value={examSearch}
+                  onChange={(e) => setExamSearch(e.target.value)}
+                  className="w-full text-sm h-9"
+                />
+              </div>
+              <Select value={examFilterClass} onValueChange={setExamFilterClass}>
+                <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm">
+                  <SelectValue placeholder="Class Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Classes</SelectItem>
+                  {CLASS_LIST.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-background">
+              {filteredExams.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mb-3 opacity-20" />
+                  <p>No saved exams found.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredExams.map(e => (
+                    <Card key={e.id} className={`overflow-hidden flex flex-col transition-all hover:border-primary/50 ${currentExamId === e.id ? "ring-2 ring-primary border-primary" : ""}`}>
+                      <div className="p-4 flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <Badge variant={e.status === 'draft' ? "secondary" : e.status === 'approved' ? "default" : "outline"} className="text-[10px] uppercase">
+                            {e.status}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {e.updated_at ? new Date(e.updated_at).toLocaleDateString() : 'Just now'}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm leading-tight mb-1">{e.title}</h4>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{e.subject} • {e.exam_type}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Author: {e.created_by}</p>
+                      </div>
+                      <div className="p-3 bg-muted/30 border-t flex items-center justify-between gap-2">
+                        <Button variant="secondary" size="sm" className="h-7 text-xs flex-1 cursor-pointer" onClick={() => handleLoadExam(e)}>
+                          Load Exam
+                        </Button>
+                        {(isAdmin || auth?.name === e.created_by) && (
+                          <div className="flex items-center gap-1">
+                            {isAdmin && (
+                              <Select value={e.status} onValueChange={(val) => handleUpdateExamStatus(e, val)}>
+                                <SelectTrigger className="h-7 w-[100px] text-[10px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="draft" className="text-[10px]">Draft</SelectItem>
+                                  <SelectItem value="reviewed" className="text-[10px]">Reviewed</SelectItem>
+                                  <SelectItem value="approved" className="text-[10px]">Approved</SelectItem>
+                                  <SelectItem value="archived" className="text-[10px]">Archived</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                            <Button variant="outline" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 cursor-pointer" onClick={() => handleDeleteExam(e.id)} title="Archive Exam">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>

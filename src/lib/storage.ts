@@ -128,7 +128,8 @@ export async function syncCloudToLocal(): Promise<void> {
     } else if (role === "teacher") {
       targetKeys = [
         KEYS.STUDENTS, KEYS.TEACHERS, KEYS.CLASSES, KEYS.SUBJECTS, KEYS.ATTENDANCE,
-        KEYS.RESULTS, KEYS.TIMETABLE, KEYS.NOTIFICATIONS, KEYS.EVENTS, KEYS.BOOKS, KEYS.ISSUES, KEYS.SETTINGS
+        KEYS.RESULTS, KEYS.TIMETABLE, KEYS.NOTIFICATIONS, KEYS.EVENTS, KEYS.BOOKS, KEYS.ISSUES, KEYS.SETTINGS,
+        KEYS.EXAMS
       ];
     }
 
@@ -142,7 +143,13 @@ export async function syncCloudToLocal(): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, 30));
 
       try {
-        const { data, error } = await fetchTableDeduplicated(table);
+        let query = supabase.from(table).select("*");
+        // Enforce teacher isolation for exams at the API level
+        if (key === KEYS.EXAMS && role === "teacher") {
+          query = query.eq("created_by", auth.name);
+        }
+        
+        const { data, error } = await query;
         if (error) {
           console.warn(`Could not sync ${table}:`, error);
           continue;
@@ -391,6 +398,23 @@ export interface LibraryIssue {
   status: string;
 }
 
+export interface ExamPaper {
+  id: string;
+  title: string;
+  academic_year: string;
+  academic_term: string;
+  class_name: string;
+  subject: string;
+  exam_type: string;
+  duration: string;
+  instructions: string;
+  content: string;
+  created_by: string;
+  status: string; // 'draft', 'reviewed', 'approved', 'archived'
+  created_at?: string;
+  updated_at?: string;
+}
+
 export const CLASS_LIST = [
   "Creche", "Nursery 1", "Nursery 2", "KG 1", "KG 2",
   "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6",
@@ -475,6 +499,7 @@ export const KEYS = {
   ISSUES: "mpsms_library_issues",
   FEE_STRUCTURE: "mpsms_fee_structure",
   COMMUNICATIONS: "mpsms_communications",
+  EXAMS: "mpsms_exams",
 };
 
 // Populate TABLE_MAP after KEYS is defined
@@ -496,6 +521,7 @@ Object.assign(TABLE_MAP, {
   [KEYS.ISSUES]: "library_issues",
   [KEYS.FEE_STRUCTURE]: "fee_structure",
   [KEYS.COMMUNICATIONS]: "communications",
+  [KEYS.EXAMS]: "exams",
 });
 
 export const defaultFeeStructure: FeeStructure[] = [];
