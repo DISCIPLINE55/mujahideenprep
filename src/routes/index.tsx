@@ -45,7 +45,7 @@ function LoginPage() {
     const auth = getAuthSync();
     if (auth && auth.loggedIn) {
       const dest = auth.role === "teacher" ? "/teacher-dashboard" : auth.role === "parent" ? "/parent-dashboard" : "/dashboard";
-      window.location.href = dest;
+      navigate({ to: dest });
     }
   }, [navigate]);
 
@@ -115,7 +115,7 @@ function LoginPage() {
           setAuth(auth);
 
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
-          window.location.href = dest;
+          navigate({ to: dest });
         } else if (data.user && !data.session) {
           toast.info("Please confirm your email address to log in.");
         }

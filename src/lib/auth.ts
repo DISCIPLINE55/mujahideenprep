@@ -13,10 +13,15 @@ export interface AuthState {
 }
 
 export async function getAuth(): Promise<AuthState | null> {
+  const cached = getAuthSync();
   try {
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
     if (!session) {
+      if (cached && cached.loggedIn) {
+        // Trust the local cache if Supabase session is temporarily missing (e.g. race condition or offline)
+        return cached;
+      }
       if (typeof window !== "undefined") {
         localStorage.removeItem("mpsms_auth_meta");
       }
@@ -70,9 +75,8 @@ export async function getAuth(): Promise<AuthState | null> {
     }
     return auth;
   } catch (err) {
-    console.error("Critical error in getAuth:", err);
-    // On failure, attempt to return cached metadata if exists to maintain session continuity offline
-    return getAuthSync();
+    console.error("getAuth failed:", err);
+    return cached && cached.loggedIn ? cached : null;
   }
 }
 
