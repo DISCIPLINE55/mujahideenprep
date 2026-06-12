@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, MessageSquare, Send, Sparkles, Loader2, Bold, Italic, List, Users } from "lucide-react";
+import { Plus, MessageSquare, Send, Sparkles, Loader2, Bold, Italic, List, Users, Mic, MicOff } from "lucide-react";
 import { BulkWhatsAppDialog, type Recipient } from "@/components/BulkWhatsAppDialog";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { stripMarkdown } from "@/lib/utils";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -64,6 +65,11 @@ function CommunicationsPage() {
     onUpdate: ({ editor }) => {
       setForm((f) => ({ ...f, message: editor.getHTML() }));
     }
+  });
+
+  const { isListening, toggleListening } = useSpeechRecognition((transcript) => {
+    editor?.commands.insertContent(transcript + " ");
+    setForm((f) => ({ ...f, message: editor?.getHTML() || f.message }));
   });
 
   const audiences = ["All Parents", ...CLASS_LIST.map((c) => `${c} Parents`), ...students.map((s) => `Parent of ${s.name}`)];
@@ -218,6 +224,18 @@ function CommunicationsPage() {
                   </Button>
                   <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor?.chain().focus().toggleBulletList().run()} data-active={editor?.isActive('bulletList') ? 'true' : 'false'}>
                     <List className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={`h-8 px-2 gap-1.5 ${isListening ? "text-red-500 bg-red-500/10 hover:bg-red-500/20 animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={toggleListening}
+                    title={isListening ? "Stop Listening" : "Start Voice Typing"}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    <span className="text-xs font-medium">{isListening ? "Listening..." : "Dictate"}</span>
                   </Button>
                 </div>
                 <div className="p-3 min-h-[150px] cursor-text" onClick={() => editor?.commands.focus()}>

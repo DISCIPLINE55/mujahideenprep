@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import { stripMarkdown } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 export const Route = createFileRoute("/_app/ai-assistant")({
   head: () => ({
@@ -71,64 +72,10 @@ function AIAssistantPage() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Voice recording / Speech transcription variables
-  const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        rec.continuous = false;
-        rec.interimResults = false;
-        rec.lang = "en-US";
-
-        rec.onstart = () => {
-          setIsRecording(true);
-        };
-
-        rec.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setInput((prev) => (prev ? prev + " " + transcript : transcript));
-          toast.success("Voice transcribed!");
-        };
-
-        rec.onerror = (event: any) => {
-          console.error("Speech error:", event.error);
-          if (event.error === "not-allowed") {
-            toast.error("Microphone access denied.");
-          } else if (event.error !== "no-speech") {
-            toast.error(`Speech recognition failed: ${event.error}`);
-          }
-          setIsRecording(false);
-        };
-
-        rec.onend = () => {
-          setIsRecording(false);
-        };
-
-        recognitionRef.current = rec;
-      }
-    }
-  }, []);
-
-  const toggleRecording = () => {
-    if (!recognitionRef.current) {
-      toast.error("Speech recognition not supported in this browser. Try Chrome or Safari.");
-      return;
-    }
-
-    if (isRecording) {
-      recognitionRef.current.stop();
-    } else {
-      try {
-        recognitionRef.current.start();
-      } catch (err) {
-        console.error("Failed to start recording:", err);
-      }
-    }
-  };
+  // Voice recording / Speech transcription hook
+  const { isListening, toggleListening } = useSpeechRecognition((transcript) => {
+    setInput((prev) => (prev ? prev + " " + transcript : transcript));
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -263,7 +210,7 @@ function AIAssistantPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                placeholder={isRecording ? "Listening..." : "Ask me anything about school management..."}
+                placeholder={isListening ? "Listening..." : "Ask me anything about school management..."}
                 className="pr-12 pl-10"
                 disabled={isLoading}
               />
@@ -271,15 +218,15 @@ function AIAssistantPage() {
                 variant="ghost"
                 size="icon"
                 className={`absolute left-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full transition-all cursor-pointer ${
-                  isRecording 
+                  isListening 
                     ? "text-red-500 bg-red-500/10 hover:bg-red-500/20 animate-pulse" 
                     : "text-muted-foreground hover:text-foreground"
                 }`}
-                onClick={toggleRecording}
+                onClick={toggleListening}
                 disabled={isLoading}
-                title={isRecording ? "Stop Listening" : "Record Voice Query"}
+                title={isListening ? "Stop Listening" : "Record Voice Query"}
               >
-                {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </Button>
               <Button
                 size="icon"

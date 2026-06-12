@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -948,11 +949,12 @@ CRITICAL RULES FOR ENHANCEMENT:
                 {sourceType === "topics" ? (
                   <div className="space-y-1 pt-1">
                     <Label htmlFor="topics-textarea" className="text-xs">Enter Syllabus Topics (separated by commas)</Label>
-                    <Textarea
+                    <VoiceTextarea
                       id="topics-textarea"
                       placeholder="e.g. Photosynthesis, Plant structure, Living and Non-living things"
                       value={topics}
                       onChange={(e) => setTopics(e.target.value)}
+                      onVoiceInput={(text) => setTopics(prev => prev ? prev + ", " + text : text)}
                       className="min-h-[85px] text-xs leading-relaxed"
                     />
                   </div>
@@ -968,11 +970,12 @@ CRITICAL RULES FOR ENHANCEMENT:
                         <Upload className="h-2.5 w-2.5" /> Upload file
                       </button>
                     </div>
-                    <Textarea
+                    <VoiceTextarea
                       id="drafts-textarea"
                       placeholder="e.g. 1. What is gravity?&#10;2. Draft: who invented the telephone? (A) Bell (B) Edison"
                       value={draftQuestions}
                       onChange={(e) => setDraftQuestions(e.target.value)}
+                      onVoiceInput={(text) => setDraftQuestions(prev => prev ? prev + "\n" + text : text)}
                       className="min-h-[85px] text-xs leading-relaxed"
                     />
                     <p className="text-[9px] text-muted-foreground leading-none mt-0.5">Supported format: .txt (Raw text) or copy-paste directly.</p>
