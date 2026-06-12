@@ -86,10 +86,10 @@ function LoginPage() {
             .from("user_roles")
             .select("role")
             .eq("user_id", data.user.id);
-          const role = roles?.[0]?.role || data.user.user_metadata.role || "parent";
+          const role = roles?.[0]?.role || data.user.user_metadata?.role || "parent";
 
           // Pre-populate parent student links if role is parent
-          let studentIds: string[] | undefined = data.user.user_metadata.studentIds;
+          let studentIds: string[] | undefined = data.user.user_metadata?.studentIds;
           if (role === "parent") {
             try {
               const { data: links } = await supabase
@@ -106,10 +106,10 @@ function LoginPage() {
           const auth: AuthState = {
             loggedIn: true,
             role,
-            name: data.user.user_metadata.full_name || data.user.email?.split("@")[0] || "User",
+            name: data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "User",
             email: data.user.email || "",
             userId: data.user.id,
-            teacherId: data.user.user_metadata.teacherId,
+            teacherId: data.user.user_metadata?.teacherId,
             studentIds,
           };
           setAuth(auth);

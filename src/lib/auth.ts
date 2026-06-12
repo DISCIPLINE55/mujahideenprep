@@ -24,7 +24,7 @@ export async function getAuth(): Promise<AuthState | null> {
     }
 
     // Fetch role from user_roles (source of truth); fall back to metadata
-    let role: UserRole = (session.user.user_metadata.role as UserRole) || "parent";
+    let role: UserRole = (session.user?.user_metadata?.role as UserRole) || "parent";
     try {
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
@@ -59,11 +59,11 @@ export async function getAuth(): Promise<AuthState | null> {
     const auth: AuthState = {
       loggedIn: true,
       role,
-      name: session.user.user_metadata.full_name || session.user.email?.split("@")[0] || "User",
-      email: session.user.email || "",
-      userId: session.user.id,
-      teacherId: session.user.user_metadata.teacherId,
-      studentIds: studentIds ?? session.user.user_metadata.studentIds,
+      name: session.user?.user_metadata?.full_name || session.user?.email?.split("@")[0] || "User",
+      email: session.user?.email || "",
+      userId: session.user?.id,
+      teacherId: session.user?.user_metadata?.teacherId,
+      studentIds: studentIds ?? session.user?.user_metadata?.studentIds,
     };
     if (typeof window !== "undefined") {
       localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
