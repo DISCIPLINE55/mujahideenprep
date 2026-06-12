@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Sparkles, Printer, Download, Image as ImageIcon, Paintbrush, 
   Bold, Italic, Underline, Trash2, FileText, Loader2, Eraser, 
-  Square, Circle, Minus, Upload 
+  Square, Circle, Minus, Upload, Save
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, queueSyncAction, type Subject, type ExamPaper } from "@/lib/storage";
@@ -289,6 +289,9 @@ function ExamCreatorPage() {
     setAcademicYear(e.academic_year);
     setAcademicTerm(e.academic_term);
     setExamContent(e.content);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = e.content || "";
+    }
     setCurrentExamId(e.id);
     setExamsDialogOpen(false);
     toast.success("Exam loaded into editor.");
@@ -1097,7 +1100,7 @@ CRITICAL RULES FOR ENHANCEMENT:
                   if (val === "txt") handleDownloadTxt();
                   else if (val === "doc") handleDownloadDoc();
                 }}>
-                  <SelectTrigger className="h-8 text-xs gap-1.5 w-10 sm:w-28"><Download className="h-3.5 w-3.5" /><span className="hidden sm:inline"><SelectValue placeholder="Export" /></span></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs gap-1.5 w-auto px-2"><Download className="h-3.5 w-3.5" /><span><SelectValue placeholder="Export" /></span></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="txt" className="text-xs">Plain Text (.txt)</SelectItem>
                     <SelectItem value="doc" className="text-xs">Word Doc (.doc)</SelectItem>
@@ -1114,12 +1117,13 @@ CRITICAL RULES FOR ENHANCEMENT:
                   <span>Print Answer Key</span>
                 </label>
 
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSaveExam} title="Save Exam to Database">
-                  <span className="hidden sm:inline">Save Exam</span>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 px-2" onClick={handleSaveExam} title="Save Exam to Database">
+                  <Save className="h-3.5 w-3.5" />
+                  <span>Save</span>
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handlePrintExam} title="Print Exam Paper">
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 px-2" onClick={handlePrintExam} title="Print Exam Paper">
                   <Printer className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Print Paper</span>
+                  <span>Print</span>
                 </Button>
               </div>
             </div>
