@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, Sparkles, Loader2, Printer } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { defaultStudents, defaultTeachers, KEYS, type Student, type Teacher, type TimetableSlot, type Subject, defaultSubjects, generateId, CLASS_LIST } from "@/lib/storage";
+import { useAllowedClasses } from "@/hooks/use-allowed-classes";
 import { callSchoolAI } from "@/lib/ai";
 import { getSchoolSettings } from "@/lib/printBranding";
 import { toast } from "sonner";
@@ -113,13 +114,14 @@ function TimetablePage() {
 
   const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
+  const allowedClasses = useAllowedClasses();
 
   const [selectedClass, setSelectedClass] = useState(() => {
-    if (isAdmin) return CLASS_LIST[0];
+    if (isAdmin) return allowedClasses[0] || CLASS_LIST[0];
     if (auth?.role === "parent") {
       const rawStudents = studentStore.items;
       const myKids = rawStudents.filter((s) => auth.studentIds?.includes(s.id));
-      return myKids[0]?.class || CLASS_LIST[0];
+      return myKids[0]?.class || allowedClasses[0] || CLASS_LIST[0];
     }
     return "My Schedule";
   });
@@ -133,7 +135,7 @@ function TimetablePage() {
 
   const [open, setOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
-  const [form, setForm] = useState({ day: DAYS[0], period: PERIODS[0], subject: "", teacher: "", className: CLASS_LIST[0] });
+  const [form, setForm] = useState({ day: DAYS[0], period: PERIODS[0], subject: "", teacher: "", className: allowedClasses[0] || CLASS_LIST[0] });
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -386,7 +388,7 @@ Each suggestion in the JSON array must follow this exact format:
                 ) : (
                   <>
                     {!isAdmin && <SelectItem value="My Schedule">My Schedule</SelectItem>}
-                    {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {allowedClasses.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </>
                 )}
               </SelectContent>

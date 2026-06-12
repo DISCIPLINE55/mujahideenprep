@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ClipboardCheck, Download, BarChart3, Sparkles, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { getItems, setItems, generateId, defaultStudents, defaultClasses, defaultTeachers, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord, type Teacher } from "@/lib/storage";
+import { getItems, setItems, generateId, defaultStudents, defaultClasses, KEYS, CLASS_LIST, type Student, type SchoolClass, type AttendanceRecord } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
+import { useAllowedClasses } from "@/hooks/use-allowed-classes";
 import { callSchoolAI } from "@/lib/ai";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
@@ -35,39 +36,16 @@ function AttendancePage() {
   const attendanceStore = useStore<AttendanceRecord>(KEYS.ATTENDANCE, []);
   const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const classStore = useStore<SchoolClass>(KEYS.CLASSES, defaultClasses);
-  const teacherStore = useStore<Teacher>(KEYS.TEACHERS, defaultTeachers);
 
   const allRecords = attendanceStore.items;
   const allStudents = studentStore.items;
   const allClasses = classStore.items;
-  const teachers = teacherStore.items;
 
-  const teacherClassNames = useMemo(() => {
-    if (!isTeacher) return null;
-    const me = teachers.find((t) => 
-      t.id === auth?.teacherId ||
-      (auth?.userId && t.user_id === auth.userId) ||
-      (auth?.email && t.email?.toLowerCase() === auth.email.toLowerCase())
-    );
-    if (!me) return [];
-
-    // 1. Get class names from teacher profile classes (comma-separated string, e.g. "Creche")
-    const profileClasses = me.classes 
-      ? me.classes.split(",").map(s => s.trim()).filter(Boolean) 
-      : [];
-
-    // 2. Get class names from the classes table where me is class teacher
-    const tableClasses = allClasses
-      .filter((c) => c.teacher === me.name)
-      .map((c) => c.name);
-
-    // Combine and deduplicate
-    return Array.from(new Set([...profileClasses, ...tableClasses]));
-  }, [isTeacher, teachers, allClasses, auth]);
+  const allowedClassList = useAllowedClasses();
+  const teacherClassNames = isTeacher ? allowedClassList : null;
 
   const students = useMemo(() => teacherClassNames ? allStudents.filter((s) => teacherClassNames.includes(s.class)) : allStudents, [allStudents, teacherClassNames]);
   const classes = useMemo(() => teacherClassNames ? allClasses.filter((c) => teacherClassNames.includes(c.name)) : allClasses, [allClasses, teacherClassNames]);
-  const allowedClassList = useMemo(() => teacherClassNames ?? CLASS_LIST, [teacherClassNames]);
   const records = useMemo(() => teacherClassNames ? allRecords.filter((r) => teacherClassNames.includes(r.class)) : allRecords, [allRecords, teacherClassNames]);
   const [markOpen, setMarkOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState(allowedClassList[0] ?? CLASS_LIST[0]);

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { 
   Sparkles, Printer, Download, Image as ImageIcon, Paintbrush, 
   Bold, Italic, Underline, Trash2, FileText, Loader2, Eraser, 
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, queueSyncAction, type Subject, type ExamPaper } from "@/lib/storage";
+import { useAllowedClasses } from "@/hooks/use-allowed-classes";
 import { streamSchoolAI } from "@/lib/ai";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
@@ -115,7 +117,8 @@ function ExamCreatorPage() {
   const exams = isTeacher ? allExams.filter(e => e.created_by === auth?.name || e.created_by === auth?.userId) : allExams;
 
   // Form states
-  const [selectedClass, setSelectedClass] = useState(CLASS_LIST[0]);
+  const allowedClasses = useAllowedClasses();
+  const [selectedClass, setSelectedClass] = useState(allowedClasses[0] || CLASS_LIST[0]);
   const [subject, setSubject] = useState(activeSubjects[0]?.name || "General Science");
   const [examType, setExamType] = useState("End of Term Examination");
   const [questionType, setQuestionType] = useState("Mixed (Objectives & Theory)");
@@ -779,7 +782,7 @@ CRITICAL RULES FOR ENHANCEMENT:
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
                       <SelectTrigger id="class-select" className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {CLASS_LIST.map((c) => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+                        {allowedClasses.map((c) => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1258,7 +1261,7 @@ CRITICAL RULES FOR ENHANCEMENT:
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Classes</SelectItem>
-                  {CLASS_LIST.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {allowedClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -18,6 +18,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { generateClassList } from "@/lib/pdf";
 import { useDebounce } from "@/lib/debounce";
 import { logActivity, getAuthSync } from "@/lib/auth";
+import { useAllowedClasses } from "@/hooks/use-allowed-classes";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/students")({
@@ -89,6 +90,7 @@ function StudentsPage() {
   const auth = getAuthSync();
   const isAdmin = auth?.role === "admin";
   const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
+  const allowedClasses = useAllowedClasses();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const [filterClass, setFilterClass] = useState("All");
@@ -131,7 +133,7 @@ function StudentsPage() {
       return matchSearch && matchClass && matchStatus;
     }), [store.items, debouncedSearch, filterClass, filterStatus]);
 
-  function openAdd() { setEditing(null); setForm(emptyStudent); setErrors({}); setOpen(true); }
+  function openAdd() { setEditing(null); setForm({ ...emptyStudent, class: allowedClasses[0] || CLASS_LIST[0] }); setErrors({}); setOpen(true); }
   function openEdit(s: Student) {
     setEditing(s);
     setForm({ 
@@ -353,7 +355,7 @@ function StudentsPage() {
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="Class" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Classes</SelectItem>
-              {CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {allowedClasses.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -391,7 +393,7 @@ function StudentsPage() {
               <Label>Class</Label>
               <Select value={form.class} onValueChange={(v) => setForm({ ...form, class: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>{allowedClasses.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
@@ -575,7 +577,7 @@ function StudentsPage() {
               <Label>Promote selected to:</Label>
               <Select value={promoteTo} onValueChange={setPromoteTo}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CLASS_LIST.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>{allowedClasses.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <p className="text-xs text-muted-foreground">This will update the class level for {selected.size} selected students. Use this for new academic year transitions.</p>
