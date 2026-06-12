@@ -44,4 +44,4 @@ WITH CHECK (true);
 CREATE TRIGGER handle_updated_at_exams
     BEFORE UPDATE ON exams
     FOR EACH ROW
-    EXECUTE FUNCTION handle_updated_at();
+    EXECUTE FUNCTION touch_updated_at();
