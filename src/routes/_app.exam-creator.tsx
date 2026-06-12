@@ -76,7 +76,8 @@ function cleanExamText(text: string): string {
     .replace(/\*/g, "")   // remove single asterisks
     .replace(/(?:^|\n)#+\s+/g, "\n") // remove markdown headers at start of line
     .replace(/#+\s+/g, "") // remove any remaining header hashes followed by space
-    .replace(/`/g, "");   // remove code backticks
+    .replace(/`/g, "")     // remove code backticks
+    .replace(/\n{3,}/g, "\n\n"); // collapse excessive blank lines
 
   // Replace [ANSWER KEY] separator with page break and key wrapper
   cleaned = cleaned.replace(
@@ -222,30 +223,29 @@ function ExamCreatorPage() {
   // Generate Document Heading
   const getHeaderTemplate = () => {
     const s = getSchoolSettings();
-    return `<div style="font-family: 'Times New Roman', Times, serif; color: #111; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; font-size: 14px; line-height: 1.4;">
-  <div style="text-align: center; margin-bottom: 10px;">
-    <img src="${logoImg}" alt="Logo" style="width: 60px; height: 60px; object-fit: cover; margin: 0 auto; display: block;" />
-    <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin-top: 5px;">${s.name.toUpperCase()}</div>
-    <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; color: #333;">${s.location.toUpperCase()}</div>
-    <div style="font-size: 14px; font-weight: bold; text-transform: uppercase; margin-top: 8px;">
+    return `<div style="font-family: 'Times New Roman', Times, serif; color: #111; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 11pt; line-height: 1.2;">
+  <div style="text-align: center; margin-bottom: 5px;">
+    <img src="${logoImg}" alt="Logo" style="width: 50px; height: 50px; object-fit: cover; margin: 0 auto; display: block;" />
+    <div style="font-size: 14pt; font-weight: bold; text-transform: uppercase; margin-top: 2px;">${s.name.toUpperCase()}</div>
+    <div style="font-size: 10pt; font-weight: bold; text-transform: uppercase; color: #333;">${s.location.toUpperCase()}</div>
+    <div style="font-size: 12pt; font-weight: bold; text-transform: uppercase; margin-top: 4px;">
       ${examType.toUpperCase()}
     </div>
   </div>
   
-  <div style="margin-bottom: 8px; font-weight: bold;">
-    <div>Class: ${selectedClass}</div>
-    <div>Subject: ${subject}</div>
-    <div>Time: ${timeAllowed}</div>
+  <div style="margin-bottom: 4px; font-weight: bold; display: flex; justify-content: space-between;">
+    <span>Class: ${selectedClass}</span>
+    <span>Subject: ${subject}</span>
+    <span>Time: ${timeAllowed}</span>
   </div>
 
-  <div style="margin-bottom: 8px; font-weight: bold;">
-    <div style="margin-bottom: 4px;">Name: ____________________________________________________________________</div>
+  <div style="margin-bottom: 4px; font-weight: bold;">
+    <div style="margin-bottom: 2px;">Name: ____________________________________________________________________</div>
     <div>Index Number: ___________________________________________________________</div>
   </div>
 
-  <div style="font-style: italic; font-weight: bold; padding-top: 5px; font-size: 13px;">
-    Instructions:<br/>
-    ${instructions.replace(/\n/g, "<br/>")}
+  <div style="font-style: italic; font-weight: bold; padding-top: 2px; font-size: 10pt;">
+    Instructions: ${instructions.replace(/\n/g, " ")}
   </div>
 </div>
 `;
@@ -447,7 +447,7 @@ CRITICAL RULES FOR ENHANCEMENT:
         accumulatedText += chunk;
         const cleanedText = cleanExamText(accumulatedText);
         const htmlBody = convertNewlinesToBr(cleanedText);
-        setExamContent(headerHtml + `<div style="font-family: 'Times New Roman', Times, serif; font-size: 16px; line-height: 1.6; text-align: justify; color: #111;">` + htmlBody + `</div>`);
+        setExamContent(headerHtml + `<div style="font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.2; text-align: justify; color: #111;">` + htmlBody + `</div>`);
       },
       onDone: () => {
         setIsGenerating(false);
