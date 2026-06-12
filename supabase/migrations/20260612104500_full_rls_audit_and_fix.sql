@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION public.teacher_has_class(_user_id uuid, _class text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS(
     SELECT 1 FROM public.teachers
-    WHERE user_id = _user_id
+    WHERE user_id = _user_id::text
     AND _class = ANY(string_to_array(replace(classes, ', ', ','), ','))
   );
 $$;
@@ -113,7 +113,7 @@ CREATE POLICY "rbac_teacher_read" ON public.attendance FOR SELECT TO authenticat
 CREATE POLICY "rbac_teacher_write" ON public.attendance FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'teacher') AND public.teacher_has_class(auth.uid(), class)) WITH CHECK (public.has_role(auth.uid(), 'teacher') AND public.teacher_has_class(auth.uid(), class));
 
 -- Teachers table: Teachers can view themselves
-CREATE POLICY "rbac_teacher_read" ON public.teachers FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'teacher') AND user_id = auth.uid());
+CREATE POLICY "rbac_teacher_read" ON public.teachers FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'teacher') AND user_id = auth.uid()::text);
 
 -- Notifications: Teachers see specific audiences
 CREATE POLICY "rbac_teacher_read" ON public.notifications FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'teacher') AND (audience = 'All' OR audience = 'Teachers'));
