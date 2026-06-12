@@ -17,6 +17,7 @@ import {
 import { useStore } from "@/hooks/use-store";
 import { KEYS, CLASS_LIST, defaultSubjects, queueSyncAction, type Subject, type ExamPaper } from "@/lib/storage";
 import { useAllowedClasses } from "@/hooks/use-allowed-classes";
+import { cn } from "@/lib/utils";
 import { streamSchoolAI } from "@/lib/ai";
 import { getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
@@ -158,6 +159,7 @@ function ExamCreatorPage() {
   const [examSearch, setExamSearch] = useState("");
   const [examFilterClass, setExamFilterClass] = useState("All");
   const [currentExamId, setCurrentExamId] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<"config" | "editor">("config");
 
   const filteredExams = exams.filter(e => {
     const matchSearch = e.title.toLowerCase().includes(examSearch.toLowerCase()) || e.subject.toLowerCase().includes(examSearch.toLowerCase());
@@ -322,6 +324,7 @@ function ExamCreatorPage() {
     }
 
     setIsGenerating(true);
+    setMobileTab("editor");
     const headerHtml = getHeaderTemplate();
     setExamContent(headerHtml);
 
@@ -769,9 +772,20 @@ CRITICAL RULES FOR ENHANCEMENT:
           </Button>
         </div>
 
+        <div className="flex lg:hidden bg-muted p-1 rounded-lg mb-4 print-hide">
+          <button 
+            className={cn("flex-1 py-2 text-sm font-medium rounded-md transition-all cursor-pointer", mobileTab === "config" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:bg-background/50")}
+            onClick={() => setMobileTab("config")}
+          >Configuration</button>
+          <button 
+            className={cn("flex-1 py-2 text-sm font-medium rounded-md transition-all cursor-pointer", mobileTab === "editor" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:bg-background/50")}
+            onClick={() => setMobileTab("editor")}
+          >Editor View</button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Options Panel (Left) */}
-          <div className="lg:col-span-4 space-y-4 print-hide">
+          <div className={cn("lg:col-span-4 space-y-4 print-hide", mobileTab === "config" ? "block" : "hidden lg:block")}>
             <Card>
               <CardContent className="p-5 space-y-4">
                 <h3 className="font-bold text-sm text-primary uppercase tracking-wider mb-2">Exam Parameters</h3>
@@ -984,7 +998,7 @@ CRITICAL RULES FOR ENHANCEMENT:
           </div>
 
           {/* Exam Editor Sheet (Right) */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className={cn("lg:col-span-8 space-y-4", mobileTab === "editor" ? "block" : "hidden lg:block")}>
             {/* Rich formatting toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-2 p-2 border bg-card rounded-lg print-hide shadow-sm">
               <div className="flex items-center gap-1">
