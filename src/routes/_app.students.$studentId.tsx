@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, User, Phone, MapPin, Calendar, GraduationCap, ClipboardCheck, Wallet, FileText, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { getItems, defaultStudents, defaultPayments, KEYS, type Student, type AttendanceRecord, type ExamResult, type Payment, type DisciplineRecord } from "@/lib/storage";
-import { logActivity } from "@/lib/auth";
+import { logActivity, getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/students/$studentId")({
@@ -28,6 +28,8 @@ export const Route = createFileRoute("/_app/students/$studentId")({
 
 function StudentProfilePage() {
   const { studentId } = Route.useParams();
+  const auth = getAuthSync();
+  const isAdmin = auth?.role === "admin";
   const studentStore = useStore<Student>(KEYS.STUDENTS, defaultStudents);
   const student = studentStore.items.find((s) => s.id === studentId);
   const disciplineStore = useStore<DisciplineRecord>(KEYS.DISCIPLINE, []);
@@ -266,9 +268,11 @@ function StudentProfilePage() {
                             <Badge variant={d.severity === "High" ? "destructive" : d.severity === "Medium" ? "secondary" : "outline"}>{d.severity}</Badge>
                             <span className="text-xs text-muted-foreground">{d.date}</span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleDeleteDiscipline(d.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleDeleteDiscipline(d.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                         <p className="text-sm text-foreground"><strong>Incident:</strong> {d.description}</p>
                         {d.action && <p className="text-sm text-muted-foreground mt-1"><strong>Action taken:</strong> {d.action}</p>}

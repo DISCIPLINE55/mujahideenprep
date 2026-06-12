@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app")({
 
 // Routes not in ROLE_NAV but still allowed for specific roles
 const EXTRA_ALLOWED: { prefix: string; roles: UserRole[] }[] = [
-  { prefix: "/students/", roles: ["admin"] }, // student detail
+  { prefix: "/students/", roles: ["admin", "teacher"] }, // student detail
   { prefix: "/teachers/", roles: ["admin"] }, // teacher detail
 ];
 

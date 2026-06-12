@@ -17,7 +17,7 @@ import { CSVImportDialog } from "@/components/CSVImportDialog";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { generateClassList } from "@/lib/pdf";
 import { useDebounce } from "@/lib/debounce";
-import { logActivity } from "@/lib/auth";
+import { logActivity, getAuthSync } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/students")({
@@ -86,6 +86,8 @@ const emptyStudent: Omit<Student, "id"> = {
 
 function StudentsPage() {
   const store = useStore<Student>(KEYS.STUDENTS, defaultStudents);
+  const auth = getAuthSync();
+  const isAdmin = auth?.role === "admin";
   const paymentStore = useStore<Payment>(KEYS.PAYMENTS, defaultPayments);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
@@ -254,52 +256,62 @@ function StudentsPage() {
     toast.success("Class list PDF downloaded");
   }
 
-  const columns = useMemo(() => [
-    {
-      key: "select", header: "",
-      render: (row: Student) => (
-        <Checkbox checked={selected.has(row.id)} onCheckedChange={() => toggleSelect(row.id)} onClick={(e: React.MouseEvent) => e.stopPropagation()} />
-      ),
-    },
-    {
-      key: "name", header: "Student Name",
-      render: (row: Student) => (
-        <Link to="/students/$studentId" params={{ studentId: row.id }} className="flex items-center gap-2 hover:underline" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          {row.photo ? (
-            <img src={row.photo} alt={row.name} className="h-8 w-8 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
-              {row.name.charAt(0)}
-            </div>
-          )}
-          <span className="font-medium text-foreground">{row.name}</span>
-        </Link>
-      ),
-    },
-    { key: "class" as const, header: "Class" },
-    { key: "gender" as const, header: "Gender" },
-    { key: "guardian" as const, header: "Guardian" },
-    {
-      key: "fees", header: "Fees",
-      render: (row: Student) => (
-        <Badge variant={row.fees === "Paid" ? "default" : row.fees === "Partial" ? "secondary" : "destructive"}>{row.fees}</Badge>
-      ),
-    },
-    {
-      key: "status", header: "Status",
-      render: (row: Student) => <Badge variant={row.status === "Active" ? "default" : "secondary"}>{row.status}</Badge>,
-    },
-    {
-      key: "actions", header: "",
-      render: (row: Student) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewId(row.id); }}><Eye className="h-4 w-4 text-primary" /></Button>
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-        </div>
-      ),
-    },
-  ], [selected, filtered]);
+  const columns = useMemo(() => {
+    const cols = [];
+    if (isAdmin) {
+      cols.push({
+        key: "select", header: "",
+        render: (row: Student) => (
+          <Checkbox checked={selected.has(row.id)} onCheckedChange={() => toggleSelect(row.id)} onClick={(e: React.MouseEvent) => e.stopPropagation()} />
+        ),
+      });
+    }
+    cols.push(
+      {
+        key: "name", header: "Student Name",
+        render: (row: Student) => (
+          <Link to="/students/$studentId" params={{ studentId: row.id }} className="flex items-center gap-2 hover:underline" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            {row.photo ? (
+              <img src={row.photo} alt={row.name} className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
+                {row.name.charAt(0)}
+              </div>
+            )}
+            <span className="font-medium text-foreground">{row.name}</span>
+          </Link>
+        ),
+      },
+      { key: "class" as const, header: "Class" },
+      { key: "gender" as const, header: "Gender" },
+      { key: "guardian" as const, header: "Guardian" },
+      {
+        key: "fees", header: "Fees",
+        render: (row: Student) => (
+          <Badge variant={row.fees === "Paid" ? "default" : row.fees === "Partial" ? "secondary" : "destructive"}>{row.fees}</Badge>
+        ),
+      },
+      {
+        key: "status", header: "Status",
+        render: (row: Student) => <Badge variant={row.status === "Active" ? "default" : "secondary"}>{row.status}</Badge>,
+      },
+      {
+        key: "actions", header: "",
+        render: (row: Student) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewId(row.id); }}><Eye className="h-4 w-4 text-primary" /></Button>
+            {isAdmin && (
+              <>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row); }}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </>
+            )}
+          </div>
+        ),
+      }
+    );
+    return cols;
+  }, [selected, filtered, isAdmin]);
 
   return (
     <>
@@ -311,7 +323,7 @@ function StudentsPage() {
             <p className="text-sm text-muted-foreground">{store.items.length} total students enrolled</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {selected.size > 0 && (
+            {isAdmin && selected.size > 0 && (
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="text-primary border-primary/30 hover:bg-primary/5" onClick={() => setPromoteOpen(true)}>
                   <Plus className="mr-1 h-4 w-4" /> Bulk Promote ({selected.size})
@@ -322,9 +334,13 @@ function StudentsPage() {
               </div>
             )}
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-1 h-4 w-4" /> Export</Button>
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}><Upload className="mr-1 h-4 w-4" /> Import CSV</Button>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}><Upload className="mr-1 h-4 w-4" /> Import CSV</Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePdfClassList}><FileText className="mr-1 h-4 w-4" /> Class PDF</Button>
-            <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Student</Button>
+            {isAdmin && (
+              <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" /> Add Student</Button>
+            )}
           </div>
         </div>
 

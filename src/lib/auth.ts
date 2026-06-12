@@ -113,7 +113,7 @@ export const ROLE_NAV: { to: string; label: string; roles: UserRole[] }[] = [
   { to: "/dashboard", label: "Dashboard", roles: ["admin"] },
   { to: "/teacher-dashboard", label: "Dashboard", roles: ["teacher"] },
   { to: "/parent-dashboard", label: "Dashboard", roles: ["parent"] },
-  { to: "/students", label: "Students", roles: ["admin"] },
+  { to: "/students", label: "Students", roles: ["admin", "teacher"] },
   { to: "/teachers", label: "Teachers", roles: ["admin"] },
   { to: "/parents", label: "Parents", roles: ["admin"] },
   { to: "/classes", label: "Classes", roles: ["admin"] },
