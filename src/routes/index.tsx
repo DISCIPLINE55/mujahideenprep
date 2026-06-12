@@ -79,7 +79,7 @@ function LoginPage() {
 
         if (error) throw error;
 
-        if (data.user) {
+        if (data.session && data.user) {
           toast.success("Logged in successfully!");
           // Fetch role from user_roles table (single source of truth)
           const { data: roles } = await supabase
@@ -116,6 +116,8 @@ function LoginPage() {
 
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
           navigate({ to: dest });
+        } else if (data.user && !data.session) {
+          toast.info("Please confirm your email address to log in.");
         }
       }
     } catch (err: any) {
