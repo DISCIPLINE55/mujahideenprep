@@ -1,6 +1,12 @@
 
 -- ============ ROLES ============
-create type public.app_role as enum ('admin','teacher','parent');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+        CREATE TYPE public.app_role AS ENUM ('admin', 'teacher', 'parent');
+    END IF;
+END
+$$;
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
