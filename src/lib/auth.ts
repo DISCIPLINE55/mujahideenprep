@@ -81,26 +81,34 @@ export async function getAuth(): Promise<AuthState | null> {
 }
 
 export function getAuthSync(): AuthState | null {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("mpsms_auth_meta") : null;
-    if (!raw) return null;
-    return JSON.parse(raw) as AuthState;
-  } catch {
-    return null;
+    const meta = localStorage.getItem("mpsms_auth_meta");
+    if (meta) {
+      return JSON.parse(meta);
+    }
+  } catch (err) {
+    console.warn("localStorage access failed:", err);
   }
+  return null;
 }
 
 export function setAuth(auth: AuthState): void {
-  // Supabase handles session persistence automatically, but we can store extra metadata if needed
   if (typeof window !== "undefined") {
-    localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
+    try {
+      localStorage.setItem("mpsms_auth_meta", JSON.stringify(auth));
+    } catch (err) {
+      console.warn("localStorage setItem failed:", err);
+    }
   }
 }
 
 export async function signOut() {
   await supabase.auth.signOut();
   if (typeof window !== "undefined") {
-    localStorage.removeItem("mpsms_auth_meta");
+    try {
+      localStorage.removeItem("mpsms_auth_meta");
+    } catch (err) {}
     window.location.href = "/";
   }
 }

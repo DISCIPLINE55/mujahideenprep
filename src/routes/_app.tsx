@@ -134,9 +134,23 @@ function AuthGuardLayout() {
   // Enforce role-based route access on every navigation
   useEffect(() => {
     if (!auth) return;
-    if (!isRouteAllowed(location.pathname, auth.role)) {
+    
+    // Failsafe: Ensure auth.role is ALWAYS a valid string to prevent undefined routing loops
+    const safeRole = (auth.role as string) || "parent";
+    
+    if (!isRouteAllowed(location.pathname, safeRole as UserRole)) {
+      const fallback = defaultDashboard(safeRole as UserRole);
+      
+      // If we are already on the fallback route but STILL not allowed, stop the loop!
+      if (location.pathname === fallback) {
+         toast.error("Your account has an invalid role configuration.");
+         localStorage.removeItem("mpsms_auth_meta");
+         window.location.href = "/";
+         return;
+      }
+      
       toast.error("You don't have permission to access that page.");
-      navigate({ to: defaultDashboard(auth.role) });
+      navigate({ to: fallback });
     }
   }, [auth, location.pathname, navigate]);
 
