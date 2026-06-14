@@ -1,4 +1,4 @@
-const CACHE_NAME = "mpsms-cache-v5";
+const CACHE_NAME = "mpsms-cache-v6";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -36,6 +36,11 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || event.request.url.includes("/functions/v1/") || event.request.url.includes("supabase.co")) {
     return;
   }
+  
+  // Skip chrome extensions entirely to prevent TypeError on cache.put
+  if (event.request.url.startsWith("chrome-extension://")) {
+    return;
+  }
 
   const isCodeOrAsset = 
     event.request.mode === "navigate" || 
@@ -49,10 +54,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse.status === 200) {
+          if (networkResponse.status === 200 && event.request.url.startsWith("http")) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
+              cache.put(event.request, responseToCache).catch(console.warn);
             });
           }
           return networkResponse;
