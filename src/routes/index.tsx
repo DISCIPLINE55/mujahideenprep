@@ -39,6 +39,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [loginError, setLoginError] = useState("");
 
   // Redirect instantly if user session already exists locally
   useEffect(() => {
@@ -51,7 +52,9 @@ function LoginPage() {
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
+    setLoginError("");
     if (!email || !password) {
+      setLoginError("Please enter both email and password.");
       toast.error("Please enter both email and password.");
       return;
     }
@@ -123,6 +126,7 @@ function LoginPage() {
         }
       }
     } catch (err: any) {
+      setLoginError(err.message || "Authentication failed");
       alert("Error: " + (err.message || "Authentication failed"));
       toast.error(err.message || "Authentication failed");
     } finally {
@@ -219,8 +223,8 @@ function LoginPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-10" disabled={loading}>
-                {loading ? (isSignUp ? "Creating Account..." : "Signing In...") : (isSignUp ? "Create Account" : "Sign In")}
+              <Button type="submit" className={cn("w-full h-10 transition-colors", loginError ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "")} disabled={loading}>
+                {loading ? (isSignUp ? "Creating Account..." : "Signing In...") : loginError ? `Error: ${loginError}` : (isSignUp ? "Create Account" : "Sign In")}
               </Button>
             </form>
 
