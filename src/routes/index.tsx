@@ -80,6 +80,7 @@ function LoginPage() {
         if (error) throw error;
 
         if (data.session && data.user) {
+          alert("Login Success! Redirecting...");
           toast.success("Logged in successfully!");
           // Fetch role from user_roles table (single source of truth)
           const { data: roles } = await supabase
@@ -117,10 +118,12 @@ function LoginPage() {
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
           window.location.href = dest;
         } else if (data.user && !data.session) {
+          alert("Please confirm your email address!");
           toast.info("Please confirm your email address to log in.");
         }
       }
     } catch (err: any) {
+      alert("Error: " + (err.message || "Authentication failed"));
       toast.error(err.message || "Authentication failed");
     } finally {
       setLoading(false);
