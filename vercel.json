@@ -4,7 +4,7 @@
   "outputDirectory": "dist",
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/nuke",
       "headers": [
         {
           "key": "Clear-Site-Data",
