@@ -115,7 +115,7 @@ function LoginPage() {
           setAuth(auth);
 
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
-          navigate({ to: dest });
+          await navigate({ to: dest });
         } else if (data.user && !data.session) {
           toast.info("Please confirm your email address to log in.");
         }
