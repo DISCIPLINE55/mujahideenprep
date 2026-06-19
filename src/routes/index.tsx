@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { type UserRole, type AuthState, getAuthSync, setAuth } from "@/lib/auth";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, SUPABASE_CONFIG_ERROR } from "@/lib/supabaseClient";
 import logoImg from "@/assets/logo.png";
 
 export const Route = createFileRoute("/")({
@@ -40,6 +40,25 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loginError, setLoginError] = useState("");
+
+  if (SUPABASE_CONFIG_ERROR) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="w-full max-w-xl rounded-3xl border border-destructive/20 bg-card/95 p-10 shadow-2xl">
+          <h1 className="text-2xl font-bold text-destructive">Configuration error</h1>
+          <p className="mt-4 text-sm text-foreground/80">
+            The application is missing Supabase client configuration.
+          </p>
+          <p className="mt-4 rounded-lg border border-destructive/10 bg-destructive/5 p-4 text-sm text-destructive">
+            {SUPABASE_CONFIG_ERROR}
+          </p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Please set the required environment variables and redeploy the app.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Redirect instantly if user session already exists locally
   useEffect(() => {
