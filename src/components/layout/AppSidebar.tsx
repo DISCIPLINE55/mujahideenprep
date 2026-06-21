@@ -23,6 +23,7 @@ import {
   TrendingDown,
   Download,
   HelpCircle,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_NAV, signOut, type UserRole } from "@/lib/auth";
@@ -51,6 +52,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "AI Assistant": Sparkles,
   "Exam Creator": FileText,
   Settings: Settings,
+  "System Health": Activity,
   Tutorial: HelpCircle,
 };
 

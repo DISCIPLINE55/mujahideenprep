@@ -43,9 +43,10 @@ export async function getItemsAsync<T>(key: string, defaults: T[]): Promise<T[]>
     try {
       const { data, error } = await fetchTableDeduplicated(table);
       if (!error && data && data.length > 0) {
-        // Cache in localStorage for offline access
-        localStorage.setItem(key, JSON.stringify(data));
-        return data as T[];
+        // Cache in localStorage for offline access but filter deleted items
+        const merged = mergeServerRecords(key, data);
+        localStorage.setItem(key, JSON.stringify(merged));
+        return merged as T[];
       }
     } catch {
       // Fall through to localStorage

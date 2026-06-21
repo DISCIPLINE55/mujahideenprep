@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { RouteErrorComponent } from "@/components/ErrorBoundary";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ import { useStore } from "@/hooks/use-store";
 import { defaultTeachers, KEYS, type Teacher, defaultSubjects, CLASS_LIST, type Subject } from "@/lib/storage";
 import { downloadCSV } from "@/lib/export";
 import { useDebounce } from "@/lib/debounce";
-import { logActivity } from "@/lib/auth";
+import { logActivity, getAuthSync } from "@/lib/auth";
+import { notify } from "@/lib/toast-utils";
+import { logError } from "@/lib/error-logger";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/teachers")({
@@ -28,6 +31,7 @@ export const Route = createFileRoute("/_app/teachers")({
     ],
   }),
   component: TeachersPage,
+  errorComponent: RouteErrorComponent,
 });
 
 const emptyTeacher: Omit<Teacher, "id"> = {
@@ -47,6 +51,7 @@ function TeachersPage() {
   const [viewId, setViewId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -90,11 +95,26 @@ function TeachersPage() {
     return Object.keys(e).length === 0;
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!validate()) return;
-    if (editing) { store.update({ ...editing, ...form }); logActivity(`Updated teacher: ${form.name}`); toast.success("Teacher updated"); }
-    else { store.add(form); logActivity(`Added teacher: ${form.name}`); toast.success("Teacher added"); }
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      if (editing) { 
+        await store.update({ ...editing, ...form }); 
+        logActivity(`Updated teacher: ${form.name}`); 
+        notify.success("Teacher updated"); 
+      } else { 
+        await store.add(form); 
+        logActivity(`Added teacher: ${form.name}`); 
+        notify.success("Teacher added"); 
+      }
+      setOpen(false);
+    } catch (err) {
+      logError("Save Teacher", err, "high");
+      notify.error(err);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function handleInviteTeacher() {
@@ -130,12 +150,15 @@ function TeachersPage() {
           await store.update({ ...staff, user_id: data.user.id });
         }
       }
-      toast.success("Teacher account created. Share temporary password securely.", { id: loader });
+      toast.dismiss(loader);
+      notify.success("Teacher account created. Share temporary password securely.");
       logActivity(`Created teacher account: ${inviteEmail}`);
       setInviteOpen(false);
       setInviteEmail(""); setInviteName(""); setInvitePassword(""); setInviteTeacherId("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to create account", { id: loader });
+      toast.dismiss(loader);
+      logError("Invite Teacher", err, "high");
+      notify.error(err);
     }
   }
   function handleDelete() {
@@ -319,8 +342,8 @@ function TeachersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editing ? "Update" : "Add Teacher"}</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "Saving..." : editing ? "Update" : "Add Teacher"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

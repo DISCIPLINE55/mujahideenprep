@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Lock, Mail, ShieldCheck, GraduationCap, Users } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type UserRole, type AuthState, getAuthSync, setAuth } from "@/lib/auth";
+import { type UserRole, type AuthState, getAuthSync, setAuth, logActivity } from "@/lib/auth";
 import { supabase, SUPABASE_CONFIG_ERROR } from "@/lib/supabaseClient";
+import { notify } from "@/lib/toast-utils";
+import { logError } from "@/lib/error-logger";
 import logoImg from "@/assets/logo.png";
 
 export const Route = createFileRoute("/")({
@@ -74,12 +75,11 @@ function LoginPage() {
     setLoginError("");
     if (!email || !password) {
       setLoginError("Please enter both email and password.");
-      toast.error("Please enter both email and password.");
+      notify.error("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
-    console.log("STEP 1: Login Started");
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
@@ -92,7 +92,7 @@ function LoginPage() {
           },
         });
         if (error) throw error;
-        toast.success("Account created! Please check your email for confirmation.");
+        notify.success("Account created! Please check your email for confirmation.");
         setIsSignUp(false);
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -100,30 +100,18 @@ function LoginPage() {
           password,
         });
 
-        console.log("STEP 2: Auth Result", data, error);
-        console.log("STEP 3: Session", data.session);
-
         if (error) throw error;
 
         if (data.session && data.user) {
-          alert("Login Success! Redirecting...");
-          toast.success("Logged in successfully!");
+          notify.success("Logged in successfully!");
           
-          // Debug PROFILE RESULT as requested
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", data.user.id)
-            .single();
-          console.log("STEP 4: Profile", profile, profileError);
-
           // Fetch role from user_roles table (single source of truth)
           const { data: roles, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", data.user.id);
+            
           const role = roles?.[0]?.role || data.user.user_metadata?.role || "parent";
-          console.log("STEP 5: Role", role, roleError);
 
           // Pre-populate parent student links if role is parent
           let studentIds: string[] | undefined = data.user.user_metadata?.studentIds;
@@ -150,25 +138,18 @@ function LoginPage() {
             studentIds,
           };
           setAuth(auth);
+          logActivity("User logged in");
 
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
-          console.log("STEP 6: Dashboard Route", dest);
           window.location.href = dest;
-          console.log("STEP 7: Navigation Complete");
         } else if (data.user && !data.session) {
-          alert("Please confirm your email address!");
-          toast.info("Please confirm your email address to log in.");
-        } else {
-          // This block catches the edge case where no error is thrown but session/user are null
-          console.error("UNKNOWN AUTH STATE: No error thrown, but user/session are missing", data);
-          throw new Error("Invalid response from authentication server. Please try again.");
+          notify.info("Please confirm your email address to log in.");
         }
       }
-    } catch (err: any) {
-      console.error("AUTH CATCH BLOCK", err);
-      setLoginError(err.message || "Authentication failed");
-      alert("Error: " + (err.message || "Authentication failed"));
-      toast.error(err.message || "Authentication failed");
+    } catch (error: any) {
+      logError("Authentication", error, "high");
+      setLoginError(error.message || "Authentication failed");
+      notify.error(error);
     } finally {
       setLoading(false);
     }

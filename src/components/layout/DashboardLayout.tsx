@@ -7,6 +7,7 @@ import type { UserRole } from "@/lib/auth";
 import { syncCloudToLocal } from "@/lib/storage";
 import { usePWA } from "@/hooks/use-pwa";
 import { InstallPwaDialog } from "@/components/InstallPwaDialog";
+import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 
 export function DashboardLayout({ role }: { role: UserRole; name: string }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -41,6 +42,7 @@ export function DashboardLayout({ role }: { role: UserRole; name: string }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <NetworkStatusBanner />
       <div className="hidden lg:block">
         <AppSidebar
           collapsed={collapsed}

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useStore } from "@/hooks/use-store";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { RouteErrorComponent } from "@/components/ErrorBoundary";
 import { TopBar } from "@/components/layout/TopBar";
 import { EmptyState } from "@/components/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_app/attendance")({
     ],
   }),
   component: AttendancePage,
+  errorComponent: RouteErrorComponent,
 });
 
 function AttendancePage() {

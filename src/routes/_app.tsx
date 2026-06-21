@@ -4,8 +4,11 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useEffect, useState } from "react";
 import { getAuth, getAuthSync, ROLE_NAV, type AuthState, type UserRole } from "@/lib/auth";
 import { syncCloudToLocal } from "@/lib/storage";
+import { supabase } from "@/lib/supabaseClient";
+import { notify } from "@/lib/toast-utils";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import logoImg from "@/assets/logo.png";
 
 export const Route = createFileRoute("/_app")({
@@ -129,6 +132,19 @@ function AuthGuardLayout() {
       }
     }
     verify();
+
+    // Global session expiration listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+        notify.error("Your session has expired. Please sign in again.");
+        localStorage.removeItem("mpsms_auth_meta");
+        navigate({ to: "/" });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   // Enforce role-based route access on every navigation
@@ -163,9 +179,9 @@ function AuthGuardLayout() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <Toaster position="top-right" richColors />
       <DashboardLayout role={auth.role} name={auth.name} />
-    </>
+    </ErrorBoundary>
   );
 }

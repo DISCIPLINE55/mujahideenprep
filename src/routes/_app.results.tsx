@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useStore } from "@/hooks/use-store";
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteErrorComponent } from "@/components/ErrorBoundary";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_app/results")({
     ],
   }),
   component: ResultsPage,
+  errorComponent: RouteErrorComponent,
 });
 
 function ResultsPage() {

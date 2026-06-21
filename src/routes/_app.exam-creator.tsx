@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteErrorComponent } from "@/components/ErrorBoundary";
 import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,9 @@ import { KEYS, CLASS_LIST, defaultSubjects, queueSyncAction, type Subject, type 
 import { useAllowedClasses } from "@/hooks/use-allowed-classes";
 import { cn } from "@/lib/utils";
 import { streamSchoolAI } from "@/lib/ai";
-import { getAuthSync } from "@/lib/auth";
+import { logActivity, getAuthSync } from "@/lib/auth";
+import { notify } from "@/lib/toast-utils";
+import { logError } from "@/lib/error-logger";
 import { toast } from "sonner";
 import { getSchoolSettings } from "@/lib/printBranding";
 import logoImg from "@/assets/logo.png";
@@ -28,11 +31,12 @@ import logoImg from "@/assets/logo.png";
 export const Route = createFileRoute("/_app/exam-creator")({
   head: () => ({
     meta: [
-      { title: "AI Exam Creator — MPSMS" },
-      { name: "description", content: "Create professional examinations using AI" },
+      { title: "Exam Creator — MPSMS" },
+      { name: "description", content: "AI-Powered Exam Generation" },
     ],
   }),
   component: ExamCreatorPage,
+  errorComponent: RouteErrorComponent,
 });
 
 function convertNewlinesToBr(text: string): string {
@@ -442,26 +446,47 @@ CRITICAL RULES FOR ENHANCEMENT:
 
     let accumulatedText = "";
 
-    await streamSchoolAI({
-      type: "exam_creator",
-      messages: [
-        { role: "user", content: userPrompt }
-      ],
-      onDelta: (chunk) => {
-        accumulatedText += chunk;
-        const cleanedText = cleanExamText(accumulatedText);
-        const htmlBody = convertNewlinesToBr(cleanedText);
-        setExamContent(headerHtml + `<div style="font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.2; text-align: justify; color: #111;">` + htmlBody + `</div>`);
-      },
-      onDone: () => {
-        setIsGenerating(false);
-        toast.success("Exam paper generated successfully!");
-      },
-      onError: (err) => {
-        setIsGenerating(false);
-        toast.error(`Failed to generate exam: ${err}`);
+    try {
+      // Create a 60-second timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("AI generation timed out. The server took too long to respond.")), 60000)
+      );
+
+      // Wrap the streaming call in a Promise so we can race it
+      const aiPromise = new Promise<void>((resolve, reject) => {
+        streamSchoolAI({
+          type: "exam_creator",
+          messages: [
+            { role: "user", content: userPrompt }
+          ],
+          onDelta: (chunk) => {
+            accumulatedText += chunk;
+            const cleanedText = cleanExamText(accumulatedText);
+            const htmlBody = convertNewlinesToBr(cleanedText);
+            setExamContent(headerHtml + `<div style="font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.2; text-align: justify; color: #111;">` + htmlBody + `</div>`);
+          },
+          onDone: () => {
+            resolve();
+          },
+          onError: (err) => {
+            reject(new Error(err));
+          }
+        });
+      });
+
+      await Promise.race([aiPromise, timeoutPromise]);
+      notify.success("Exam paper generated successfully!");
+    } catch (err: any) {
+      logError("Exam Generator", err, "high");
+      notify.error(err);
+      
+      // Keep whatever text was successfully generated, but add a retry prompt
+      if (accumulatedText.length > 0) {
+        setExamContent(prev => prev + `<br><br><div style="color: red; font-weight: bold; border: 1px solid red; padding: 10px;">Generation Interrupted. Please click 'Regenerate' or manually complete the paper.</div>`);
       }
-    });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // Clear Editor

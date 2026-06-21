@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { RouteErrorComponent } from "@/components/ErrorBoundary";
 import { TopBar } from "@/components/layout/TopBar";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ import { generateClassList } from "@/lib/pdf";
 import { useDebounce } from "@/lib/debounce";
 import { logActivity, getAuthSync } from "@/lib/auth";
 import { useAllowedClasses } from "@/hooks/use-allowed-classes";
+import { notify } from "@/lib/toast-utils";
+import { logError } from "@/lib/error-logger";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/students")({
@@ -30,6 +33,7 @@ export const Route = createFileRoute("/_app/students")({
     ],
   }),
   component: StudentsPage,
+  errorComponent: RouteErrorComponent,
 });
 
 const GHANA_REGIONS = [
@@ -106,6 +110,7 @@ function StudentsPage() {
   const [promoteTo, setPromoteTo] = useState(CLASS_LIST[0]);
   const [importOpen, setImportOpen] = useState(false);
   const [pdfClass, setPdfClass] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   async function handleBulkPromote() {
     if (selected.size === 0) return;
@@ -116,11 +121,14 @@ function StudentsPage() {
     const loader = toast.loading("Updating student classes...");
     try {
       await store.syncAll(updated);
-      toast.success(`${selected.size} students promoted to ${promoteTo}`, { id: loader });
+      notify.success(`${selected.size} students promoted to ${promoteTo}`);
       setSelected(new Set());
       setPromoteOpen(false);
     } catch (err) {
-      toast.error("Failed to promote students", { id: loader });
+      logError("Bulk Promote", err, "high");
+      notify.error(err);
+    } finally {
+      toast.dismiss(loader);
     }
   }
 
@@ -153,39 +161,47 @@ function StudentsPage() {
 
   async function handleSave() {
     if (!validate()) return;
-    if (editing) { 
-      // Do not allow editing student form to overwrite the computed fees status!
-      const { fees, ...restOfForm } = form;
-      await store.update({ ...editing, ...restOfForm }); 
-      logActivity(`Updated student: ${form.name}`); 
-      toast.success("Student updated successfully"); 
-    } else {
-      const newStudent = await store.add(form);
-      logActivity(`Added student: ${form.name}`); 
-      toast.success("Student added successfully"); 
+    setIsSaving(true);
+    try {
+      if (editing) { 
+        // Do not allow editing student form to overwrite the computed fees status!
+        const { fees, ...restOfForm } = form;
+        await store.update({ ...editing, ...restOfForm }); 
+        logActivity(`Updated student: ${form.name}`); 
+        notify.success("Student updated successfully"); 
+      } else {
+        const newStudent = await store.add(form);
+        logActivity(`Added student: ${form.name}`); 
+        notify.success("Student added successfully"); 
 
-      if (form.amountPaid && form.amountPaid > 0) {
-        const newPayment: Payment = {
-          id: generateId(),
-          studentId: newStudent.id,
-          studentName: newStudent.name,
-          class: newStudent.class,
-          totalFee: 0,
-          amountPaid: Number(form.amountPaid),
-          date: new Date().toISOString().split("T")[0],
-          description: "Initial Enrollment Fee"
-        };
-        await paymentStore.add(newPayment);
-        
-        // Dynamically update student's fee status
-        const newStatus = await updateStudentFeeStatus(newStudent.id);
-        const updatedStudents = store.items.map((s) => 
-          s.id === newStudent.id ? { ...s, fees: newStatus } : s
-        );
-        store.setAll(updatedStudents);
+        if (form.amountPaid && form.amountPaid > 0) {
+          const newPayment: Payment = {
+            id: generateId(),
+            studentId: newStudent.id,
+            studentName: newStudent.name,
+            class: newStudent.class,
+            totalFee: 0,
+            amountPaid: Number(form.amountPaid),
+            date: new Date().toISOString().split("T")[0],
+            description: "Initial Enrollment Fee"
+          };
+          await paymentStore.add(newPayment);
+          
+          // Dynamically update student's fee status
+          const newStatus = await updateStudentFeeStatus(newStudent.id);
+          const updatedStudents = store.items.map((s) => 
+            s.id === newStudent.id ? { ...s, fees: newStatus } : s
+          );
+          store.setAll(updatedStudents);
+        }
       }
+      setOpen(false);
+    } catch (err) {
+      logError("Save Student", err, "high");
+      notify.error(err);
+    } finally {
+      setIsSaving(false);
     }
-    setOpen(false);
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -500,8 +516,8 @@ function StudentsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editing ? "Update" : "Add Student"}</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "Saving..." : editing ? "Update" : "Add Student"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
