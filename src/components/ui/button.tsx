@@ -61,6 +61,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const [isPending, setIsPending] = React.useState(false);
 
     const handleClick = React.useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!onClick && props.type === "submit") {
+        // If it's a submit button relying on a form's onSubmit, do not intercept or fake a spin.
+        // The parent form will manage the loading state.
+        return;
+      }
+      
       setIsPending(true);
       const startTime = Date.now();
       try {
@@ -76,7 +82,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         }
         setIsPending(false);
       }
-    }, [onClick]);
+    }, [onClick, props.type]);
 
     if (asChild) {
       return (

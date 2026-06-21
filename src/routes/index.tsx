@@ -79,6 +79,7 @@ function LoginPage() {
     }
 
     setLoading(true);
+    console.log("STEP 1: Login Started");
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
@@ -99,7 +100,8 @@ function LoginPage() {
           password,
         });
 
-        console.log("AUTH RESULT", data, error);
+        console.log("STEP 2: Auth Result", data, error);
+        console.log("STEP 3: Session", data.session);
 
         if (error) throw error;
 
@@ -113,15 +115,15 @@ function LoginPage() {
             .select("*")
             .eq("id", data.user.id)
             .single();
-          console.log("PROFILE RESULT", profile, profileError);
+          console.log("STEP 4: Profile", profile, profileError);
 
           // Fetch role from user_roles table (single source of truth)
           const { data: roles, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", data.user.id);
-          console.log("ROLE RESULT", roles, roleError);
           const role = roles?.[0]?.role || data.user.user_metadata?.role || "parent";
+          console.log("STEP 5: Role", role, roleError);
 
           // Pre-populate parent student links if role is parent
           let studentIds: string[] | undefined = data.user.user_metadata?.studentIds;
@@ -150,7 +152,9 @@ function LoginPage() {
           setAuth(auth);
 
           const dest = role === "teacher" ? "/teacher-dashboard" : role === "parent" ? "/parent-dashboard" : "/dashboard";
+          console.log("STEP 6: Dashboard Route", dest);
           window.location.href = dest;
+          console.log("STEP 7: Navigation Complete");
         } else if (data.user && !data.session) {
           alert("Please confirm your email address!");
           toast.info("Please confirm your email address to log in.");
