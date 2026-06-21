@@ -99,16 +99,28 @@ function LoginPage() {
           password,
         });
 
+        console.log("AUTH RESULT", data, error);
+
         if (error) throw error;
 
         if (data.session && data.user) {
           alert("Login Success! Redirecting...");
           toast.success("Logged in successfully!");
+          
+          // Debug PROFILE RESULT as requested
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", data.user.id)
+            .single();
+          console.log("PROFILE RESULT", profile, profileError);
+
           // Fetch role from user_roles table (single source of truth)
-          const { data: roles } = await supabase
+          const { data: roles, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", data.user.id);
+          console.log("ROLE RESULT", roles, roleError);
           const role = roles?.[0]?.role || data.user.user_metadata?.role || "parent";
 
           // Pre-populate parent student links if role is parent
@@ -142,9 +154,14 @@ function LoginPage() {
         } else if (data.user && !data.session) {
           alert("Please confirm your email address!");
           toast.info("Please confirm your email address to log in.");
+        } else {
+          // This block catches the edge case where no error is thrown but session/user are null
+          console.error("UNKNOWN AUTH STATE: No error thrown, but user/session are missing", data);
+          throw new Error("Invalid response from authentication server. Please try again.");
         }
       }
     } catch (err: any) {
+      console.error("AUTH CATCH BLOCK", err);
       setLoginError(err.message || "Authentication failed");
       alert("Error: " + (err.message || "Authentication failed"));
       toast.error(err.message || "Authentication failed");
